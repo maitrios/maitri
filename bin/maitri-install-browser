@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # maitri:summary=Install a supported browser
-# maitri:args=<chrome|brave|brave-origin|edge|firefox|zen>
+# maitri:args=<helium|chrome|brave|brave-origin|edge|firefox|zen>
 # maitri:examples=maitri install browser firefox | maitri install browser brave
 
 setup_policy_directory() {
@@ -33,12 +33,19 @@ setup_firefox_wayland() {
 
 case $1 in
 chrome)
+  echo "Installing Helium..."
+  maitri-pkg-aur-add helium-browser-bin || exit 1
+
+  setup_policy_directory /etc/opt/chrome/policies/managed
+  copy_chromium_flags ~/.config/chrome-flags.conf
+  announce_browser_installed "Chrome"
+  ;;
+chrome)
   echo "Installing Chrome..."
   maitri-pkg-aur-add google-chrome || exit 1
 
   setup_policy_directory /etc/opt/chrome/policies/managed
   copy_chromium_flags ~/.config/chrome-flags.conf
-  maitri-theme-set-browser
   announce_browser_installed "Chrome"
   ;;
 edge)
@@ -47,7 +54,6 @@ edge)
 
   setup_policy_directory /etc/opt/edge/policies/managed
   copy_chromium_flags ~/.config/microsoft-edge-stable-flags.conf
-  maitri-theme-set-browser
   announce_browser_installed "Edge"
   ;;
 brave)
@@ -56,7 +62,6 @@ brave)
 
   setup_policy_directory /etc/brave/policies/managed
   copy_chromium_flags ~/.config/brave-flags.conf
-  maitri-theme-set-browser
   announce_browser_installed "Brave"
   ;;
 brave-origin)
@@ -67,7 +72,6 @@ brave-origin)
   mkdir -p ~/.config
   # FIXME: Use normal chromium flags when Brave Origin wrapper has been fixed
   echo "--load-extension=~/.local/share/maitri/default/chromium/extensions/copy-url" > ~/.config/brave-origin-beta-flags.conf
-  maitri-theme-set-browser
   announce_browser_installed "Brave Origin"
   ;;
 firefox)
@@ -87,7 +91,7 @@ zen)
   announce_browser_installed "Zen"
   ;;
 *)
-  echo "Usage: maitri-install-browser <chrome|brave|brave-origin|edge|firefox|zen>"
+  echo "Usage: maitri-install-browser <helium|chrome|brave|brave-origin|edge|firefox|zen>"
   exit 1
   ;;
 esac

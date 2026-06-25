@@ -64,7 +64,6 @@ maitri-restart-helix
 # Change app-specific themes
 maitri-theme-set-foot
 maitri-theme-set-gnome
-maitri-theme-set-browser
 maitri-theme-set-vscode
 maitri-theme-set-obsidian
 maitri-theme-set-keyboard
