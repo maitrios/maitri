@@ -44,24 +44,8 @@ def prefs(name):
         "extensions": {
             "theme": {"id": ""},
         },
-        # Helium-specific defaults: skip the first-run onboarding and pre-consent to
-        # Helium's services so features like bangs and uBlock asset updates work out of
-        # the box. Keys verified against the installed helium binary's pref_names; the
-        # user can change all of this later.
-        "helium": {
-            "completed_onboarding": True,
-            "services": {
-                "enabled": True,
-                "user_consented": True,
-                "ext_proxy": True,
-                "bangs": True,
-                "browser_updates": False,   # maitri updates Helium via AUR/pacman, not in-browser
-                "spellcheck_files": True,
-                "ublock_assets": True,
-                "disable_schema_alerts": False,
-                "schema_version": 1,
-            },
-        },
+        # Helium services are intentionally NOT pre-consented here — the user goes through
+        # Helium's own first-run onboarding and chooses whether to enable them.
         # Vertical tabs are Helium's default layout; lock the strip width/collapse state.
         "vertical_tabs": {"collapsed_state": False, "uncollapsed_width": 200},
         # Default to Google search (changeable by the user). prepopulate_id 1 binds it to
