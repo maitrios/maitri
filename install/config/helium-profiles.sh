@@ -29,7 +29,7 @@ local_state = {
             "work":     {"name": "Work", "is_using_default_name": False,
                          "avatar_icon": "chrome://theme/IDR_PROFILE_AVATAR_26"},
             "personal": {"name": "Personal", "is_using_default_name": False,
-                         "avatar_icon": "chrome://theme/IDR_PROFILE_AVATAR_30"},
+                         "avatar_icon": "chrome://theme/IDR_PROFILE_AVATAR_26"},
         },
         "profiles_order": ["work", "personal"],
         "last_used": "work",
