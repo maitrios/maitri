@@ -45,9 +45,8 @@ installers (`maitri install codex` / `gemini`)
 
 ## Browser
 
-**Helium** (default) — two seeded profiles, **Work** and **Personal** (no forced theme; Helium's default
-appearance). **Chromium** kept (drives the web-app launchers). See
-[`install/config/helium-profiles.sh`](install/config/helium-profiles.sh).
+**Helium** (default)
+**Chromium** (drives the web-app launchers)
 
 ## Media & creative
 
@@ -103,4 +102,3 @@ retroarch, moonlight, geforce-now).
 | Default browser / editor / file handlers | `install/config/mimetypes.sh` |
 | Default shell | `install/config/fish-shell.sh` |
 | Default theme | `install/config/theme.sh` |
-| Helium profiles | `install/config/helium-profiles.sh` |
