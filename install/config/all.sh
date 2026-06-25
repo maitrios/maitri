@@ -16,7 +16,6 @@ run_logged $MAITRI_INSTALL/config/fix-powerprofilesctl-shebang.sh
 run_logged $MAITRI_INSTALL/config/docker.sh
 run_logged $MAITRI_INSTALL/config/mimetypes.sh
 run_logged $MAITRI_INSTALL/config/fish-shell.sh
-run_logged $MAITRI_INSTALL/config/browser-extensions.sh
 run_logged $MAITRI_INSTALL/config/vscode.sh
 run_logged $MAITRI_INSTALL/config/helium-profiles.sh
 run_logged $MAITRI_INSTALL/config/user-dirs.sh

@@ -17,8 +17,6 @@ if [[ ! -e "$helium_dir/Local State" ]]; then
 import json, os, sys
 d = sys.argv[1]
 
-ONEPASSWORD = "khgocmkkpikpnmmkgmdnfckapcdkgfaf"  # 1Password beta extension
-
 # Custom profile directory names. Chromium identifies profiles by their directory key
 # as recorded in Local State, so naming the dirs "work"/"personal" (instead of the
 # stock "Default"/"Profile 1") works as long as every reference below stays consistent.
@@ -45,19 +43,11 @@ def prefs(name):
         "profile": {"name": name},
         "extensions": {
             "theme": {"id": ""},
-            # Pin 1Password to the toolbar by default (preinstalled via managed policy
-            # in browser-extensions.sh).
-            "pinned_extensions": [ONEPASSWORD],
         },
-        # Helium-specific defaults. Pre-consent to Helium services so the 1Password
-        # extension we preinstall via managed policy actually downloads: Helium is
-        # ungoogled-chromium and routes all Web Store downloads through its services
-        # proxy (proxy-extension-downloads.patch in imputnet/helium), gated on
-        # services.enabled && services.user_consented && services.ext_proxy.
-        # user_consented defaults to false until onboarding, so without this the
-        # policy-listed extension is silently skipped from every update check. Keys
-        # verified against the installed helium binary's pref_names. The user can still
-        # change all of this later.
+        # Helium-specific defaults: skip the first-run onboarding and pre-consent to
+        # Helium's services so features like bangs and uBlock asset updates work out of
+        # the box. Keys verified against the installed helium binary's pref_names; the
+        # user can change all of this later.
         "helium": {
             "completed_onboarding": True,
             "services": {

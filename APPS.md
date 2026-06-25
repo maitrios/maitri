@@ -45,10 +45,9 @@ installers (`maitri install codex` / `gemini`)
 
 ## Browser
 
-**Helium** (default) — two seeded profiles, **Work** (Spark theme) and **Personal** (Orchid theme), with the
-1Password browser extension preinstalled. **Chromium** kept (drives the web-app launchers). See
-[`install/config/helium-profiles.sh`](install/config/helium-profiles.sh) and
-[`install/config/browser-extensions.sh`](install/config/browser-extensions.sh).
+**Helium** (default) — two seeded profiles, **Work** and **Personal** (no forced theme; Helium's default
+appearance). **Chromium** kept (drives the web-app launchers). See
+[`install/config/helium-profiles.sh`](install/config/helium-profiles.sh).
 
 ## Media & creative
 
@@ -105,4 +104,3 @@ retroarch, moonlight, geforce-now).
 | Default shell | `install/config/fish-shell.sh` |
 | Default theme | `install/config/theme.sh` |
 | Helium profiles | `install/config/helium-profiles.sh` |
-| Preinstalled browser extensions | `install/config/browser-extensions.sh` |
