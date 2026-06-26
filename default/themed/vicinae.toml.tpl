@@ -46,8 +46,13 @@ selection = { background = "{{ accent }}", foreground = "{{ background }}" }
 default = "{{ accent }}"
 visited = "{{ color5 }}"
 
+# Input field borders use {{ accent }} (not {{ selection_background }}): the input
+# box fill is secondary_background == selection_background, so a selection_background
+# border is invisible and fields read as featureless rectangles. color8 is unsafe here
+# (== near-white on light themes like daybreak). accent is distinct from the fill on
+# both dark and light palettes, so fields stay clearly delineated.
 [colors.input]
-border = "{{ selection_background }}"
+border = "{{ accent }}"
 border_focus = "{{ accent }}"
 border_error = "{{ color1 }}"
 
