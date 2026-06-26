@@ -59,9 +59,9 @@ localsend · gnome-calculator
 
 ## Desktop (Hyprland) stack
 
-hyprland (+ hypridle, hyprlock, hyprpicker, hyprsunset) · waybar · mako · walker (launcher, from AUR) ·
-swaybg · swayosd · sddm (login) · plymouth (boot splash) · uwsm · xdg-desktop-portals · gnome-keyring ·
-polkit-gnome
+hyprland (+ hypridle, hyprlock, hyprpicker, hyprsunset) · waybar · mako · vicinae (primary launcher) ·
+walker (legacy launcher, from AUR — runs alongside Vicinae during the transition) · swaybg · swayosd ·
+sddm (login) · plymouth (boot splash) · uwsm · xdg-desktop-portals · gnome-keyring · polkit-gnome
 
 ## Files, system & input
 

@@ -24,7 +24,8 @@ and its own identity. We no longer track Omarchy upstream, so all future mainten
 - **maitri's own packages** (currently the signing keyring) come from the **`[maitri]`** pacman repo,
   hosted as a GitHub release under `kindness-ai/maitri-pkgs` and signed with the maitri signing key
   (delivered by the `maitri-keyring` package).
-- A few apps (the Walker launcher, optional dictation) install from the **AUR** via `yay`.
+- A few apps (the legacy Walker launcher, optional dictation) install from the **AUR** via `yay`. Vicinae,
+  the primary launcher, runs alongside Walker during the transition.
 
 ## Migrations
 

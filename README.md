@@ -51,7 +51,7 @@ maitri ships seven themes — six dark plus **Daybreak** (light) — with a shar
 
 ## What's inside
 
-- **Desktop** — Hyprland (Wayland), Waybar, Walker launcher, SDDM login, Plymouth boot splash.
+- **Desktop** — Hyprland (Wayland), Waybar, Vicinae launcher (Walker still runs alongside during the transition), SDDM login, Plymouth boot splash.
 - **Defaults** — fish shell, Helium browser, VS Code editor.
 - **Apps** — a curated set of GUI, CLI, and web apps. See [APPS.md](APPS.md).
 - **Themes** — seven original maitri themes (Spark default, plus the light Daybreak).
