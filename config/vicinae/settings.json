@@ -2,13 +2,31 @@
   "$schema": "https://vicinae.com/schemas/config.json",
   "close_on_focus_loss": true,
   "font": {
-    "normal": { "family": "Maple Mono NF", "size": 10.5 }
+    "normal": {
+      "family": "Maple Mono NF",
+      "size": 10.5
+    }
   },
   "theme": {
-    "light": { "name": "maitri", "icon_theme": "auto" },
-    "dark": { "name": "maitri", "icon_theme": "auto" }
+    "light": {
+      "name": "maitri",
+      "icon_theme": "auto"
+    },
+    "dark": {
+      "name": "maitri",
+      "icon_theme": "auto"
+    }
   },
   "launcher_window": {
-    "blur": { "enabled": true }
+    "blur": {
+      "enabled": true
+    },
+    "opacity": 0.75,
+    "client_side_decorations": {
+      "enabled": true,
+      "rounding": 0,
+      "border_width": 1,
+      "shadow_size": 12
+    }
   }
 }

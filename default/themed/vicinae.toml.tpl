@@ -19,7 +19,7 @@ inherits = "@@inherits@@"
 [colors.core]
 accent = "{{ accent }}"
 accent_foreground = "{{ background }}"
-background = "#D9{{ background_strip }}"  # ~85% alpha (ARGB) → frosted glass over the Hyprland blur
+background = "{{ background }}"
 foreground = "{{ foreground }}"
 secondary_background = "{{ selection_background }}"
 border = "{{ selection_background }}"
