@@ -1,15 +1,15 @@
 #!/bin/bash
 
-# maitri:summary=Pick one option with Walker
+# maitri:summary=Pick one option
 # maitri:group=menu
 # maitri:name=select
-# maitri:args=prompt option... [-- walker args...]
+# maitri:args=prompt option... [-- extra args...]
 # maitri:examples=maitri menu select Format jpg png|maitri-menu-select Resolution 4k 1080p 720p -- --width 400
 
 set -euo pipefail
 
 if (( $# < 2 )); then
-  echo "Usage: maitri-menu-select <prompt> <option>... [-- walker args...]" >&2
+  echo "Usage: maitri-menu-select <prompt> <option>... [-- extra args...]" >&2
   exit 1
 fi
 
@@ -17,12 +17,12 @@ prompt="$1"
 shift
 
 options=()
-walker_args=()
+extra_args=()
 
 while (( $# > 0 )); do
   if [[ $1 == "--" ]]; then
     shift
-    walker_args=("$@")
+    extra_args=("$@")
     break
   fi
 
@@ -31,7 +31,7 @@ while (( $# > 0 )); do
 done
 
 if (( ${#options[@]} == 0 )); then
-  echo "Usage: maitri-menu-select <prompt> <option>... [-- walker args...]" >&2
+  echo "Usage: maitri-menu-select <prompt> <option>... [-- extra args...]" >&2
   exit 1
 fi
 

@@ -14,8 +14,8 @@ if maitri-toggle-enabled screensaver-off && [[ $1 != "force" ]]; then
   exit 1
 fi
 
-# Silently quit Walker on overlay
-walker -q
+# Silently close the launcher on overlay
+vicinae close >/dev/null 2>&1
 
 focused=$(maitri-hyprland-monitor-focused)
 terminal=$(xdg-terminal-exec --print-id)

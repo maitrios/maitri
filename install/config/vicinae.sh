@@ -1,4 +1,4 @@
-# Vicinae launcher (Phase 1: runs alongside Walker; Super+Space opens Vicinae)
+# Vicinae launcher: install vicinae-bin, enable the service, theme + extension
 #
 # vicinae-bin is currently AUR-only. Once it is mirrored into the [maitri]
 # package channel, move it to install/maitri-apps.packages and drop this install.

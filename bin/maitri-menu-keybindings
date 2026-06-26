@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# maitri:summary=Display Hyprland keybindings defined in your configuration using walker for an interactive search menu.
+# maitri:summary=Display Hyprland keybindings defined in your configuration using Vicinae for an interactive search menu.
 
 declare -A KEYCODE_SYM_MAP
 

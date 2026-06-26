@@ -18,7 +18,6 @@ if [[ -f $FIRST_RUN_MODE ]]; then
   bash "$MAITRI_PATH/install/first-run/gnome-theme.sh"
   bash "$MAITRI_PATH/install/first-run/swayosd.sh"
   bash "$MAITRI_PATH/install/first-run/gtk-primary-paste.sh"
-  bash "$MAITRI_PATH/install/first-run/elephant.sh"
   maitri-hook-install post-update "$MAITRI_PATH/install/first-run/install-voxtype.hook"
   sudo rm -f /etc/sudoers.d/first-run
 

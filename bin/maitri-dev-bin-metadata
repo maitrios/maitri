@@ -61,7 +61,7 @@ Do not define:
   false flags or empty args
 
 Examples:
-  # maitri:summary=Restart Walker and related user services
+  # maitri:summary=Restart the Vicinae launcher
 
   # maitri:summary=Take a screenshot
   # maitri:group=capture
