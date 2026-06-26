@@ -22,6 +22,7 @@ run_logged $MAITRI_INSTALL/config/user-dirs.sh
 run_logged $MAITRI_INSTALL/config/nautilus-python.sh
 run_logged $MAITRI_INSTALL/config/localdb.sh
 run_logged $MAITRI_INSTALL/config/walker-elephant.sh
+run_logged $MAITRI_INSTALL/config/vicinae.sh
 run_logged $MAITRI_INSTALL/config/fast-shutdown.sh
 run_logged $MAITRI_INSTALL/config/unmount-fuse.sh
 run_logged $MAITRI_INSTALL/config/sudoless-asdcontrol.sh

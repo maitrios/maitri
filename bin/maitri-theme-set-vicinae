@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# maitri:summary=Apply the current maitri theme to Vicinae
+# maitri:hidden=true
+
+theme_file=~/.config/maitri/current/theme/vicinae.toml
+colors_file=~/.config/maitri/current/theme/colors.toml
+
+maitri-cmd-present vicinae || exit 0
+[[ -f $theme_file ]] || exit 0
+
+# Detect light vs dark from the background luminance so Vicinae inherits the
+# right base palette for any colors our template leaves undefined.
+variant="dark"
+inherits="vicinae-dark"
+if [[ -f $colors_file ]]; then
+  bg=$(awk -F'"' '/^[[:space:]]*background[[:space:]]*=/ { print $2; exit }' "$colors_file")
+  bg="${bg#\#}"
+  if (( ${#bg} >= 6 )); then
+    r=$((16#${bg:0:2}))
+    g=$((16#${bg:2:2}))
+    b=$((16#${bg:4:2}))
+    # Perceived luminance, kept in integer math (0-255 range).
+    lum=$(( (299 * r + 587 * g + 114 * b) / 1000 ))
+    if (( lum > 128 )); then
+      variant="light"
+      inherits="vicinae-light"
+    fi
+  fi
+fi
+
+themes_dir=~/.local/share/vicinae/themes
+mkdir -p "$themes_dir"
+
+# The template leaves @@variant@@/@@inherits@@ for us (the {{ }} placeholders
+# are already filled in by maitri-theme-set-templates from colors.toml).
+sed -e "s|@@variant@@|$variant|g" -e "s|@@inherits@@|$inherits|g" \
+  "$theme_file" >"$themes_dir/maitri.toml"
+
+# Apply it: persists into settings.json and live-reloads when the server is up.
+vicinae theme set maitri >/dev/null 2>&1 || true

@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# maitri:summary=Overwrite the user Vicinae config with the maitri default and restart it
+
+# The package ships the user service; make sure it is enabled so Vicinae starts
+# on login (uwsm setups rely on the unit rather than an exec-once line).
+if systemctl --user list-unit-files vicinae.service &>/dev/null; then
+  systemctl --user enable vicinae.service &>/dev/null
+fi
+
+maitri-refresh-config vicinae/settings.json
+
+# Regenerate the Vicinae theme from the current maitri theme.
+maitri-theme-set-vicinae
+
+maitri-restart-vicinae
