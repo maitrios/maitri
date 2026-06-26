@@ -243,9 +243,5 @@ output_keybindings() {
 if [[ $1 == "--print" || $1 == "-p" ]]; then
   output_keybindings
 else
-  monitor_height=$(hyprctl monitors -j | jq -r '.[] | select(.focused == true) | .height')
-  menu_height=$((monitor_height * 40 / 100))
-
-  output_keybindings |
-    walker --dmenu -p 'Keybindings' --width 800 --height "$menu_height"
+  output_keybindings | vicinae dmenu -p 'Keybindings'
 fi

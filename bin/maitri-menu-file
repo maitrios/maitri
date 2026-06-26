@@ -45,4 +45,4 @@ done
 find_args+=(")" -printf '%T@\t%p\n')
 
 find "${find_args[@]}" 2>/dev/null | sort -rn | cut -f2- |
-  maitri-launch-walker --dmenu --width 800 --minheight 1 --maxheight 500 -p "$label…" "$@" 2>/dev/null
+  vicinae dmenu -p "$label…" 2>/dev/null

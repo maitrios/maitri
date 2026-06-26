@@ -18,8 +18,8 @@ back_to() {
 }
 
 toggle_existing_menu() {
-  if pgrep -f "walker.*--dmenu" >/dev/null; then
-    walker --close >/dev/null 2>&1
+  if pgrep -f "vicinae dmenu" >/dev/null; then
+    vicinae close >/dev/null 2>&1
     exit 0
   fi
 }
@@ -27,20 +27,9 @@ toggle_existing_menu() {
 menu() {
   local prompt="$1"
   local options="$2"
-  local extra="$3"
-  local preselect="$4"
-
-  read -r -a args <<<"$extra"
-
-  if [[ -n $preselect ]]; then
-    local index
-    index=$(echo -e "$options" | grep -nxF "$preselect" | cut -d: -f1)
-    if [[ -n $index ]]; then
-      args+=("-c" "$index")
-    fi
-  fi
-
-  echo -e "$options" | maitri-launch-walker --dmenu --width 295 --minheight 1 --maxheight 630 -p "$prompt…" "${args[@]}" 2>/dev/null
+  # $3 (extra sizing args) and $4 (preselect) are intentionally ignored: Vicinae
+  # sizes its own window and `vicinae dmenu` has no preselect/current-value flag.
+  echo -e "$options" | vicinae dmenu -p "$prompt…" 2>/dev/null
 }
 
 terminal() {
@@ -93,8 +82,7 @@ show_learn_menu() {
 }
 
 show_trigger_menu() {
-  case $(menu "Trigger" "󰔛  Reminder\n  Capture\n󰧸  Transcode\n  Share\n󰔎  Toggle\n  Hardware") in
-  *Reminder*) show_reminder_menu ;;
+  case $(menu "Trigger" "  Capture\n󰧸  Transcode\n  Share\n󰔎  Toggle\n  Hardware") in
   *Capture*) show_capture_menu ;;
   *Transcode*) maitri-transcode || back_to show_trigger_menu ;;
   *Share*) show_share_menu ;;
@@ -102,41 +90,6 @@ show_trigger_menu() {
   *Hardware*) show_hardware_menu ;;
   *) show_main_menu ;;
   esac
-}
-
-show_reminder_menu() {
-  case $(menu "Reminder" "󰔛  Set one\n󰔛  Show all\n󰔛  Clear all") in
-  *Set*) show_custom_reminder_input ;;
-  *"Show all"*) maitri-reminder show ;;
-  *"Clear all"*) maitri-reminder clear ;;
-  *) back_to show_trigger_menu ;;
-  esac
-}
-
-show_custom_reminder_input() {
-  local minutes
-  minutes=$(maitri-menu-input "Remind in minutes")
-
-  if [[ $minutes =~ ^[0-9]+$ ]] && ((minutes > 0)); then
-    show_reminder_message_input "$minutes"
-  elif [[ -n $minutes ]]; then
-    maitri-notification-send "󰔛" "Invalid reminder" "Enter the number of minutes" -u critical
-    show_custom_reminder_input
-  else
-    back_to show_reminder_menu
-  fi
-}
-
-show_reminder_message_input() {
-  local minutes="$1"
-  local message
-  message=$(maitri-menu-input "Reminder message")
-
-  if [[ -n $message ]]; then
-    maitri-reminder "$minutes" "$message"
-  else
-    maitri-reminder "$minutes"
-  fi
 }
 
 show_capture_menu() {
@@ -266,7 +219,7 @@ show_hardware_touchpad_haptics_menu() {
 show_style_menu() {
   case $(menu "Style" "󰸌  Theme\n󰟵  Unlock\n  Font\n  Background\n  Hyprland\n󱄄  Screensaver\n  About") in
   *Theme*) show_theme_menu ;;
-  *Unlock*) maitri-launch-walker -m menus:maitriunlocks --width 800 --minheight 400 ;;
+  *Unlock*) maitri-launch-vicinae vicinae://launch/@kindness-ai/maitri/unlock-picker ;;
   *Font*) show_font_menu ;;
   *Background*) show_background_menu ;;
   *Hyprland*) open_in_editor ~/.config/hypr/looknfeel.conf ;;
@@ -295,11 +248,11 @@ show_screensaver_menu() {
 }
 
 show_theme_menu() {
-  maitri-launch-walker -m menus:maitrithemes --width 800 --minheight 400
+  maitri-launch-vicinae vicinae://launch/@kindness-ai/maitri/theme-picker
 }
 
 show_background_menu() {
-  maitri-launch-walker -m menus:maitriBackgroundSelector --width 800 --minheight 400
+  maitri-launch-vicinae vicinae://launch/@kindness-ai/maitri/background-picker
 }
 
 show_font_menu() {
@@ -853,14 +806,12 @@ show_main_menu() {
 
 go_to_menu() {
   case "${1,,}" in
-  *apps*) walker -p "Launch…" ;;
+  *apps*) maitri-launch-vicinae ;;
   *learn*) show_learn_menu ;;
   *trigger*) show_trigger_menu ;;
   *toggle*) show_toggle_menu ;;
   *hardware*) show_hardware_menu ;;
   *share*) show_share_menu ;;
-  *reminder-set*) show_custom_reminder_input ;;
-  *reminder*) show_reminder_menu ;;
   *background*) show_background_menu ;;
   *capture*) show_capture_menu ;;
   *style*) show_style_menu ;;

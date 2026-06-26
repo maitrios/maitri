@@ -35,4 +35,4 @@ if (( ${#options[@]} == 0 )); then
   exit 1
 fi
 
-printf '%s\n' "${options[@]}" | maitri-launch-walker --dmenu --width 295 --minheight 1 --maxheight 300 -p "$prompt…" "${walker_args[@]}" 2>/dev/null
+printf '%s\n' "${options[@]}" | vicinae dmenu -p "$prompt…" 2>/dev/null

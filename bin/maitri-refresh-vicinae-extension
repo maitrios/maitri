@@ -3,7 +3,7 @@
 # maitri:summary=Download and install the maitri Vicinae extension prebuilt bundle
 
 # Fetches a prebuilt release of the maitri Vicinae extension and unpacks it into
-# the user's Vicinae extensions dir so the theme/background/reminder keybinds
+# the user's Vicinae extensions dir so the theme/background/unlock keybinds
 # (vicinae://launch/@kindness-ai/maitri/<command>) resolve. No Node toolchain
 # required on the user machine.
 #
@@ -29,7 +29,7 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 
 download_failed() {
   echo "maitri: could not fetch the Vicinae extension ($ASSET); skipping." >&2
-  echo "maitri: theme/background/reminder keybinds stay inactive until it installs." >&2
+  echo "maitri: theme/background/unlock keybinds stay inactive until it installs." >&2
   exit 0
 }
 
