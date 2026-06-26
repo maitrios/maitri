@@ -1,14 +1,5 @@
 title = "maitri gitleaks config"
 
-# Use gitleaks' upstream default ruleset, plus the allowlist below.
+# Use gitleaks' upstream default ruleset.
 [extend]
 useDefault = true
-
-[[allowlists]]
-description = """
-Public Chromium OAuth2 client credential used to enable Google sign-in in Chromium. The client
-"secret" is non-confidential (native-app OAuth; embedded in every Chromium build and documented on
-the Arch Wiki) — it is not a maitri secret. See bin/maitri-install-chromium-google-account.
-"""
-paths = ['''bin/maitri-install-chromium-google-account''']
-regexes = ['''OTJgUOQcT7lO7GsGZq2G4IlT''']

@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # maitri:summary=Set the default browser for maitri and XDG handlers
-# maitri:args=[chromium|chrome|brave|brave-origin|edge|firefox|zen]
+# maitri:args=[helium|chrome|brave|brave-origin|edge|firefox|zen]
 # maitri:examples=maitri default browser firefox | maitri default browser brave
 
 if (($# == 0)); then
   case "$(xdg-settings get default-web-browser)" in
-  chromium.desktop) echo "chromium" ;;
+  helium.desktop) echo "helium" ;;
   google-chrome.desktop) echo "chrome" ;;
   brave-browser.desktop) echo "brave" ;;
   brave-origin-beta.desktop) echo "brave-origin" ;;
@@ -19,7 +19,7 @@ if (($# == 0)); then
 fi
 
 case "$1" in
-chromium) desktop_id="chromium.desktop"; name="Chromium"; glyph="" ;;
+helium) desktop_id="helium.desktop"; name="Helium"; glyph="󰖟" ;;
 chrome) desktop_id="google-chrome.desktop"; name="Chrome"; glyph="󰊯" ;;
 brave) desktop_id="brave-browser.desktop"; name="Brave"; glyph="󰖟" ;;
 brave-origin) desktop_id="brave-origin-beta.desktop"; name="Brave Origin"; glyph="󰖟" ;;
@@ -27,7 +27,7 @@ edge) desktop_id="microsoft-edge.desktop"; name="Edge"; glyph="󰇩" ;;
 firefox) desktop_id="firefox.desktop"; name="Firefox"; glyph="󰈹" ;;
 zen) desktop_id="zen.desktop"; name="Zen"; glyph="󰰷" ;;
 *)
-  echo "Usage: maitri-default-browser <chromium|chrome|brave|brave-origin|edge|firefox|zen>"
+  echo "Usage: maitri-default-browser <helium|chrome|brave|brave-origin|edge|firefox|zen>"
   exit 1
   ;;
 esac
