@@ -100,5 +100,6 @@ retroarch, moonlight, geforce-now).
 | GUI apps from AUR (VS Code, Sublime, Warp, Helium) | `install/packaging/maitri-apps.sh` |
 | AI / coding CLIs | `install/packaging/npx.sh` |
 | Default browser / editor / file handlers | `install/config/mimetypes.sh` |
+| 1Password ↔ Helium browser integration | `install/config/1password-browser.sh` |
 | Default shell | `install/config/fish-shell.sh` |
 | Default theme | `install/config/theme.sh` |
