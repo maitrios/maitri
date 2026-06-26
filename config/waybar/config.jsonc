@@ -40,7 +40,7 @@
     }
   },
   "custom/maitri": {
-    "format": "<span font='maitri'>\ue900</span>",
+    "format": "  ",
     "on-click": "maitri-menu",
     "on-click-right": "xdg-terminal-exec",
     "tooltip-format": "maitri Menu\n\nSuper + Alt + Space"

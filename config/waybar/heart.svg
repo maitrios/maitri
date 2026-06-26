@@ -1,0 +1,9 @@
+<svg width="90" height="90" viewBox="0 0 90 94" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="maitri-grad" x1="6" y1="7" x2="84" y2="87" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#82AAFF"/>
+      <stop offset="1" stop-color="#E59BFF"/>
+    </linearGradient>
+  </defs>
+  <path d="M45 87 C45 87 6 60 6 32 C6 16.5 18 7 31 7 C39 7 44.2 12.5 45 18.5 C45.8 12.5 51 7 59 7 C72 7 84 16.5 84 32 C84 60 45 87 45 87 Z" fill="url(#maitri-grad)"/>
+</svg>
