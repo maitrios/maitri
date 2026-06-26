@@ -1,0 +1,75 @@
+#!/bin/bash
+
+# maitri:summary=Download and install the maitri Vicinae extension prebuilt bundle
+
+# Fetches a prebuilt release of the maitri Vicinae extension and unpacks it into
+# the user's Vicinae extensions dir so the theme/background/reminder keybinds
+# (vicinae://launch/@kindness-ai/maitri/<command>) resolve. No Node toolchain
+# required on the user machine.
+#
+# ASSUMPTIONS (match the CI agent that produces the release):
+# - Repo: kindness-ai/vicinae-maitri
+# - Release asset: maitri-vicinae-extension.tar.gz (unpacks directly into the
+#   target dir: package.json + *.js + assets/)
+# - Checksum asset: maitri-vicinae-extension.tar.gz.sha256
+# The repo is currently PRIVATE: `gh release download` needs an authenticated
+# gh; the curl fallback only works once the repo (or release) is public.
+
+if maitri-cmd-missing vicinae; then
+  exit 0
+fi
+
+REPO="kindness-ai/vicinae-maitri"
+ASSET="maitri-vicinae-extension.tar.gz"
+CURL_URL="https://github.com/$REPO/releases/latest/download/$ASSET"
+DEST="$HOME/.local/share/vicinae/extensions/maitri"
+
+TMP_DIR=$(mktemp -d)
+trap 'rm -rf "$TMP_DIR"' EXIT
+
+download_failed() {
+  echo "maitri: could not fetch the Vicinae extension ($ASSET); skipping." >&2
+  echo "maitri: theme/background/reminder keybinds stay inactive until it installs." >&2
+  exit 0
+}
+
+# Prefer the authenticated gh path (works while the repo is private); fall back
+# to a plain curl of the public latest-release URL.
+if maitri-cmd-present gh; then
+  if ! gh release download --repo "$REPO" --pattern "$ASSET*" --dir "$TMP_DIR" &>/dev/null; then
+    download_failed
+  fi
+else
+  if ! curl -fsSL -o "$TMP_DIR/$ASSET" "$CURL_URL"; then
+    download_failed
+  fi
+  curl -fsSL -o "$TMP_DIR/$ASSET.sha256" "$CURL_URL.sha256" &>/dev/null || true
+fi
+
+if [[ ! -f "$TMP_DIR/$ASSET" ]]; then
+  download_failed
+fi
+
+# Verify the checksum when the release ships one.
+if [[ -f "$TMP_DIR/$ASSET.sha256" ]]; then
+  if ! (cd "$TMP_DIR" && sha256sum --check --status "$ASSET.sha256"); then
+    echo "maitri: Vicinae extension checksum mismatch; skipping." >&2
+    exit 0
+  fi
+fi
+
+# Unpack into a staging dir first so a bad tarball never clobbers a good install.
+STAGE="$TMP_DIR/stage"
+mkdir -p "$STAGE"
+if ! tar -xzf "$TMP_DIR/$ASSET" -C "$STAGE"; then
+  echo "maitri: Vicinae extension archive could not be unpacked; skipping." >&2
+  exit 0
+fi
+
+# Clean-replace the target dir contents.
+rm -rf "$DEST"
+mkdir -p "$DEST"
+cp -a "$STAGE/." "$DEST/"
+
+# Manifest changes need a restart before the new commands are indexed.
+maitri-restart-vicinae
