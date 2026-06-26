@@ -1,0 +1,15 @@
+# maitri snapshots /home on an hourly+daily timeline so users can roll back broken configs
+SUBVOLUME="/home"
+FSTYPE="btrfs"
+
+NUMBER_CLEANUP="yes"
+NUMBER_LIMIT="10"
+NUMBER_LIMIT_IMPORTANT="10"
+
+TIMELINE_CREATE="yes"
+TIMELINE_CLEANUP="yes"
+TIMELINE_LIMIT_HOURLY="10"
+TIMELINE_LIMIT_DAILY="7"
+TIMELINE_LIMIT_WEEKLY="0"
+TIMELINE_LIMIT_MONTHLY="0"
+TIMELINE_LIMIT_YEARLY="0"

@@ -37,6 +37,11 @@ maitri is a **living config** — improvements land in this repo and every insta
   run anytime: it takes a system snapshot first, then updates incrementally.
 - **`maitri reinstall`** — re-clone maitri fresh (a clean refresh, or recovery if something's off).
 
+Your `/home` is also snapshotted on its own hourly/daily timeline (kept separate from the root
+snapshots), so a botched config edit is recoverable. To roll a file back, browse the snapshots under
+`/home/.snapshots/<N>/snapshot/` and copy it out, or use
+`sudo snapper -c home undochange <N>..0 <path>`.
+
 ## Themes
 
 maitri ships seven themes — six dark plus **Daybreak** (light) — with a shared vivid palette. **Spark**
