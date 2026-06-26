@@ -8,13 +8,13 @@ historical origin context.
 ## Defaults
 
 - **Shell** → fish
-- **Browser** → Helium (Chromium kept — it powers the web-app launchers)
+- **Browser** → Helium (also the engine behind the web-app launchers)
 - **Editor** → VS Code
 - **Theme** → Spark (deep blue)
 
 ## Web apps
 
-Source: [`install/packaging/webapps.sh`](install/packaging/webapps.sh). Chromium PWA launchers; sessions
+Source: [`install/packaging/webapps.sh`](install/packaging/webapps.sh). Helium PWA launchers; sessions
 persist in the shared profile so you stay logged in.
 
 | App | Notes |
@@ -45,8 +45,7 @@ installers (`maitri install codex` / `gemini`)
 
 ## Browser
 
-**Helium** (default)
-**Chromium** (drives the web-app launchers)
+**Helium** (default, and the engine behind the web-app launchers)
 
 ## Media & creative
 

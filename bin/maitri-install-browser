@@ -16,7 +16,7 @@ announce_browser_installed() {
 
 copy_chromium_flags() {
   mkdir -p ~/.config
-  cp -f "${MAITRI_PATH:-$HOME/.local/share/maitri}/config/chromium-flags.conf" "$1"
+  cp -f "${MAITRI_PATH:-$HOME/.local/share/maitri}/config/helium-browser-flags.conf" "$1"
 }
 
 setup_firefox_preferences() {
@@ -32,13 +32,13 @@ setup_firefox_wayland() {
 }
 
 case $1 in
-chrome)
+helium)
   echo "Installing Helium..."
   maitri-pkg-aur-add helium-browser-bin || exit 1
 
-  setup_policy_directory /etc/opt/chrome/policies/managed
-  copy_chromium_flags ~/.config/chrome-flags.conf
-  announce_browser_installed "Chrome"
+  setup_policy_directory /etc/helium/policies/managed
+  copy_chromium_flags ~/.config/helium-browser-flags.conf
+  announce_browser_installed "Helium"
   ;;
 chrome)
   echo "Installing Chrome..."

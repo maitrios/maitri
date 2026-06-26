@@ -1,5 +1,5 @@
-# maitri default web apps. Each line installs a Chromium PWA launcher; sessions
-# persist in the shared Chromium profile, so you stay logged in across launches.
+# maitri default web apps. Each line installs a Helium PWA launcher; sessions
+# persist in the shared Helium profile, so you stay logged in across launches.
 
 maitri-webapp-install "GitHub" https://github.com/ GitHub.png
 maitri-webapp-install "Figma" https://figma.com/ Figma.png
