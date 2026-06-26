@@ -18,6 +18,13 @@ maitri-refresh-config vicinae/settings.json
 # Generate the Vicinae theme from the current maitri theme, if one is set.
 maitri-theme-set-vicinae
 
+# TODO: install the maitri Vicinae extension (kindness-ai/vicinae-maitri) into
+# ~/.local/share/vicinae/extensions/maitri. The theme/background/reminder
+# keybinds open it via vicinae://launch/@kindness-ai/maitri/<command>, so those
+# keys are dead until it ships. Pending distribution: publish a prebuilt bundle
+# (CI) — avoid requiring a Node toolchain on user machines — then fetch+unpack
+# it here. Repo is currently private.
+
 # Restart Vicinae after package upgrades so the running server picks up changes.
 sudo mkdir -p /etc/pacman.d/hooks
 sudo tee /etc/pacman.d/hooks/vicinae-restart.hook > /dev/null << EOF
