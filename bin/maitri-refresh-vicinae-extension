@@ -1,35 +1,53 @@
 #!/bin/bash
 
-# maitri:summary=Download and install the maitri Vicinae extension prebuilt bundle
+# maitri:summary=Install the maitri Vicinae extension into the user's extensions dir
 
-# Fetches a prebuilt release of the maitri Vicinae extension and unpacks it into
-# the user's Vicinae extensions dir so the theme/background/unlock keybinds
-# (vicinae://launch/@kindness-ai/maitri/<command>) resolve. No Node toolchain
-# required on the user machine.
+# Installs the maitri Vicinae extension so the menu/keybindings commands resolve
+# (vicinae://launch/@kindness-ai/maitri/<command>). No Node toolchain required.
 #
-# ASSUMPTIONS (match the CI agent that produces the release):
+# Prefers the packaged bundle shipped via the [maitri] channel
+# (/usr/share/maitri/vicinae-extension), so this works on an offline install. Falls
+# back to fetching a prebuilt GitHub release when the package isn't present (e.g. dev
+# machines running maitri straight from a checkout, or to pull a newer build).
+#
+# GitHub fallback assumptions (match the vicinae-maitri release workflow):
 # - Repo: kindness-ai/vicinae-maitri
-# - Release asset: maitri-vicinae-extension.tar.gz (unpacks directly into the
-#   target dir: package.json + *.js + assets/)
-# - Checksum asset: maitri-vicinae-extension.tar.gz.sha256
-# The repo is currently PRIVATE: `gh release download` needs an authenticated
-# gh; the curl fallback only works once the repo (or release) is public.
+# - Release asset: maitri-vicinae-extension.tar.gz (unpacks directly into the target
+#   dir: package.json + *.js + assets/) plus a .sha256 checksum asset.
 
 if maitri-cmd-missing vicinae; then
   exit 0
 fi
 
+DEST="$HOME/.local/share/vicinae/extensions/maitri"
+SYSTEM_SRC="/usr/share/maitri/vicinae-extension"
+
+# Clean-replace $DEST with the contents of $1 (a dir holding package.json + *.js + assets/).
+install_from_dir() {
+  rm -rf "$DEST"
+  mkdir -p "$DEST"
+  cp -a "$1/." "$DEST/"
+  # Manifest changes need a restart before the new commands are indexed.
+  maitri-restart-vicinae
+}
+
+# Preferred path: the packaged bundle (offline-capable, ships with the system).
+if [[ -f "$SYSTEM_SRC/package.json" ]]; then
+  install_from_dir "$SYSTEM_SRC"
+  exit 0
+fi
+
+# Fallback: fetch a prebuilt release from GitHub (needs network).
 REPO="kindness-ai/vicinae-maitri"
 ASSET="maitri-vicinae-extension.tar.gz"
 CURL_URL="https://github.com/$REPO/releases/latest/download/$ASSET"
-DEST="$HOME/.local/share/vicinae/extensions/maitri"
 
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
 
 download_failed() {
   echo "maitri: could not fetch the Vicinae extension ($ASSET); skipping." >&2
-  echo "maitri: theme/background/unlock keybinds stay inactive until it installs." >&2
+  echo "maitri: the maitri menu/keybind commands stay inactive until it installs." >&2
   exit 0
 }
 
@@ -66,10 +84,4 @@ if ! tar -xzf "$TMP_DIR/$ASSET" -C "$STAGE"; then
   exit 0
 fi
 
-# Clean-replace the target dir contents.
-rm -rf "$DEST"
-mkdir -p "$DEST"
-cp -a "$STAGE/." "$DEST/"
-
-# Manifest changes need a restart before the new commands are indexed.
-maitri-restart-vicinae
+install_from_dir "$STAGE"

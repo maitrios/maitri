@@ -1,8 +1,12 @@
 # maitri default desktop apps from the [maitri] package channel (prebuilt + signed).
 # Single source of truth: bundled into the offline ISO mirror by iso/builder/build-iso.sh
 # AND installed by install/packaging/maitri-apps.sh, so an offline install still gets a
-# working desktop. The Vicinae launcher is installed by install/config/vicinae.sh.
+# working desktop.
 # One package per line — no inline comments (they'd be parsed as package names).
+
+# launcher (config/theme/keybinds applied by install/config/vicinae.sh)
+vicinae-bin
+maitri-vicinae-extension
 
 # editors
 visual-studio-code-bin
