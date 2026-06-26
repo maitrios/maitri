@@ -3,6 +3,9 @@
 # maitri:summary=Set Wi-Fi power save mode on wireless interfaces
 # maitri:args=<on|off>
 
+# nullglob so machines with no wireless interface skip the loop cleanly instead of
+# running once with the literal unexpanded glob (which fails and exits non-zero).
+shopt -s nullglob
 for iface in /sys/class/net/*/wireless; do
   iface="$(basename "$(dirname "$iface")")"
   iw dev "$iface" set power_save "$1" 2>/dev/null

@@ -2,7 +2,7 @@
 
 # maitri:summary=Switch between audio outputs while preserving the mute status. By default mapped to Super + Mute.
 
-sinks=$(pactl -f json list sinks | jq '[.[] | select((.ports | length == 0) or ([.ports[]? | .availability != "not available"] | any))]')
+sinks=$(timeout 2 pactl -f json list sinks | jq '[.[] | select((.ports | length == 0) or ([.ports[]? | .availability != "not available"] | any))]')
 sinks_count=$(echo "$sinks" | jq '. | length')
 
 if (( sinks_count == 0 )); then
@@ -10,7 +10,7 @@ if (( sinks_count == 0 )); then
   exit 1
 fi
 
-current_sink_name=$(pactl get-default-sink)
+current_sink_name=$(timeout 2 pactl get-default-sink)
 current_sink_index=$(echo "$sinks" | jq -r --arg name "$current_sink_name" 'map(.name) | index($name)')
 
 if [[ $current_sink_index != "null" ]]; then
@@ -27,12 +27,12 @@ if [[ $next_sink_description == "(null)" ]] || [[ $next_sink_description == "nul
   # For Bluetooth devices, the friendly name is on the Device entry (device.id), not the Sink entry (object.id)
   device_id=$(echo "$next_sink" | jq -r '.properties."device.id"')
   if [[ $device_id != "null" ]] && [[ -n $device_id ]]; then
-    next_sink_description=$(wpctl status | grep -E "^\s*│?\s+${device_id}\." | sed -E 's/^.*[0-9]+\.\s+//' | sed -E 's/\s+\[.*$//')
+    next_sink_description=$(timeout 2 wpctl status | grep -E "^\s*│?\s+${device_id}\." | sed -E 's/^.*[0-9]+\.\s+//' | sed -E 's/\s+\[.*$//')
   fi
   # Fall back to object.id lookup if device.id didn't yield a result
   if [[ -z $next_sink_description ]]; then
     sink_id=$(echo "$next_sink" | jq -r '.properties."object.id"')
-    next_sink_description=$(wpctl status | grep -E "\s+\*?\s+${sink_id}\." | sed -E 's/^.*[0-9]+\.\s+//' | sed -E 's/\s+\[.*$//')
+    next_sink_description=$(timeout 2 wpctl status | grep -E "\s+\*?\s+${sink_id}\." | sed -E 's/^.*[0-9]+\.\s+//' | sed -E 's/\s+\[.*$//')
   fi
 fi
 
@@ -54,7 +54,7 @@ next_sink_volume_icon="sink-volume-${icon_state}-symbolic"
 
 if [[ $next_sink_name != $current_sink_name ]]; then
   next_sink_wpid=$(echo "$next_sink" | jq -r '.properties."object.id"')
-  wpctl set-default "$next_sink_wpid"
+  timeout 2 wpctl set-default "$next_sink_wpid"
 fi
 
 maitri-swayosd-client \
