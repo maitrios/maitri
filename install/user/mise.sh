@@ -1,13 +1,12 @@
+# codex, gemini and copilot are opt-in installs from the menu (install.ai.*),
+# not part of the default loadout.
 # Upgrades must not delete the version a running process is executing from:
 # mise up would prune the old install dir out from under a live session.
 mise settings set upgrade.auto_prune false
 
-maitri-mise-install codex
 maitri-mise-install claude
 maitri-mise-install crush
-maitri-mise-install gemini
 maitri-mise-install gh
-maitri-mise-install copilot
 maitri-mise-install opencode
 maitri-mise-install npm:playwright playwright
 maitri-mise-install pi

@@ -1,5 +1,15 @@
 # maitri core package list pacstrapped by the ISO.
 # The ISO builder also reads this file when constructing the offline mirror.
+#
+# Everything here resolves from the official Arch repos except the packages
+# served from the [maitri] channel (kindness-ai/maitri-pkgs):
+#   aether asdcontrol cliamp dell-xps13-sidecar-amps herdr helium-browser-bin
+#   hyprland-preview-share-picker hyprmon-bin localsend maitri-fish maitri-nvim
+#   maitri-vicinae-extension mise-bin omacalc omacut omawrite sublime-text-4
+#   tensaku tobi-try ttf-ia-writer ttf-jetbrains-mono-nerd-basic ttfx tzupdate
+#   ufw-docker vi vicinae-bin visual-studio-code-bin warp-terminal-bin
+#   xdg-terminal-exec yaru-icon-theme yay
+# Adding a non-Arch package here means adding its PKGBUILD to maitri-pkgs first.
 
 aether
 alsa-utils
@@ -13,7 +23,7 @@ bluez-utils
 bolt
 brightnessctl
 btop
-chromium
+chezmoi
 clang
 cliamp
 cups
@@ -37,22 +47,26 @@ fcitx5-gtk
 fcitx5-qt
 fd
 ffmpegthumbnailer
+fish
 fontconfig
 foot
 fzf
 git
+gnome-disk-utility
 gnome-keyring
 gnome-themes-extra
-grim
 gpu-screen-recorder
+grim
 gum
 gvfs-mtp
 gvfs-nfs
 gvfs-smb
+helium-browser-bin
 herdr
 hyprland
 hyprland-guiutils
 hyprland-preview-share-picker
+hyprmon-bin
 hyprpicker
 hyprsunset
 imagemagick
@@ -60,30 +74,33 @@ imv
 inetutils
 inotify-tools
 inxi
-networkmanager
 jq
 kdenlive
 kernel-modules-hook
 lazydocker
 lazygit
 less
+libreoffice-fresh
 libsecret
 libvips
 libyaml
-libreoffice-fresh
 llvm
 localsend
 lua51
 luarocks
+maitri-fish
+maitri-nvim
+maitri-vicinae-extension
 man-db
 mariadb-libs
 mise-bin
 moonlight-qt
 mpv
 mpv-mpris
+nano
 nautilus
 nautilus-python
-gnome-disk-utility
+networkmanager
 noto-fonts
 noto-fonts-cjk
 noto-fonts-emoji
@@ -94,7 +111,6 @@ obsidian
 omacalc
 omacut
 omawrite
-maitri-nvim
 pacman-contrib
 pamixer
 pinta
@@ -104,28 +120,29 @@ postgresql-libs
 power-profiles-daemon
 python-gobject
 python-poetry-core
-ttfx
 qemu-user-static-binfmt
 qrencode
 qt6-imageformats
 quickshell
 ripgrep
 ruby
-tensaku
 sddm
 slurp
 socat
 starship
+sublime-text-4
 sushi
 system-config-printer
+tensaku
 tesseract
 tesseract-data-eng
 tldr
-tree-sitter-cli
 tmux
 tobi-try
+tree-sitter-cli
 ttf-ia-writer
 ttf-jetbrains-mono-nerd-basic
+ttfx
 tzupdate
 udiskie
 ufw
@@ -133,12 +150,17 @@ ufw-docker
 unzip
 usage
 uwsm
+vi
+vicinae-bin
+vim
+visual-studio-code-bin
+warp-terminal-bin
 whois
 wireless-regdb
 wireplumber
 wl-clipboard
-wtype
 woff2-font-awesome
+wtype
 xdg-desktop-portal-gtk
 xdg-desktop-portal-hyprland
 xdg-terminal-exec
