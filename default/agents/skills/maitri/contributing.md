@@ -3,16 +3,14 @@
 Read this when the user wants to report an maitri bug, suggest a feature, or
 contribute a fix upstream.
 
-maitri lives at https://github.com/basecamp/omarchy. Route requests to the
-right place:
+maitri lives at https://github.com/kindness-ai/maitri and grew from Omarchy
+(https://github.com/basecamp/omarchy). Route requests to the right place:
 
-- **Verified bugs** -> GitHub issues. Issues are for validated bugs only, not
-  support requests.
-- **Feature ideas and suggestions** ->
-  https://github.com/basecamp/omarchy/discussions/categories/suggestions
-- **Support and "is this a bug?" questions** -> the Discord community at
-  https://omarchy.org/discord. Start here when the problem isn't clearly a bug
-  in maitri itself.
+- **Verified bugs** -> GitHub issues on kindness-ai/maitri.
+- **Feature ideas and suggestions** -> a GitHub issue on kindness-ai/maitri,
+  labelled as a suggestion.
+- **Bugs in code maitri shares with Omarchy** (the shell, Hyprland config,
+  themes engine) may already be reported upstream; check there before filing.
 
 ## Filing a Good Bug Report
 
@@ -25,9 +23,8 @@ maitri version
 # Generate the diagnostic log (also written to /tmp/maitri-debug.log)
 maitri debug --no-sudo --print
 
-# Interactive variant: `maitri debug` offers to upload the log to
-# logs.omarchy.org (expires after 24h) and prints a shareable URL to
-# include in the issue.
+# Interactive variant: `maitri debug` offers to view the log or save it in
+# the current directory to attach to the issue.
 ```
 
 **Capture the problem on screen.** A screenshot or short recording of the bug
@@ -43,18 +40,18 @@ For screen-recording failures specifically, rerun with
 File the issue with `gh` when available:
 
 ```bash
-gh issue create --repo basecamp/maitri --title "..." --body "..."
+gh issue create --repo kindness-ai/maitri --title "..." --body "..."
 ```
 
 Include: what happened, what was expected, steps to reproduce, system details,
-the debug log URL (or attached log), and the capture.
+the attached debug log, and the capture.
 
 ## Submitting a PR
 
 Never develop against `/usr/share/maitri`. Clone a working copy instead:
 
 ```bash
-gh repo fork basecamp/maitri --clone
+gh repo fork kindness-ai/maitri --clone
 cd maitri
 ```
 

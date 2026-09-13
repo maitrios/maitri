@@ -3,7 +3,7 @@
   "logo": {
     "type": "file",
     "source": "~/.config/maitri/branding/about.txt",
-    "color": { "1": "green" },
+    "color": { "1": "blue" },
     "padding": {
       "top": 2,
       "right": 6,
@@ -23,40 +23,40 @@
     {
       "type": "host",
       "key": " PC",
-      "keyColor": "green"
+      "keyColor": "blue"
     },
     {
       "type": "cpu",
       "key": "│ ├",
       "showPeCoreCount": true,
-      "keyColor": "green"
+      "keyColor": "blue"
     },
     {
       "type": "gpu",
       "key": "│ ├",
       "detectionMethod": "pci",
       "format": "{name}",
-      "keyColor": "green"
+      "keyColor": "blue"
     },
     {
       "type": "display",
       "key": "│ ├󱄄",
-      "keyColor": "green"
+      "keyColor": "blue"
     },
     {
       "type": "disk",
       "key": "│ ├󰋊",
-      "keyColor": "green"
+      "keyColor": "blue"
     },
     {
       "type": "memory",
       "key": "│ ├",
-      "keyColor": "green"
+      "keyColor": "blue"
     },
     {
       "type": "swap",
       "key": "└ └󰓡 ",
-      "keyColor": "green"
+      "keyColor": "blue"
     },
     {
       "type": "custom",

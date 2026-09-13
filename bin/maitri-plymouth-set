@@ -293,7 +293,7 @@ run_root_transaction() {
 
       copy_trusted_file "$source_root/default/sddm/maitri/Main.qml" "$sddm_stage/Main.qml"
       sed -i \
-        -e "s/#1a1b26/#__MAITRI_SDDM_BG__/g" \
+        -e "s/#1e1e1e/#__MAITRI_SDDM_BG__/g" \
         -e "s/#ffffff/#__MAITRI_SDDM_TEXT__/g" \
         -e "s/#__MAITRI_SDDM_BG__/#$bg_hex/g" \
         -e "s/#__MAITRI_SDDM_TEXT__/#$text_hex/g" \

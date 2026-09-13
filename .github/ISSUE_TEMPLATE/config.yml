@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Suggestion
-    url: https://github.com/basecamp/omarchy/discussions/categories/suggestions
-    about: Suggest a new feature, change to existing feature, or other ideas in Discussions.
-  - name: Support
-    url: https://omarchy.org/discord
-    about: Need help? Join our Discord community for support with any issues. GitHub issues should be used for verified bugs only.
+    url: https://github.com/kindness-ai/maitri/issues/new
+    about: Suggest a new feature or a change to an existing one.
+  - name: Upstream Omarchy
+    url: https://github.com/basecamp/omarchy
+    about: maitri grew from Omarchy. Issues in shared code may already be tracked there.

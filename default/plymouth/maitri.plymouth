@@ -6,6 +6,6 @@ ModuleName=script
 [script]
 ImageDir=/usr/share/plymouth/themes/maitri
 ScriptFile=/usr/share/plymouth/themes/maitri/maitri.script
-ConsoleLogBackgroundColor=0x1a1b26
+ConsoleLogBackgroundColor=0x1e1e1e
 MonospaceFont=Cantarell 11
 Font=Cantarell 11

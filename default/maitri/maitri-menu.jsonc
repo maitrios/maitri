@@ -38,7 +38,7 @@
 
   // Learn
   "learn.keybindings": {"icon":"","label":"Keybindings","action":"maitri-menu-keybindings"},
-  "learn.maitri": {"icon":"","label":"maitri","action":"maitri-launch-webapp 'https://omarchy.org/manual/'"},
+  "learn.maitri": {"icon":"","label":"maitri","action":"maitri-launch-webapp 'https://github.com/kindness-ai/maitri#readme'"},
   "learn.hyprland": {"icon":"","label":"Hyprland","action":"maitri-launch-webapp 'https://wiki.hypr.land/'"},
   "learn.arch": {"icon":"󰣇","label":"Arch","action":"maitri-launch-webapp 'https://wiki.archlinux.org/title/Main_page'"},
   "learn.neovim": {"icon":"","label":"Neovim","action":"maitri-launch-webapp 'https://www.lazyvim.org/keymaps'"},
