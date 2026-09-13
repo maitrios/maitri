@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# maitri:summary=Install the maitri Vicinae extension into the user's extensions dir
+
+# The extension ships in the maitri-vicinae-extension package at
+# /usr/share/maitri/vicinae-extension (Vicinae only loads extensions from
+# ~/.local/share/vicinae/extensions), so copy it into place. It provides the
+# maitri menu, keybindings, theme/background/unlock pickers and the text input
+# behind maitri-menu-input.
+
+if maitri-cmd-missing vicinae; then
+  exit 0
+fi
+
+dest="$HOME/.local/share/vicinae/extensions/maitri"
+source_dir="/usr/share/maitri/vicinae-extension"
+
+if [[ ! -f $source_dir/package.json ]]; then
+  echo "maitri: the maitri-vicinae-extension package is not installed; the maitri menu stays inactive until it is." >&2
+  exit 0
+fi
+
+rm -rf "$dest"
+mkdir -p "$dest"
+cp -a "$source_dir/." "$dest/"
+
+# Manifest changes need a restart before the new commands are indexed.
+maitri-restart-vicinae

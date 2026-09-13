@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# maitri:summary=Restart the Vicinae launcher service
+
+restart_service() {
+  if systemctl --user is-enabled vicinae.service &>/dev/null; then
+    systemctl --user restart vicinae.service
+  else
+    # No user service (or not enabled): fall back to (re)starting the server.
+    setsid uwsm-app -- vicinae server >/dev/null 2>&1 &
+  fi
+}
+
+if (( EUID == 0 )); then
+  SCRIPT_OWNER=$(stat -c '%U' "$0")
+  USER_UID=$(id -u "$SCRIPT_OWNER")
+  systemd-run --uid="$SCRIPT_OWNER" --setenv=XDG_RUNTIME_DIR="/run/user/$USER_UID" \
+    bash -c "$(declare -f restart_service); restart_service"
+else
+  restart_service
+fi

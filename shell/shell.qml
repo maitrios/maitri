@@ -45,12 +45,15 @@ ShellRoot {
       transparent: false,
       centerAnchor: "maitri.clock",
       layout: {
-        left: [{ id: "maitri.menu" }, { id: "maitri.workspaces" }],
+        left: [{ id: "maitri.launcher" }, { id: "maitri.workspaces" }],
         center: [{ id: "maitri.clock", format: "dddd HH:mm" }],
         right: [{ id: "maitri.audio" }]
       }
     },
-    plugins: []
+    plugins: [],
+    // Vicinae is the launcher, menu, clipboard and emoji picker; the shell's
+    // own surfaces stay available but off by default.
+    disabledPlugins: ["maitri.menu", "maitri.emojis", "maitri.clipboard"]
   })
 
   property var defaultsConfig: builtinShellConfig

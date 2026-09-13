@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "maitri.launcher",
+  "name": "maitri launcher",
+  "version": "1.0.0",
+  "author": "maitri",
+  "description": "Bar button that opens the Vicinae launcher and the maitri menu",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "maitri launcher",
+    "description": "Opens Vicinae; right-click opens a terminal",
+    "category": "Compositor",
+    "defaultSection": "left",
+    "allowMultiple": false
+  }
+}

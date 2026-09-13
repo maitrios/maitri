@@ -6,6 +6,12 @@
 # maitri:args=prompt [menu args...]
 # maitri:examples=maitri menu input Reminder|maitri-menu-input "Reminder in minutes" --width 400
 
+# `vicinae dmenu` only returns one of the lines it was given, so free text
+# goes through the maitri Vicinae extension's menu-input command instead. The
+# prompt and two tempfiles travel as the command's fallbackText; the extension
+# writes the answer to selectionFile and touches doneFile (cancel touches only
+# doneFile), the same handshake the Quickshell menu used.
+
 set -euo pipefail
 
 prompt="${1:-Input}"
@@ -34,18 +40,11 @@ done_file=$(mktemp)
 rm -f "$done_file"
 trap 'rm -f "$selection_file" "$done_file"' EXIT
 
-payload=$(perl -MEncode=decode -MJSON::PP=encode_json -e '
-  my $payload = {
-    mode => "input",
-    prompt => decode("UTF-8", $ARGV[0]),
-    selectionFile => decode("UTF-8", $ARGV[1]),
-    doneFile => decode("UTF-8", $ARGV[2])
-  };
-  $payload->{width} = int($ARGV[3]) if length($ARGV[3] // "");
-  print encode_json($payload)
-' "$prompt" "$selection_file" "$done_file" "$menu_width")
+payload=$(jq -nc --arg prompt "$prompt" --arg selectionFile "$selection_file" --arg doneFile "$done_file" --arg width "$menu_width" '
+  { prompt: $prompt, selectionFile: $selectionFile, doneFile: $doneFile }
+  + (if $width == "" then {} else { width: ($width | tonumber) } end)')
 
-maitri-shell shell summon maitri.menu "$payload" >/dev/null
+maitri-launch-vicinae "vicinae://launch/@kindness-ai/maitri/menu-input?fallbackText=$(jq -rn --arg p "$payload" '$p | @uri')" >/dev/null
 
 while [[ ! -e $done_file ]]; do
   sleep 0.05

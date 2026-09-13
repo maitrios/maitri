@@ -1,0 +1,27 @@
+#!/bin/bash
+
+# maitri:summary=Toggle the Vicinae launcher, starting its server if needed
+# maitri:args=[--ensure-server] [deeplink|vicinae subcommand...]
+# maitri:examples=maitri launch vicinae | maitri-launch-vicinae vicinae://launch/core/search-emojis
+
+# The server is normally managed by vicinae.service, but make sure it is up so
+# the very first keypress after login still works.
+if ! vicinae ping >/dev/null 2>&1; then
+  setsid uwsm-app -- vicinae server >/dev/null 2>&1 &
+  for _ in {1..20}; do
+    vicinae ping >/dev/null 2>&1 && break
+    sleep 0.1
+  done
+fi
+
+if [[ ${1-} == "--ensure-server" ]]; then
+  exit 0
+fi
+
+# Default to toggling the main window; a deeplink (vicinae://...) or any
+# vicinae subcommand is passed straight through.
+if (( $# > 0 )); then
+  exec vicinae "$@"
+else
+  exec vicinae toggle
+fi

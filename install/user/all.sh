@@ -1,4 +1,5 @@
 run_logged "$MAITRI_INSTALL/user/theme.sh"
+run_logged "$MAITRI_INSTALL/user/vicinae.sh"
 run_logged "$MAITRI_INSTALL/user/chromium.sh"
 run_logged "$MAITRI_INSTALL/user/git.sh"
 run_logged "$MAITRI_INSTALL/user/xcompose.sh"

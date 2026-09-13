@@ -45,4 +45,4 @@ end
 o.bind("SUPER + C", "Universal copy", universal_clipboard_shortcut("CTRL", "C", "CTRL", "Insert"))
 o.bind("SUPER + V", "Universal paste", universal_clipboard_shortcut("CTRL", "V", "SHIFT", "Insert"))
 o.bind("SUPER + X", "Universal cut", send_shortcut_once("CTRL", "X"))
-o.bind("SUPER + CTRL + V", "Clipboard manager", "maitri-shell shell toggle maitri.clipboard")
+o.bind("SUPER + CTRL + V", "Clipboard manager", "maitri-menu-clipboard")

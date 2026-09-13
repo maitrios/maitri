@@ -18,4 +18,5 @@ systemctl --user enable --now \
   maitri-sleep-lock.service \
   maitri-migrate-notify.service \
   maitri-fcitx5.service \
-  maitri-crash-watch.service
+  maitri-crash-watch.service \
+  vicinae.service

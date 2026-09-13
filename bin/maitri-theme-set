@@ -332,6 +332,7 @@ post_theme_commands=(
   maitri-theme-set-vscode
   maitri-theme-set-obsidian
   maitri-theme-set-keyboard
+  maitri-theme-set-vicinae
 )
 
 if [[ $THEME_HEADLESS != "1" ]]; then

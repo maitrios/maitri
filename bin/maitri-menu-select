@@ -11,6 +11,9 @@
 # menu shows the glyph but never returns it. A plain option returns the label
 # alone; an option with a subtext returns "<label><TAB><subtext>", so callers
 # with same-named rows get the subtext back as the stable key.
+#
+# Rendered through `vicinae dmenu`, so every picker in maitri shares the
+# launcher's look.
 
 set -euo pipefail
 
@@ -23,8 +26,7 @@ prompt="$1"
 shift
 
 options=()
-menu_width=""
-menu_maxheight=""
+dmenu_args=()
 
 while (( $# > 0 )); do
   if [[ $1 == "--" ]]; then
@@ -37,7 +39,7 @@ while (( $# > 0 )); do
             echo "maitri-menu-select: --width requires a value" >&2
             exit 1
           fi
-          menu_width="$1"
+          dmenu_args+=(-W "$1")
           ;;
         --height|--maxheight)
           arg="$1"
@@ -46,7 +48,7 @@ while (( $# > 0 )); do
             echo "maitri-menu-select: $arg requires a value" >&2
             exit 1
           fi
-          menu_maxheight="$1"
+          dmenu_args+=(-H "$1")
           ;;
       esac
       shift
@@ -67,33 +69,46 @@ if (( ${#options[@]} == 0 )); then
   exit 1
 fi
 
-selection_file=$(mktemp)
-done_file=$(mktemp)
-rm -f "$done_file"
-trap 'rm -f "$selection_file" "$done_file"' EXIT
+# Split every option into glyph / label / subtext, render one display line per
+# option, and remember which display line maps back to which return value.
+declare -A returns=()
+display_lines=()
+for option in "${options[@]}"; do
+  IFS=$'\t' read -r first second third <<<"$option"
+  if [[ $option == *$'\t'* ]]; then
+    glyph="$first"
+    label="$second"
+    subtext="${third-}"
+  else
+    glyph=""
+    label="$first"
+    subtext=""
+  fi
 
-options_json=$(perl -MEncode=decode -MJSON::PP=encode_json -e 'print encode_json([map { decode("UTF-8", $_) } @ARGV])' "${options[@]}")
-payload=$(perl -MEncode=decode -MJSON::PP=encode_json,decode_json -e '
-  my $payload = {
-    mode => "select",
-    prompt => decode("UTF-8", $ARGV[0]),
-    options => decode_json($ARGV[1]),
-    selectionFile => decode("UTF-8", $ARGV[2]),
-    doneFile => decode("UTF-8", $ARGV[3])
-  };
-  $payload->{width} = int($ARGV[4]) if length($ARGV[4] // "");
-  $payload->{maxHeight} = int($ARGV[5]) if length($ARGV[5] // "");
-  print encode_json($payload)
-' "$prompt" "$options_json" "$selection_file" "$done_file" "$menu_width" "$menu_maxheight")
+  display="$label"
+  [[ -n $subtext ]] && display="$label  ·  $subtext"
+  [[ -n $glyph ]] && display="$glyph  $display"
 
-maitri-shell shell summon maitri.menu "$payload" >/dev/null
+  if [[ -n $subtext ]]; then
+    value="$label"$'\t'"$subtext"
+  else
+    value="$label"
+  fi
 
-while [[ ! -e $done_file ]]; do
-  sleep 0.05
+  # First option wins on a duplicate display line, matching the shell menu.
+  [[ -v returns[$display] ]] || returns[$display]="$value"
+  display_lines+=("$display")
 done
 
-if [[ -s $selection_file ]]; then
-  cat "$selection_file"
+maitri-launch-vicinae --ensure-server
+
+selection=$(printf '%s\n' "${display_lines[@]}" |
+  vicinae dmenu --no-section -p "$prompt" "${dmenu_args[@]}" 2>/dev/null || true)
+
+[[ -n $selection ]] || exit 1
+
+if [[ -v returns[$selection] ]]; then
+  printf '%s\n' "${returns[$selection]}"
 else
-  exit 1
+  printf '%s\n' "$selection"
 fi

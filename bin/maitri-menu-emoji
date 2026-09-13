@@ -3,4 +3,4 @@
 # maitri:group=menu
 # maitri:examples=maitri menu emoji
 
-maitri-shell shell toggle maitri.emojis
+maitri-launch-vicinae vicinae://launch/core/search-emojis

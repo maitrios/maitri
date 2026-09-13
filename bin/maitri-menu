@@ -4,44 +4,76 @@
 # maitri:args=[toggle|summon|close|refresh|ping] [route]
 # maitri:examples=maitri menu | maitri menu toggle system | maitri menu summon style.theme | maitri menu refresh
 
-# Thin wrapper around the standard plugin IPC surface. The menu is the
-# first-party `maitri.menu` plugin; routes are passed as JSON payload.
+# The maitri menu is the maitri Vicinae extension, which renders the same
+# maitri-menu.jsonc the Quickshell menu plugin would. Routes travel as the
+# extension's fallbackText; the extension resolves ids and aliases exactly like
+# MenuModel.js does, so `maitri menu toggle capture` and
+# `maitri menu summon style.theme` keep working.
 
 set -euo pipefail
 
 verb="${1-toggle}"
 route="${2-root}"
 
-menu_payload() {
-  jq -nc --arg menu "$1" '{ menu: $menu }'
+extension_command() {
+  local command="$1" text="${2-}"
+  if [[ -n $text ]]; then
+    printf 'vicinae://launch/@kindness-ai/maitri/%s?fallbackText=%s' "$command" "$(jq -rn --arg t "$text" '$t | @uri')"
+  else
+    printf 'vicinae://launch/@kindness-ai/maitri/%s' "$command"
+  fi
+}
+
+menu_deeplink() {
+  case "$1" in
+    root | "" | go | menu) extension_command maitri-menu ;;
+    *) extension_command maitri-menu "$1" ;;
+  esac
+}
+
+launcher_visible() {
+  hyprctl -j layers 2>/dev/null | grep -q '"namespace": "vicinae"'
 }
 
 case "$verb" in
   toggle)
-    exec maitri-shell shell toggle maitri.menu "$(menu_payload "$route")"
+    case "$route" in
+      apps | app | applications) exec maitri-launch-vicinae ;;
+    esac
+    if launcher_visible; then
+      exec vicinae close
+    fi
+    exec maitri-launch-vicinae "$(menu_deeplink "$route")"
     ;;
   summon)
-    exec maitri-shell shell summon maitri.menu "$(menu_payload "$route")"
+    case "$route" in
+      apps | app | applications) exec maitri-launch-vicinae vicinae://toggle ;;
+    esac
+    exec maitri-launch-vicinae "$(menu_deeplink "$route")"
     ;;
   close)
-    exec maitri-shell shell hide maitri.menu
+    exec vicinae close
     ;;
-  refresh | ping)
-    exec maitri-shell shell call maitri.menu "$verb" "{}"
+  refresh)
+    # The extension re-reads maitri-menu.jsonc on every launch; nothing to flush.
+    exit 0
+    ;;
+  ping)
+    exec vicinae ping
     ;;
   -h | --help | help)
     cat <<USAGE
 Usage: maitri menu [verb] [route]
 
 Verbs:
-  toggle [route]   Open the menu at <route>, or close it if already open. Default verb.
+  toggle [route]   Open the menu at <route>, or close the launcher if it is open. Default verb.
   summon [route]   Always open the menu (no close-if-visible toggle).
-  close            Close the menu if it is visible.
-  refresh          Re-parse the menu JSONC files.
-  ping             Health check.
+  close            Close the launcher if it is visible.
+  refresh          No-op; the menu re-reads maitri-menu.jsonc on every launch.
+  ping             Health check against the Vicinae server.
 
 Route is an item id (e.g. setup.power) or alias (e.g. power). Defaults to
-"root", which opens the top-level menu.
+"root", which opens the top-level menu. "apps" opens Vicinae's own app search.
 USAGE
     exit 0
     ;;
