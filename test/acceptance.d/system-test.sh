@@ -31,7 +31,7 @@ verify_defaults() {
   [[ $(maitri-default-terminal) == "foot" ]] || fail "Foot is the default terminal"
   pass "Foot is the default terminal"
 
-  [[ $(maitri-default-editor) == "nvim" ]] || fail "Neovim is the default editor"
+  [[ $(maitri-default-editor) == "code" ]] || fail "VS Code is the default editor"
   pass "Neovim is the default editor"
 
   [[ $(maitri-theme-current) != "Unknown" ]] || fail "a current theme is configured"

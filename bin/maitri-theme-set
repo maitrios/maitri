@@ -333,6 +333,8 @@ post_theme_commands=(
   maitri-theme-set-obsidian
   maitri-theme-set-keyboard
   maitri-theme-set-vicinae
+  maitri-theme-set-warp
+  maitri-theme-set-sublime
 )
 
 if [[ $THEME_HEADLESS != "1" ]]; then

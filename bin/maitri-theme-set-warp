@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# maitri:summary=Make the current maitri theme available to Warp
+# maitri:hidden=true
+
+src="$HOME/.local/state/maitri/current/theme/warp.yaml"
+[[ -f $src ]] || exit 0
+
+dest_dir="$HOME/.local/share/warp-terminal/themes"
+mkdir -p "$dest_dir"
+
+# Symlink so the "maitri" Warp theme always tracks the active maitri theme.
+# (Select it once in Warp → Settings → Appearance → Themes → "maitri".)
+ln -snf "$src" "$dest_dir/maitri.yaml"

@@ -1,0 +1,6 @@
+{
+  "update.mode": "none",
+  "window.titleBarStyle": "custom",
+  "editor.fontFamily": "'JetBrainsMono Nerd Font', 'monospace'",
+  "terminal.integrated.fontFamily": "'JetBrainsMono Nerd Font'"
+}

@@ -15,9 +15,10 @@ fi
 if [[ -f $default_editor ]]; then
   read -r editor <"$default_editor"
 else
-  editor="nvim"
+  editor="code"
 fi
 
+# VS Code is the default; fall back to nvim when the chosen editor is missing.
 maitri-cmd-present "$editor" || editor="nvim"
 
 case "${editor##*/}" in

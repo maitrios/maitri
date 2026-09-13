@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# maitri:summary=Apply the current maitri theme to Sublime Text
+# maitri:hidden=true
+
+src="$HOME/.local/state/maitri/current/theme/maitri.sublime-color-scheme"
+[[ -f $src ]] || exit 0
+
+user_dir="$HOME/.config/sublime-text/Packages/User"
+mkdir -p "$user_dir"
+ln -snf "$src" "$user_dir/maitri.sublime-color-scheme"
+
+# Make maitri the active color scheme if the user hasn't chosen one yet.
+prefs="$user_dir/Preferences.sublime-settings"
+if [[ ! -f $prefs ]]; then
+  printf '{\n  "color_scheme": "Packages/User/maitri.sublime-color-scheme"\n}\n' >"$prefs"
+fi
