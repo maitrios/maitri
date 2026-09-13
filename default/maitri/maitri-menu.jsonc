@@ -348,7 +348,6 @@
   "update.timezone": {"icon":"","label":"Timezone","action":"maitri-menu-timezone"},
   "update.time": {"icon":"","label":"Time","action":"maitri-launch-floating-terminal-with-presentation maitri-update-time"},
   "update.channel.stable": {"icon":"🟢","label":"Stable","checked":"[[ \"$(maitri-channel-current)\" == \"stable\" ]]","action":"maitri-launch-floating-terminal-with-presentation 'maitri-channel-set stable'"},
-  "update.channel.rc": {"icon":"🟡","label":"RC","checked":"[[ \"$(maitri-channel-current)\" == \"rc\" ]]","action":"maitri-launch-floating-terminal-with-presentation 'maitri-channel-set rc'"},
   "update.channel.edge": {"icon":"🟠","label":"Edge","checked":"[[ \"$(maitri-channel-current)\" == \"edge\" ]]","action":"maitri-launch-floating-terminal-with-presentation 'maitri-channel-set edge'"},
   "update.channel.dev": {"icon":"🔴","label":"Dev","checked":"[[ \"$(maitri-channel-current)\" == \"dev\" ]]","action":"maitri-launch-floating-terminal-with-presentation 'maitri-channel-set dev'"},
   "update.process.hyprsunset": {"icon":"","label":"Hyprsunset","action":"maitri-restart-hyprsunset"},

@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # maitri:summary=Set the maitri package channel.
-# maitri:args=<stable|rc|edge|dev>
+# maitri:args=<stable|edge|dev>
 # maitri:requires-sudo=true
 
 set -euo pipefail
 
-usage() { echo "Usage: maitri-channel-set [stable|rc|edge|dev]"; }
+usage() { echo "Usage: maitri-channel-set [stable|edge|dev]"; }
 fail() { echo "Error: $*" >&2; exit 1; }
 
 confirm_dev() {
@@ -34,7 +34,7 @@ validate_dev_checkout() {
 
 link_dev_checkout() {
   local checkout="$1"
-  [[ -d $checkout/.git ]] || git clone https://github.com/basecamp/omarchy.git "$checkout"
+  [[ -d $checkout/.git ]] || git clone https://github.com/kindness-ai/maitri.git "$checkout"
 
   maitri-dev-link "$checkout" --no-reboot
 }
@@ -48,10 +48,6 @@ leaving_dev=0
 case "$channel" in
   stable)
     pacman_channel=stable
-    packages=(maitri maitri-settings)
-    ;;
-  rc)
-    pacman_channel=rc
     packages=(maitri maitri-settings)
     ;;
   edge)

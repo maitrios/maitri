@@ -114,12 +114,6 @@ if grep -q $'^state\tset\treboot-required$' "$log_file"; then
 fi
 pass "stable does not require reboot when already package-backed"
 
-run_channel rc
-assert_log_line $'refresh\trc' "rc refreshes the rc pacman channel"
-assert_log_line $'sudo\tenv\tMAITRI_UPDATE_PACMAN=1\tpacman\t-S\t--needed\t--noconfirm\t--ask\t4\tmaitri\tmaitri-settings' "rc installs rc maitri packages"
-assert_log_line $'unlink\t--no-reboot' "rc restores the package-backed maitri path without an early reboot prompt"
-assert_log_line $'update\t-y\tMAITRI_PATH=/usr/share/maitri' "rc runs the normal update pipeline from the package-backed path"
-
 MAITRI_TEST_PATH="$ROOT" run_channel edge
 assert_log_line $'refresh\tedge' "edge refreshes the edge pacman channel"
 assert_log_line $'sudo\tenv\tMAITRI_UPDATE_PACMAN=1\tpacman\t-S\t--needed\t--noconfirm\t--ask\t4\tmaitri-dev\tmaitri-settings-dev' "edge installs development maitri packages"
@@ -147,11 +141,11 @@ run_channel dev
 assert_log_line $'gum\tconfirm\t--default=false\tSwitch to dev channel?' "dev asks for confirmation"
 assert_log_line $'refresh\tedge' "dev refreshes the edge pacman channel"
 assert_log_line $'sudo\tenv\tMAITRI_UPDATE_PACMAN=1\tpacman\t-S\t--needed\t--noconfirm\t--ask\t4\tmaitri-dev\tmaitri-settings-dev' "dev installs development maitri packages"
-assert_log_line $'git\tclone\thttps://github.com/basecamp/omarchy.git\t'"$checkout" "dev clones the source checkout to ~/maitri"
+assert_log_line $'git\tclone\thttps://github.com/kindness-ai/maitri.git\t'"$checkout" "dev clones the source checkout to ~/maitri"
 assert_log_line $'link\t'"$checkout"$'\t--no-reboot' "dev links ~/maitri without an early reboot prompt"
 assert_log_line $'state\tset\treboot-required' "dev defers the reboot prompt to the update pipeline"
 assert_log_line $'update\t-y\tMAITRI_PATH='"$checkout" "dev runs the normal update pipeline from the source checkout"
-[[ $(grep -E '^(git|link|state|refresh|sudo|update)' "$log_file") == $'git\tclone\thttps://github.com/basecamp/omarchy.git\t'"$checkout"$'\nlink\t'"$checkout"$'\t--no-reboot\nstate\tset\treboot-required\nrefresh\tedge\nsudo\tenv\tMAITRI_UPDATE_PACMAN=1\tpacman\t-S\t--needed\t--noconfirm\t--ask\t4\tmaitri-dev\tmaitri-settings-dev\nupdate\t-y\tMAITRI_PATH='"$checkout" ]] ||
+[[ $(grep -E '^(git|link|state|refresh|sudo|update)' "$log_file") == $'git\tclone\thttps://github.com/kindness-ai/maitri.git\t'"$checkout"$'\nlink\t'"$checkout"$'\t--no-reboot\nstate\tset\treboot-required\nrefresh\tedge\nsudo\tenv\tMAITRI_UPDATE_PACMAN=1\tpacman\t-S\t--needed\t--noconfirm\t--ask\t4\tmaitri-dev\tmaitri-settings-dev\nupdate\t-y\tMAITRI_PATH='"$checkout" ]] ||
   fail "dev activates the checkout before changing or updating packages" "$(cat "$log_file")"
 pass "dev activates the checkout before changing or updating packages"
 
@@ -176,9 +170,6 @@ current_channel() {
 
 [[ $(current_channel stable stable /usr/share/maitri) == "stable" ]] || fail "current channel detects stable"
 pass "current channel detects stable"
-
-[[ $(current_channel rc stable /usr/share/maitri) == "rc" ]] || fail "current channel detects rc"
-pass "current channel detects rc"
 
 [[ $(current_channel edge dev /usr/share/maitri) == "edge" ]] || fail "current channel detects package-backed edge"
 pass "current channel detects package-backed edge"

@@ -1,29 +1,14 @@
 #!/bin/bash
 
-# maitri:summary=Print the active maitri mirror and package channel
+# maitri:summary=Print the active maitri package channel
 
-if grep -q "https://stable-mirror.omarchy.org/" /etc/pacman.d/mirrorlist; then
-  mirror="stable"
-elif grep -q "https://rc-mirror.omarchy.org/" /etc/pacman.d/mirrorlist; then
-  mirror="rc"
-elif grep -q "https://mirror.omarchy.org/" /etc/pacman.d/mirrorlist; then
-  mirror="edge"
+# Arch packages always come from the official mirrors, so the channel is
+# decided by which [maitri] repository pacman.conf points at: a GitHub
+# Release per channel on kindness-ai/maitri-pkgs.
+if grep -q "kindness-ai/maitri-pkgs/releases/download/stable" /etc/pacman.conf; then
+  echo stable
+elif grep -q "kindness-ai/maitri-pkgs/releases/download/edge" /etc/pacman.conf; then
+  echo edge
 else
-  mirror="unknown"
-fi
-
-if grep -q "https://pkgs.omarchy.org/stable/" /etc/pacman.conf; then
-  pkgs="stable"
-elif grep -q "https://pkgs.omarchy.org/rc/" /etc/pacman.conf; then
-  pkgs="rc"
-elif grep -q "https://pkgs.omarchy.org/edge/" /etc/pacman.conf; then
-  pkgs="edge"
-else
-  pkgs="unknown"
-fi
-
-if [[ $mirror == $pkgs ]]; then
-  echo $mirror
-else
-  echo "$mirror / $pkgs"
+  echo unknown
 fi

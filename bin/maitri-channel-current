@@ -14,15 +14,14 @@ fi
 
 # maitri-dev / maitri-settings-dev are only shipped from the edge package
 # repo, so their presence alone means edge. maitri / maitri-settings come
-# from either the stable or rc mirror, distinguished by maitri-version-channel
-# (which reports the mirror as its first token).
+# from the stable repo; maitri-version-channel confirms which [maitri] repo
+# pacman.conf points at.
 if pacman -Q maitri-dev maitri-settings-dev >/dev/null 2>&1; then
   echo edge
 elif pacman -Q maitri maitri-settings >/dev/null 2>&1; then
   channel=$(maitri-version-channel 2>/dev/null | awk '{ print $1 }')
   case "$channel" in
     stable) echo stable ;;
-    rc) echo rc ;;
     *) echo unknown ;;
   esac
 else
