@@ -7,6 +7,13 @@
 
 set -e
 
+# maitri 0.x (git-pull based) is end-of-life. maitri 0.2+ is package-backed and
+# installs only from the ISO; there is no in-place upgrade path from 0.x.
+echo -e "\033[0;33mmaitri 0.x is end-of-life and no longer receives updates.\033[0m"
+echo "Back up your data and reinstall from the maitri v0.3 ISO:"
+echo "  https://github.com/kindness-ai/maitri/releases"
+exit 1
+
 # Run the update inside a PTY so pacman/yay keep showing download progress
 # while still logging the full session for later analysis.
 if [[ -z $MAITRI_UPDATE_LOGGED ]]; then
