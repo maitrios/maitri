@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# maitri:summary=Reinstall maitri packages and reset default configs
+# maitri:requires-sudo=true
+
+set -e
+
+echo -e "This will reinstall all default maitri packages and reset default configs.\nWarning: user config changes will be overwritten.\n"
+
+if gum confirm "Are you sure you want to reinstall and lose config changes?"; then
+  maitri-reinstall-pkgs
+  maitri-reinstall-configs
+
+  gum confirm "System has been reinstalled. Reboot?" && maitri-system-reboot
+fi

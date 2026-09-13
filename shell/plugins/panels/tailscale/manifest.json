@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "id": "omarchy.tailscale",
+  "id": "maitri.tailscale",
   "name": "Tailscale",
   "version": "1.0.0",
-  "author": "Omarchy",
+  "author": "maitri",
   "license": "MIT",
-  "description": "Tailscale status, connection switching, machine browsing, and quick copy actions in the Omarchy bar.",
+  "description": "Tailscale status, connection switching, machine browsing, and quick copy actions in the maitri bar.",
   "kinds": [
     "bar-widget"
   ],

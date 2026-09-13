@@ -1,0 +1,11 @@
+[Plymouth Theme]
+Name=maitri
+Description=maitri splash screen.
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/maitri
+ScriptFile=/usr/share/plymouth/themes/maitri/maitri.script
+ConsoleLogBackgroundColor=0x1a1b26
+MonospaceFont=Cantarell 11
+Font=Cantarell 11

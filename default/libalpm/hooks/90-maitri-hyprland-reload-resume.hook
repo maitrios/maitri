@@ -1,0 +1,12 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = maitri-settings
+Target = maitri-settings-dev
+
+[Action]
+Description = Reloading Hyprland after maitri settings update...
+When = PostTransaction
+Depends = maitri
+Exec = /usr/bin/maitri-hyprland-reload-guard resume

@@ -1,27 +1,27 @@
-# Single source of truth for OMARCHY_PATH + PATH adjustments. Sourced by:
-#   /etc/profile.d/omarchy.sh                 (system login shells)
+# Single source of truth for MAITRI_PATH + PATH adjustments. Sourced by:
+#   /etc/profile.d/maitri.sh                 (system login shells)
 #   /etc/skel/.bashrc                         (interactive shells)
-#   /usr/share/uwsm/env.d/10-omarchy          (Hyprland session via uwsm)
-#   /usr/share/omarchy/default/bash/envs      (bash rc chain; SSH/non-login)
+#   /usr/share/uwsm/env.d/10-maitri          (Hyprland session via uwsm)
+#   /usr/share/maitri/default/bash/envs      (bash rc chain; SSH/non-login)
 
-# /etc/omarchy.conf is written by omarchy-dev-link and reset by
-# omarchy-dev-unlink. When absent, force the packaged default instead of
+# /etc/maitri.conf is written by maitri-dev-link and reset by
+# maitri-dev-unlink. When absent, force the packaged default instead of
 # preserving a stale inherited value.
-if [ -f /etc/omarchy.conf ]; then
-  . /etc/omarchy.conf
-  : "${OMARCHY_PATH:=/usr/share/omarchy}"
+if [ -f /etc/maitri.conf ]; then
+  . /etc/maitri.conf
+  : "${MAITRI_PATH:=/usr/share/maitri}"
 else
-  OMARCHY_PATH=/usr/share/omarchy
+  MAITRI_PATH=/usr/share/maitri
 fi
-export OMARCHY_PATH
+export MAITRI_PATH
 
 # Only prepend in dev-link mode. On a production install, the binaries are
-# already on PATH as /usr/bin/omarchy-* via the omarchy package — prepending
-# /usr/share/omarchy/bin would just be noise.
-if [ "$OMARCHY_PATH" != /usr/share/omarchy ]; then
+# already on PATH as /usr/bin/maitri-* via the maitri package — prepending
+# /usr/share/maitri/bin would just be noise.
+if [ "$MAITRI_PATH" != /usr/share/maitri ]; then
   case ":$PATH:" in
-    *":${OMARCHY_PATH%/}/bin:"*) ;;
-    *) PATH="${OMARCHY_PATH%/}/bin${PATH:+:$PATH}" ;;
+    *":${MAITRI_PATH%/}/bin:"*) ;;
+    *) PATH="${MAITRI_PATH%/}/bin${PATH:+:$PATH}" ;;
   esac
 fi
 

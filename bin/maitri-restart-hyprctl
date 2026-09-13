@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# maitri:summary=Reload hyprland configuration (used by the maitri theme switching).
+
+hyprctl reload >/dev/null

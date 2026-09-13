@@ -1,3 +1,3 @@
-cat >>/etc/omarchy/agent.conf <<EOF
-helper=$HOME/.local/share/omarchy/bin/omarchy-agent
+cat >>/etc/maitri/agent.conf <<EOF
+helper=$HOME/.local/share/maitri/bin/maitri-agent
 EOF

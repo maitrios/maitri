@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# maitri:summary=Install Xbox Cloud Gaming as a web app and launch it.
+# maitri:group=install
+# maitri:name=gaming xbox-cloud
+
+set -e
+
+echo "Installing Xbox Cloud Gaming..."
+maitri-webapp-install "Xbox Cloud Gaming" "https://www.xbox.com/en-US/play" "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/xbox.png"
+
+setsid maitri-launch-webapp "https://www.xbox.com/en-US/play" >/dev/null 2>&1 &

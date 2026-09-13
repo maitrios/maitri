@@ -8,39 +8,39 @@ status=0
 
 verify_core_packages() {
   local package
-  local manifest="$OMARCHY_PATH/install/omarchy-base.packages"
+  local manifest="$MAITRI_PATH/install/maitri-base.packages"
   local -a missing=()
 
   # Without this, a missing manifest reads as an empty package list and the
   # audit passes having checked nothing.
-  [[ -f $manifest ]] || fail "all Omarchy core packages are installed" "package manifest not found: $manifest"
+  [[ -f $manifest ]] || fail "all maitri core packages are installed" "package manifest not found: $manifest"
 
   while IFS= read -r package; do
     [[ -z $package || $package == \#* ]] && continue
     pacman -Q "$package" >/dev/null 2>&1 || missing+=("$package")
   done <"$manifest"
 
-  (( ${#missing[@]} == 0 )) || fail "all Omarchy core packages are installed" "missing packages: ${missing[*]}"
-  pass "all Omarchy core packages are installed (${#missing[@]} missing)"
+  (( ${#missing[@]} == 0 )) || fail "all maitri core packages are installed" "missing packages: ${missing[*]}"
+  pass "all maitri core packages are installed (${#missing[@]} missing)"
 }
 
 verify_defaults() {
-  [[ $(omarchy-default-browser) == "chromium" ]] || fail "Chromium is the default browser"
+  [[ $(maitri-default-browser) == "chromium" ]] || fail "Chromium is the default browser"
   pass "Chromium is the default browser"
 
-  [[ $(omarchy-default-terminal) == "foot" ]] || fail "Foot is the default terminal"
+  [[ $(maitri-default-terminal) == "foot" ]] || fail "Foot is the default terminal"
   pass "Foot is the default terminal"
 
-  [[ $(omarchy-default-editor) == "nvim" ]] || fail "Neovim is the default editor"
+  [[ $(maitri-default-editor) == "nvim" ]] || fail "Neovim is the default editor"
   pass "Neovim is the default editor"
 
-  [[ $(omarchy-theme-current) != "Unknown" ]] || fail "a current theme is configured"
+  [[ $(maitri-theme-current) != "Unknown" ]] || fail "a current theme is configured"
   pass "a current theme is configured"
 
-  [[ $(omarchy-theme-bg-current) != "Unknown" ]] || fail "a current background is configured"
+  [[ $(maitri-theme-bg-current) != "Unknown" ]] || fail "a current background is configured"
   pass "a current background is configured"
 
-  [[ -n $(omarchy-font-current) ]] || fail "a monospace font is configured"
+  [[ -n $(maitri-font-current) ]] || fail "a monospace font is configured"
   pass "a monospace font is configured"
 
   [[ $(xdg-mime query default x-scheme-handler/http) == "chromium.desktop" ]] || fail "HTTP MIME handling uses Chromium"
@@ -105,11 +105,11 @@ verify_user_setup() {
   done
   pass "XDG user directories exist"
 
-  [[ -e $HOME/.local/state/omarchy/current/theme ]] || fail "current theme state exists"
-  [[ -e $HOME/.local/state/omarchy/current/background ]] || fail "current background state exists"
-  [[ -s $HOME/.config/omarchy/shell.json ]] || fail "shell configuration exists"
-  jq empty "$HOME/.config/omarchy/shell.json" || fail "shell configuration is valid JSON"
-  pass "Omarchy user state and shell configuration exist"
+  [[ -e $HOME/.local/state/maitri/current/theme ]] || fail "current theme state exists"
+  [[ -e $HOME/.local/state/maitri/current/background ]] || fail "current background state exists"
+  [[ -s $HOME/.config/maitri/shell.json ]] || fail "shell configuration exists"
+  jq empty "$HOME/.config/maitri/shell.json" || fail "shell configuration is valid JSON"
+  pass "maitri user state and shell configuration exist"
 }
 
 for check in verify_core_packages verify_defaults verify_services verify_runtime_tools verify_user_setup; do

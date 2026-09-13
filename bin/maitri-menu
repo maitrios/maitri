@@ -1,0 +1,52 @@
+#!/bin/bash
+
+# maitri:summary=Control the maitri menu (toggle / summon / close / refresh)
+# maitri:args=[toggle|summon|close|refresh|ping] [route]
+# maitri:examples=maitri menu | maitri menu toggle system | maitri menu summon style.theme | maitri menu refresh
+
+# Thin wrapper around the standard plugin IPC surface. The menu is the
+# first-party `maitri.menu` plugin; routes are passed as JSON payload.
+
+set -euo pipefail
+
+verb="${1-toggle}"
+route="${2-root}"
+
+menu_payload() {
+  jq -nc --arg menu "$1" '{ menu: $menu }'
+}
+
+case "$verb" in
+  toggle)
+    exec maitri-shell shell toggle maitri.menu "$(menu_payload "$route")"
+    ;;
+  summon)
+    exec maitri-shell shell summon maitri.menu "$(menu_payload "$route")"
+    ;;
+  close)
+    exec maitri-shell shell hide maitri.menu
+    ;;
+  refresh | ping)
+    exec maitri-shell shell call maitri.menu "$verb" "{}"
+    ;;
+  -h | --help | help)
+    cat <<USAGE
+Usage: maitri menu [verb] [route]
+
+Verbs:
+  toggle [route]   Open the menu at <route>, or close it if already open. Default verb.
+  summon [route]   Always open the menu (no close-if-visible toggle).
+  close            Close the menu if it is visible.
+  refresh          Re-parse the menu JSONC files.
+  ping             Health check.
+
+Route is an item id (e.g. setup.power) or alias (e.g. power). Defaults to
+"root", which opens the top-level menu.
+USAGE
+    exit 0
+    ;;
+  *)
+    echo "maitri-menu: unknown verb '$verb'. Try 'maitri menu --help'." >&2
+    exit 2
+    ;;
+esac

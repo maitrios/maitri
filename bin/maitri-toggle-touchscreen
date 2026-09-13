@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# maitri:summary=Enable, disable, or toggle the touch functionality of the screen
+# maitri:args=[on|off|toggle]
+
+exec maitri-toggle-input-device touchscreen "${1:-toggle}"

@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# maitri:summary=Dismiss a notification by summary substring. Used by the first-run notifications to dismiss them after clicking for action.
+# maitri:args=<summary>
+
+if (($# == 0)); then
+  echo "Usage: maitri-notification-dismiss <summary>"
+  exit 1
+fi
+
+maitri-shell -q notifications dismiss "$1"

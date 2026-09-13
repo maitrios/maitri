@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# maitri:summary=Toggle the current weather panel
+
+maitri-shell shell toggle maitri.weather

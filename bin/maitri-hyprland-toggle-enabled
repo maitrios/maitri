@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# maitri:summary=Check if a Hyprland toggle is currently enabled.
+# maitri:args=<flag-name>
+
+[[ -f "$HOME/.local/state/maitri/toggles/hypr/$1.lua" ]]

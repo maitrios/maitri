@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# maitri:summary=Detect ASUS Zenbook UX5406AA series laptops on Intel Panther Lake.
+
+maitri-hw-match "ux5406aa" && maitri-hw-intel-ptl

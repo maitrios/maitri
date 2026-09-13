@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# maitri:summary=Compatibility wrapper for maitri-migrate-notify.
+# maitri:hidden=true
+
+exec maitri-migrate-notify "$@"

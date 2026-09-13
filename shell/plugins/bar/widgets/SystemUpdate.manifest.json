@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "id": "omarchy.system-update",
-  "name": "Omarchy update",
+  "id": "maitri.system-update",
+  "name": "maitri update",
   "version": "1.0.0",
-  "author": "Omarchy",
-  "description": "Indicates available Omarchy updates",
+  "author": "maitri",
+  "description": "Indicates available maitri updates",
   "kinds": [
     "bar-widget"
   ],
@@ -12,8 +12,8 @@
     "barWidget": "SystemUpdate.qml"
   },
   "barWidget": {
-    "displayName": "Omarchy update",
-    "description": "Indicates available Omarchy updates",
+    "displayName": "maitri update",
+    "description": "Indicates available maitri updates",
     "category": "System",
     "allowMultiple": false
   }

@@ -45,14 +45,14 @@ function component(source, methods, defaults = {}) {
 }
 
 const id = 'local.indicators'
-const manifest = { ...builtin, id, omarchy: { clonedFrom: builtin.id } }
+const manifest = { ...builtin, id, maitri: { clonedFrom: builtin.id } }
 const enabled = new Set([id])
 const configured = new Set([id])
 const implementations = {}
 const services = {
-  'omarchy.idle': { stayAwake: true, setIdleEnabled(value) { this.stayAwake = !value } },
-  'omarchy.nightlight': { enabled: true, setNightlight(value) { this.enabled = value } },
-  'omarchy.notifications': { doNotDisturb: true, setDoNotDisturb(value) { this.doNotDisturb = value } }
+  'maitri.idle': { stayAwake: true, setIdleEnabled(value) { this.stayAwake = !value } },
+  'maitri.nightlight': { enabled: true, setNightlight(value) { this.enabled = value } },
+  'maitri.notifications': { doNotDisturb: true, setDoNotDisturb(value) { this.doNotDisturb = value } }
 }
 const context = vm.createContext({
   Util: { isPlainObject: value => !!value && typeof value === 'object' && !Array.isArray(value) },
@@ -61,7 +61,7 @@ const context = vm.createContext({
   _pluginShellApis: {}, _pluginShellApiDescriptors: {}, _pluginBarEntryShellApis: {},
   _pluginAppLibraryApis: {}, _pluginFirstPartyServiceApis: {},
   _pluginRegistryApis: {}, _pluginBarWidgetRegistryApis: {}, _pluginBarStateApis: {},
-  activeBarManifest: { id: 'omarchy.bar', __isFirstParty: true },
+  activeBarManifest: { id: 'maitri.bar', __isFirstParty: true },
   pluginRegistry: {
     installedPlugins: { [id]: manifest },
     isEnabled: key => enabled.has(key),
@@ -88,7 +88,7 @@ const bar = vm.createContext({ shell: context, pluginBarApis: { slot: {} } })
 bar.root = bar
 loadFunctions(barSource, ['pluginBarApiFor'], bar)
 const api = bar.pluginBarApiFor('slot', id, true).shell
-const serviceIds = ['omarchy.idle', 'omarchy.nightlight', 'omarchy.notifications']
+const serviceIds = ['maitri.idle', 'maitri.nightlight', 'maitri.notifications']
 const proxies = serviceIds.map(key => api.firstPartyServiceFor(key))
 assert(proxies.every(Boolean), 'Indicators clone under the trusted bar receives all three service proxies')
 assertDeepEqual(Object.keys(context._pluginFirstPartyServiceApis), serviceIds.map(key => `${id}::${key}`),
@@ -103,17 +103,17 @@ assert(proxies[0].stayAwake && proxies[1].enabled && proxies[2].doNotDisturb,
 proxies[0].setIdleEnabled(true)
 proxies[1].setNightlight(false)
 proxies[2].setDoNotDisturb(false)
-assert(!services['omarchy.idle'].stayAwake && !services['omarchy.nightlight'].enabled
-  && !services['omarchy.notifications'].doNotDisturb,
+assert(!services['maitri.idle'].stayAwake && !services['maitri.nightlight'].enabled
+  && !services['maitri.notifications'].doNotDisturb,
   'Indicators proxy callbacks update exactly their non-authentication service')
 const idleClone = { stayAwake: false, setIdleEnabled(value) { this.stayAwake = !value } }
 services['local.idle'] = idleClone
-implementations['omarchy.idle'] = 'local.idle'
+implementations['maitri.idle'] = 'local.idle'
 proxies[0].setIdleEnabled(false)
-assert(idleClone.stayAwake && proxies[0].stayAwake && !services['omarchy.idle'].stayAwake,
+assert(idleClone.stayAwake && proxies[0].stayAwake && !services['maitri.idle'].stayAwake,
   'an existing proxy follows the enabled service clone')
 
-for (const key of ['omarchy.lock', 'omarchy.polkit', 'omarchy.media', 'local.idle', 'unrelated.service']) {
+for (const key of ['maitri.lock', 'maitri.polkit', 'maitri.media', 'local.idle', 'unrelated.service']) {
   assert(api.firstPartyServiceFor(key) === null && api.serviceFor(key) === null,
     `Indicators facade denies unrelated service lookup: ${key}`)
 }
@@ -129,7 +129,7 @@ assert(serviceIds.every(key => entryApi.firstPartyServiceFor(key) === null),
 context.activeBarManifest = null
 assert(serviceIds.every(key => api.firstPartyServiceFor(key) === null),
   'Indicators service lookups are denied without a trusted active bar')
-context.activeBarManifest = { id: 'omarchy.bar', __isFirstParty: true }
+context.activeBarManifest = { id: 'maitri.bar', __isFirstParty: true }
 configured.delete(id)
 assert(serviceIds.every(key => api.firstPartyServiceFor(key) === null),
   'unconfigured Indicators clones cannot look up the services')
@@ -142,7 +142,7 @@ assert(serviceIds.every(key => api.firstPartyServiceFor(key) !== null),
   'restoring the configured enabled clone restores narrow lookups')
 
 for (const changed of [
-  { ...manifest, omarchy: { clonedFrom: 'omarchy.clock' } },
+  { ...manifest, maitri: { clonedFrom: 'maitri.clock' } },
   { ...manifest, kinds: ['panel'] }
 ]) {
   context.pluginRegistry.installedPlugins[id] = changed
@@ -168,8 +168,8 @@ assert(serviceIds.every(key => hosted.firstPartyServiceFor(key) === null),
 const fullBar = { id: 'local.bar', kinds: ['bar'] }
 context.pluginRegistry.installedPlugins[fullBar.id] = fullBar
 const fullBarApi = context.pluginShellFor(fullBar)
-assert(fullBarApi.firstPartyServiceFor('omarchy.media') !== null
-  && fullBarApi.firstPartyServiceFor('omarchy.lock') === null
-  && fullBarApi.firstPartyServiceFor('omarchy.polkit') === null,
+assert(fullBarApi.firstPartyServiceFor('maitri.media') !== null
+  && fullBarApi.firstPartyServiceFor('maitri.lock') === null
+  && fullBarApi.firstPartyServiceFor('maitri.polkit') === null,
   'existing full-bar non-authentication proxy scope is unchanged')
 JS

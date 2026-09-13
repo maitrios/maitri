@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# maitri:summary=Open Voxtype configuration
+
+set -e
+
+maitri-launch-floating-terminal-with-presentation "voxtype configure"
+maitri-restart-shell

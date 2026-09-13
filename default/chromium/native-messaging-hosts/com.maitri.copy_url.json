@@ -1,0 +1,9 @@
+{
+  "name": "com.maitri.copy_url",
+  "description": "maitri Copy URL clipboard host",
+  "path": "__HOST_PATH__",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://bgpiichlckmfanooecilcjemknkcpngb/"
+  ]
+}

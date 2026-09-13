@@ -1,1 +1,1 @@
-omarchy-apply-lock
+maitri-apply-lock

@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# maitri:summary=Check whether a webcam is available
+
+[[ -n $(maitri-capture-webcam-list) ]]

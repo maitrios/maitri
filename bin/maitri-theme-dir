@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# maitri:summary=Print the directory holding a theme, preferring a user-installed copy
+# maitri:args=<theme-name>
+# maitri:examples=maitri theme dir tokyo-night
+
+theme="${1:-}"
+
+if [[ -z $theme ]]; then
+  echo "Usage: maitri-theme-dir <theme-name>" >&2
+  exit 1
+fi
+
+if [[ -d $HOME/.config/maitri/themes/$theme ]]; then
+  echo "$HOME/.config/maitri/themes/$theme"
+else
+  echo "$MAITRI_PATH/themes/$theme"
+fi

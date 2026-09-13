@@ -1,0 +1,7 @@
+[SddmGreeterTheme]
+Name=maitri
+Description=Minimal terminal-style login theme matching the Limine bootloader aesthetic
+Author=maitri
+Type=sddm-theme
+Version=1.0
+QtVersion=6

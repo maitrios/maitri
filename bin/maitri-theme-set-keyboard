@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# maitri:summary=Apply the current theme keyboard color to supported keyboards
+# maitri:hidden=true
+
+maitri-theme-set-keyboard-asus-rog
+maitri-theme-set-keyboard-f16

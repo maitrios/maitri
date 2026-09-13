@@ -1,0 +1,6 @@
+#!/bin/bash
+# maitri:summary=Launch emojis
+# maitri:group=menu
+# maitri:examples=maitri menu emoji
+
+maitri-shell shell toggle maitri.emojis

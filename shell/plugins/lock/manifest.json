@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "id": "omarchy.lock",
+  "id": "maitri.lock",
   "name": "Lock Screen",
   "version": "1.0.0",
-  "author": "Omarchy",
+  "author": "maitri",
   "description": "Quickshell session lock with separate password and fingerprint PAM flows.",
-  "omarchy": {
+  "maitri": {
     "capabilities": [
       "authentication"
     ]

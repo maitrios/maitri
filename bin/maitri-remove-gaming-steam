@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# maitri:summary=Remove Steam and all of its game libraries, configs, and caches.
+# maitri:requires-sudo=true
+
+set -e
+
+maitri-pkg-drop steam
+
+rm -rf \
+  "$HOME/.steam" \
+  "$HOME/.local/share/Steam" \
+  "$HOME/.config/steam" \
+  "$HOME/.cache/steam"
+
+echo ""
+echo "Steam and its data have been removed."

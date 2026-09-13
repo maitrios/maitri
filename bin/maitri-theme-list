@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# maitri:summary=List available themes
+# maitri:examples=maitri theme list | maitri theme set "Tokyo Night"
+
+{
+  find ~/.config/maitri/themes/ -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -printf '%f\n'
+  find "$MAITRI_PATH/themes/" -mindepth 1 -maxdepth 1 -type d -printf '%f\n'
+} | sort -u | sed -E 's/(^|-)([a-z])/\1\u\2/g; s/-/ /g'

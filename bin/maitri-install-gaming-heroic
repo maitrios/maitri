@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# maitri:summary=Install Heroic Games Launcher (Epic, GOG, Amazon Prime Gaming) with graphics drivers.
+# maitri:requires-sudo=true
+
+set -e
+
+echo "Installing Heroic Games Launcher..."
+maitri-pkg-add heroic-games-launcher-bin
+maitri-install-gaming-gpu-lib32
+
+setsid uwsm-app -- gtk-launch heroic >/dev/null 2>&1 &

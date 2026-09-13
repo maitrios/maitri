@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# maitri:summary=Launch a floating terminal with the maitri presentation wrapper
+# maitri:args=<command>
+
+# Export the current theme's gum styling so gum widgets match the active theme
+# even after a theme switch (the inherited environment is captured at login).
+source maitri-restart-gum
+
+cmd="$*"
+presentation_script="maitri-show-logo; $cmd; if (( \$? != 130 )); then maitri-show-done; fi"
+
+exec setsid uwsm-app -- xdg-terminal-exec --app-id=org.maitri.terminal --title=maitri -e bash -c "$presentation_script"

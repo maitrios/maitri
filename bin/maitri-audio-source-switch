@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# maitri:summary=Cycle to the next media source and transfer playback when the current source is playing
+# maitri:args=[next|previous]
+# maitri:examples=maitri audio source switch | maitri-audio-source-switch previous
+
+direction="${1:-next}"
+
+case "$direction" in
+  next)
+    maitri-shell media sourceSwitch
+    ;;
+  previous)
+    maitri-shell media sourceSwitchPrevious
+    ;;
+  *)
+    echo "Usage: maitri-audio-source-switch [next|previous]" >&2
+    exit 1
+    ;;
+esac

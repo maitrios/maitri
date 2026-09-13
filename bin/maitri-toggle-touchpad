@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# maitri:summary=Enable, disable, or toggle the touchpad
+# maitri:args=[on|off|toggle]
+
+exec maitri-toggle-input-device touchpad "${1:-toggle}"

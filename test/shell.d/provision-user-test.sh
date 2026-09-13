@@ -16,36 +16,36 @@ done
 chmod +x "$mock_bin"/*
 
 # Isolate both setup leaves and application refresh. Refresh also invokes the
-# mise leaf through OMARCHY_PATH, independently of OMARCHY_INSTALL.
-fixture="$test_tmp/omarchy"
+# mise leaf through MAITRI_PATH, independently of MAITRI_INSTALL.
+fixture="$test_tmp/maitri"
 mkdir -p "$fixture/bin" "$test_tmp/install/user"
-cp "$ROOT/bin/omarchy-provision-user" "$ROOT/bin/omarchy-done" "$fixture/bin/"
+cp "$ROOT/bin/maitri-provision-user" "$ROOT/bin/maitri-done" "$fixture/bin/"
 ln -s "$ROOT/default" "$fixture/default"
-printf '#!/bin/bash\nexit 0\n' >"$fixture/bin/omarchy-refresh-applications"
-chmod +x "$fixture/bin/omarchy-refresh-applications"
+printf '#!/bin/bash\nexit 0\n' >"$fixture/bin/maitri-refresh-applications"
+chmod +x "$fixture/bin/maitri-refresh-applications"
 : >"$test_tmp/install/user/all.sh"
 
 provision() {
-  HOME="$test_tmp/home" PATH="$mock_bin:$fixture/bin:$PATH" OMARCHY_PATH="$fixture" \
-    OMARCHY_INSTALL="$test_tmp/install" bash "$fixture/bin/omarchy-provision-user" "$@" >/dev/null ||
-    fail "omarchy-provision-user finishes"
+  HOME="$test_tmp/home" PATH="$mock_bin:$fixture/bin:$PATH" MAITRI_PATH="$fixture" \
+    MAITRI_INSTALL="$test_tmp/install" bash "$fixture/bin/maitri-provision-user" "$@" >/dev/null ||
+    fail "maitri-provision-user finishes"
 }
 provision
 
-for skill in omarchy diagnose-crash; do
+for skill in maitri diagnose-crash; do
   link="$test_tmp/home/.hermes/skills/$skill"
   [[ -L $link && $(readlink "$link") == "$fixture/default/agents/skills/$skill" ]] ||
-    fail "omarchy-provision-user provisions the $skill skill for Hermes"
+    fail "maitri-provision-user provisions the $skill skill for Hermes"
 
   link="$test_tmp/home/.hermes/profiles/james/skills/$skill"
   [[ -L $link && $(readlink "$link") == "$fixture/default/agents/skills/$skill" ]] ||
-    fail "omarchy-provision-user provisions the $skill skill for a Hermes profile"
+    fail "maitri-provision-user provisions the $skill skill for a Hermes profile"
 done
 
-pass "omarchy-provision-user provisions Hermes skills"
+pass "maitri-provision-user provisions Hermes skills"
 
 provision --force
-for skill in omarchy diagnose-crash; do
+for skill in maitri diagnose-crash; do
   for directory in .agents/skills .claude/skills .codex/skills .pi/agent/skills .hermes/skills .hermes/profiles/james/skills; do
     link="$test_tmp/home/$directory/$skill"
     [[ -L $link && $(readlink "$link") == "$fixture/default/agents/skills/$skill" ]] ||

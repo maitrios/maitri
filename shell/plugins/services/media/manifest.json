@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "id": "omarchy.media",
+  "id": "maitri.media",
   "name": "Media",
   "version": "1.0.0",
-  "author": "Omarchy",
+  "author": "maitri",
   "description": "MPRIS media control service",
   "kinds": [
     "service",

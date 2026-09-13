@@ -5,7 +5,7 @@ source "$(dirname "$0")/base-test.sh"
 
 run_node_test <<'JS'
 const fs = require('fs')
-const text = fs.readFileSync(path.join(root, 'default/omarchy/omarchy-menu.jsonc'), 'utf8')
+const text = fs.readFileSync(path.join(root, 'default/maitri/maitri-menu.jsonc'), 'utf8')
 const rows = Object.fromEntries(text.split('\n').filter(line => /^  "/.test(line)).map(line => {
   const object = JSON.parse('{' + line.trim().replace(/,$/, '') + '}')
   return Object.entries(object)[0]
@@ -16,24 +16,24 @@ const selected = {'t3-code': ['t3code-bin', '\ue908'], hermes: ['hermes-desktop'
 for (const [id, [pkg, glyph]] of Object.entries(selected)) {
   const install = rows[`install.ai.${id}`], remove = rows[`remove.ai.${id}`]
   assert(install && remove, `${id} has install and remove entries`)
-  assertEqual(install.when, `! omarchy-pkg-present ${pkg}`, `${id} preserves baseline install visibility`)
-  assertEqual(remove.when, `omarchy-pkg-present ${pkg}`, `${id} removal follows package presence`)
+  assertEqual(install.when, `! maitri-pkg-present ${pkg}`, `${id} preserves baseline install visibility`)
+  assertEqual(remove.when, `maitri-pkg-present ${pkg}`, `${id} removal follows package presence`)
   assertEqual(install.icon, glyph, `${id} install uses selected glyph`)
   assertEqual(remove.icon, glyph, `${id} remove uses selected glyph`)
-  assertEqual(install.iconFont, 'omarchy', `${id} uses the packaged icon font`)
-  assert(fs.existsSync(path.join(root, `bin/omarchy-remove-ai-${id}`)), `${id} remover exists`)
+  assertEqual(install.iconFont, 'maitri', `${id} uses the packaged icon font`)
+  assert(fs.existsSync(path.join(root, `bin/maitri-remove-ai-${id}`)), `${id} remover exists`)
 }
 assertDeepEqual(Object.keys(rows).filter(k => k.startsWith('remove.ai.')).sort(), Object.keys(selected).map(k => `remove.ai.${k}`).sort(), 'removal prerequisite imports no unselected apps')
 assertDeepEqual(Object.keys(rows).filter(k => k.startsWith('setup.default.agent.')).map(k => k.split('.').pop()).sort(), ['claude', 'codex', 'copilot', 'crush', 'cursor-agent', 'gemini', 'grok', 'hermes', 'muse', 'omp', 'openclaw', 'opencode', 'pi'], 'baseline agent choices survive with only selected release agents added')
 for (const id of ['setup.default.agent.cursor-agent', 'setup.default.editor.cursor', 'install.editor.cursor']) {
   assertEqual(rows[id].icon, '\ue90d', `${id} uses the upstream Cursor glyph`)
-  assertEqual(rows[id].iconFont, 'omarchy', `${id} uses the packaged icon font`)
+  assertEqual(rows[id].iconFont, 'maitri', `${id} uses the packaged icon font`)
 }
-assertEqual(rows['setup.default.editor.cursor'].when, 'omarchy-cmd-present cursor', 'Cursor editor retains baseline default visibility')
-assertEqual(rows['install.editor.cursor'].when, '! omarchy-pkg-present cursor-bin', 'Cursor editor retains baseline install visibility')
+assertEqual(rows['setup.default.editor.cursor'].when, 'maitri-cmd-present cursor', 'Cursor editor retains baseline default visibility')
+assertEqual(rows['install.editor.cursor'].when, '! maitri-pkg-present cursor-bin', 'Cursor editor retains baseline install visibility')
 assertEqual(rows['setup.default.agent.muse'].icon, '󰛤', 'Muse uses the Nerd infinity glyph')
-assert(!rows['setup.default.agent.muse'].iconFont, 'Muse needs no Omarchy font addition')
-assert(!fs.existsSync(path.join(root, 'bin/omarchy-theme-set-openclaw')), 'deferred OpenClaw theming is absent')
+assert(!rows['setup.default.agent.muse'].iconFont, 'Muse needs no maitri font addition')
+assert(!fs.existsSync(path.join(root, 'bin/maitri-theme-set-openclaw')), 'deferred OpenClaw theming is absent')
 JS
 
 test_tmp=$(mktemp -d)
@@ -44,11 +44,11 @@ cat >"$test_tmp/bin/mise" <<'SH'
 #!/bin/bash
 printf 'mise:%s\n' "$*" >>"$TEST_CALLS"
 SH
-cat >"$test_tmp/bin/omarchy-mise-install" <<'SH'
+cat >"$test_tmp/bin/maitri-mise-install" <<'SH'
 #!/bin/bash
 printf 'stub:%s\n' "$*" >>"$TEST_CALLS"
 SH
-cat >"$test_tmp/bin/omarchy-install-hermes-cli" <<'SH'
+cat >"$test_tmp/bin/maitri-install-hermes-cli" <<'SH'
 #!/bin/bash
 printf 'hermes:%s\n' "$*" >>"$TEST_CALLS"
 exit 1
@@ -77,9 +77,9 @@ import subprocess
 import sys
 
 root, temporary = map(pathlib.Path, sys.argv[1:])
-tool = root / 'bin/omarchy-dev-font'
-font = temporary / 'omarchy.ttf'
-shutil.copyfile(root / 'default/fonts/omarchy/omarchy.ttf', font)
+tool = root / 'bin/maitri-dev-font'
+font = temporary / 'maitri.ttf'
+shutil.copyfile(root / 'default/fonts/maitri/maitri.ttf', font)
 api = runpy.run_path(str(tool))
 
 def snapshot():

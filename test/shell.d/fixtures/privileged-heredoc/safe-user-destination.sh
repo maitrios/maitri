@@ -1,9 +1,9 @@
-mkdir -p ~/.config/omarchy
+mkdir -p ~/.config/maitri
 
-cat >~/.config/omarchy/agent.conf <<EOF
-helper=$HOME/.local/share/omarchy/bin/omarchy-agent
+cat >~/.config/maitri/agent.conf <<EOF
+helper=$HOME/.local/share/maitri/bin/maitri-agent
 EOF
 
-cat >"$HOME/.local/bin/omarchy-shim" <<EOF
-exec "$OMARCHY_PATH/bin/omarchy-agent" "$@"
+cat >"$HOME/.local/bin/maitri-shim" <<EOF
+exec "$MAITRI_PATH/bin/maitri-agent" "$@"
 EOF

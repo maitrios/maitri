@@ -35,7 +35,7 @@ write_usb_devices() {
 }
 
 hw_fingerprint() {
-  OMARCHY_USB_DEVICES_PATH="$tmp_dir/devices" "$ROOT/bin/omarchy-hw-fingerprint"
+  MAITRI_USB_DEVICES_PATH="$tmp_dir/devices" "$ROOT/bin/maitri-hw-fingerprint"
 }
 
 assert_detects() {

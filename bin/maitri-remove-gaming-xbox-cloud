@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# maitri:summary=Remove the Xbox Cloud Gaming web app.
+
+set -e
+
+maitri-webapp-remove "Xbox Cloud Gaming"

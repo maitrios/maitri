@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# maitri:summary=Install Spotify.
+# maitri:requires-sudo=true
+
+set -e
+
+echo "Installing Spotify..."
+maitri-pkg-add spotify
+
+echo "Opening Spotify..."
+setsid uwsm-app -- /usr/bin/spotify >/dev/null 2>&1 &
+
+echo ""
+echo "Spotify has been installed."

@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# maitri:summary=Remove Tailscale and its bar plugin.
+# maitri:requires-sudo=true
+
+tailscale down 2>/dev/null || true
+systemctl --user disable --now maitri-tailscale-receive.service 2>/dev/null || true
+sudo systemctl disable --now tailscaled.service 2>/dev/null || true
+maitri-plugin-disable maitri.tailscale
+maitri-webapp-remove "Tailscale" 2>/dev/null || true
+maitri-pkg-drop tailscale
+
+echo ""
+echo "Tailscale has been removed."

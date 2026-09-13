@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# maitri:summary=Edit, set, or reset screensaver branding
+# maitri:group=branding
+# maitri:name=screensaver
+# maitri:args=<image|text|reset>
+# maitri:examples=maitri branding screensaver image | maitri branding screensaver text | maitri branding screensaver reset
+
+set -euo pipefail
+
+case "${1:-}" in
+image)
+  image=$(maitri-file-select --title "Pick PNG or SVG for screensaver" --extensions "png svg")
+  if maitri-transcode-ascii "$image" ~/.config/maitri/branding/screensaver.txt; then
+    maitri-launch-screensaver force >/dev/null 2>&1
+  fi
+  ;;
+text)
+  maitri-launch-editor ~/.config/maitri/branding/screensaver.txt >/dev/null 2>&1 && maitri-launch-screensaver force >/dev/null 2>&1
+  ;;
+reset)
+  cp "$MAITRI_PATH/logo.txt" ~/.config/maitri/branding/screensaver.txt && maitri-launch-screensaver force >/dev/null 2>&1
+  ;;
+*)
+  echo "Usage: maitri-branding-screensaver <image|text|reset>" >&2
+  exit 1
+  ;;
+esac

@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# maitri:summary=Reload btop configuration (used by the maitri theme switching).
+
+pkill -SIGUSR2 btop

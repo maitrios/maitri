@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# maitri:summary=Print the installed maitri version
+
+maitri_path=${MAITRI_PATH:-/usr/share/maitri}
+maitri_path=${maitri_path%/}
+
+if [[ $maitri_path != "/usr/share/maitri" ]]; then
+  hash=$(git -C "$maitri_path" rev-parse --short HEAD 2>/dev/null || true)
+
+  if [[ -n $hash ]]; then
+    echo "dev ($hash)"
+  else
+    echo "dev"
+  fi
+
+  exit 0
+fi
+
+# The edge channel installs maitri-dev instead of maitri, so check both.
+for package in maitri-dev maitri; do
+  version=$(pacman -Q "$package" 2>/dev/null | awk '{ print $2 }')
+  [[ -n $version ]] && break
+done
+
+[[ -n $version ]] || exit 1
+
+echo "$version"

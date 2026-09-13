@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# maitri:summary=Open a config file in the user's editor and surface a toast
+# maitri:args=<path>
+# maitri:examples=maitri launch config-editor ~/.config/hypr/hyprland.lua
+
+path="${1-}"
+
+if [[ -z $path ]]; then
+  echo "Usage: maitri-launch-config-editor <path>" >&2
+  exit 1
+fi
+
+maitri-notification-send -u low "Editing config file" "$path"
+exec maitri-launch-editor "$path"

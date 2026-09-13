@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# maitri:summary=Overwrite the user tmux config with the maitri default and reload tmux.
+
+maitri-refresh-config tmux/tmux.conf
+maitri-restart-tmux

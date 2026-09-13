@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# maitri:summary=Overwrite the user herdr config with the maitri default and reload herdr.
+
+maitri-refresh-config herdr/config.toml
+maitri-restart-herdr

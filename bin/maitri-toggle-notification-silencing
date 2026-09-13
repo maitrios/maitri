@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# maitri:summary=Toggle notification do-not-disturb mode
+
+state=$(maitri-shell notifications toggleDnd 2>/dev/null || echo "")
+maitri-shell -q maitri.indicators refresh

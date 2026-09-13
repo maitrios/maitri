@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# maitri:summary=Restore the default maitri Plymouth boot theme and SDDM login screen
+# maitri:requires-sudo=true
+
+set -euo pipefail
+
+"$MAITRI_PATH/bin/maitri-refresh-plymouth"
+"$MAITRI_PATH/bin/maitri-refresh-sddm"

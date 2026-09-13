@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# maitri:summary=Refresh the shell update status
+# maitri:hidden=true
+
+set -e
+
+if maitri-update-available >/dev/null; then
+  maitri-shell -q maitri.system-update refresh
+else
+  maitri-shell -q maitri.system-update clear
+fi

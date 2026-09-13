@@ -1,0 +1,26 @@
+#!/bin/bash
+
+# maitri:summary=Disable a shell plugin
+# maitri:group=plugin
+# maitri:args=<id>
+
+set -euo pipefail
+
+fail() {
+  echo "maitri-plugin-disable: $*" >&2
+  exit 1
+}
+
+if [[ ${1:-} == "-h" || ${1:-} == "--help" ]]; then
+  echo "Usage: maitri plugin disable <id>"
+  exit 0
+fi
+
+id="${1:-}"
+[[ -n $id ]] || fail "plugin id is required"
+
+result=$(maitri-shell shell setPluginEnabled "$id" false)
+[[ $result == "ok" ]] ||
+  fail "plugin '$id' is not known; run: maitri-shell shell rescanPlugins"
+
+echo "Disabled $id"

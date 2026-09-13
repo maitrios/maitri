@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# maitri:summary=Overwrite the user config for the Plymouth drive decryption and boot sequence with the maitri default and rebuild it.
+# maitri:requires-sudo=true
+
+# Reuse the fixed-file publisher so root never resolves the source checkout or
+# follows a destination symlink while restoring the packaged assets.
+exec "$MAITRI_PATH/bin/maitri-plymouth-set" --refresh-default

@@ -1,5 +1,5 @@
-name: omarchy
-description: Omarchy system theme
+name: maitri
+description: maitri system theme
 colors:
   background: "{{ background }}"
   ui_text: "{{ foreground }}"

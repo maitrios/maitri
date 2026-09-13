@@ -31,9 +31,9 @@ function fixture() {
   loadFunctions(registrySource, ['trustedCapabilities', 'stampHostCapabilities'], registry)
   const firstParty = {}
   for (const [id, file] of Object.entries({
-    'omarchy.lock': 'lock/manifest.json',
-    'omarchy.polkit': 'polkit/manifest.json',
-    'omarchy.idle': 'services/idle/manifest.json'
+    'maitri.lock': 'lock/manifest.json',
+    'maitri.polkit': 'polkit/manifest.json',
+    'maitri.idle': 'services/idle/manifest.json'
   })) {
     firstParty[id] = {
       ...JSON.parse(fs.readFileSync(path.join(root, 'shell/plugins', file), 'utf8')),
@@ -47,8 +47,8 @@ function fixture() {
       keepLoaded: id !== 'acme.transient', __isFirstParty: false,
       __sourceDir: '/fixture/plugins/' + id,
       // Third-party declarations must not grant authentication capabilities.
-      omarchy: id === 'acme.lock'
-        ? { clonedFrom: 'omarchy.lock' } : { capabilities: ['authentication'] },
+      maitri: id === 'acme.lock'
+        ? { clonedFrom: 'maitri.lock' } : { capabilities: ['authentication'] },
       __hostCapabilities: ['forged']
     }
   }
@@ -57,19 +57,19 @@ function fixture() {
   const disabled = new Set()
   registry.isEnabled = id => !disabled.has(id)
   registry.entryPointUrl = manifest => manifest.id
-  registry.resolveEnabledId = id => id === 'omarchy.media' ? 'acme.ordinary' : id
+  registry.resolveEnabledId = id => id === 'maitri.media' ? 'acme.ordinary' : id
   const created = []
   const host = {}
   const context = vm.createContext({
     console, pluginRegistry: registry, AuthServiceStore: store,
-    _services: {}, serviceHost: host, omarchyPath: root,
+    _services: {}, serviceHost: host, maitriPath: root,
     Component: { Ready: 1, Loading: 2, PreferSynchronous: 3 },
     Qt: {
       createComponent: id => ({
         status: 1,
         createObject(parent) {
           const instance = {
-            id, parent, manifest: null, shell: null, omarchyPath: '',
+            id, parent, manifest: null, shell: null, maitriPath: '',
             destroyCount: 0, marker: 'survives-rescan',
             destroy() { this.destroyCount++ }
           }
@@ -93,20 +93,20 @@ function fixture() {
 const f = fixture()
 f.context._syncServices()
 const initial = Object.fromEntries(f.created.map(instance => [instance.id, instance]))
-for (const id of ['omarchy.lock', 'omarchy.polkit', 'acme.lock']) {
+for (const id of ['maitri.lock', 'maitri.polkit', 'acme.lock']) {
   assert(f.store.has(id) && f.context.serviceFor(id) === null && initial[id].parent === null,
     `${id} is retained privately and created without a parent`)
   assert(f.context.ensureService(id) === null && initial[id].destroyCount === 0,
     `${id} cannot be retrieved or recreated through ensureService`)
 }
-assert(initial['acme.ordinary'].parent === null && initial['omarchy.idle'].parent === f.host,
+assert(initial['acme.ordinary'].parent === null && initial['maitri.idle'].parent === f.host,
   'only trusted non-authentication services use the service host')
 assertDeepEqual(f.registry.installedPlugins['acme.ordinary'].__hostCapabilities, [],
   'third-party capabilities cannot forge authentication classification')
 assert(!('services' in f.context)
-  && f.context.firstPartyServiceFor('omarchy.media') === initial['acme.ordinary']
-  && f.context.pluginServiceFor('acme.ordinary', 'omarchy.media') === initial['acme.ordinary']
-  && f.context.pluginServiceFor('acme.ordinary', 'omarchy.lock') === null,
+  && f.context.firstPartyServiceFor('maitri.media') === initial['acme.ordinary']
+  && f.context.pluginServiceFor('acme.ordinary', 'maitri.media') === initial['acme.ordinary']
+  && f.context.pluginServiceFor('acme.ordinary', 'maitri.lock') === null,
   'enabled-clone and own-service lookups work without a services alias')
 
 f.context.unloadPluginServices()
@@ -114,7 +114,7 @@ for (const [id, manifest] of Object.entries(f.registry.installedPlugins)) {
   f.registry.installedPlugins[id] = { ...manifest, name: 'Refreshed ' + id }
 }
 f.context._syncServices()
-for (const id of ['omarchy.lock', 'omarchy.polkit', 'acme.lock', 'omarchy.idle', 'acme.ordinary']) {
+for (const id of ['maitri.lock', 'maitri.polkit', 'acme.lock', 'maitri.idle', 'acme.ordinary']) {
   assert(initial[id].destroyCount === 0 && initial[id].marker === 'survives-rescan'
     && f.created.filter(instance => instance.id === id).length === 1
     && initial[id].manifest.name === 'Refreshed ' + id,

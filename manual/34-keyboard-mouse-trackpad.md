@@ -1,6 +1,6 @@
 # Keyboard, Mouse, Trackpad
 
-Hyprland lets you configure all your inputs in great detail. You can change the keyboard repeat to be supersonically fast or make the trackpad use natural scrolling. You change all of it in `~/.config/hypr/input.lua`, which you can also reach via _Setup > Input_ in the Omarchy menu (`Super + Space`). Anything you set there replaces Omarchy's defaults.
+Hyprland lets you configure all your inputs in great detail. You can change the keyboard repeat to be supersonically fast or make the trackpad use natural scrolling. You change all of it in `~/.config/hypr/input.lua`, which you can also reach via _Setup > Input_ in the maitri menu (`Super + Space`). Anything you set there replaces maitri's defaults.
 
 Here's an example:
 
@@ -49,7 +49,7 @@ On Dell XPS laptops with a haptic touchpad, you can also set the click strength 
 
 ### Typing in Chinese, Japanese, and other languages
 
-Omarchy runs the [fcitx5](https://fcitx-im.org/) input method framework as part of every session — it's what powers the CapsLock compose sequences. That means the plumbing for non-Latin input is already in place: install an input engine like `fcitx5-mozc` (Japanese) or `fcitx5-chinese-addons` (Chinese) with `omarchy pkg add`, plus `fcitx5-configtool` to add the engine to your input methods and set the key that switches between them.
+maitri runs the [fcitx5](https://fcitx-im.org/) input method framework as part of every session — it's what powers the CapsLock compose sequences. That means the plumbing for non-Latin input is already in place: install an input engine like `fcitx5-mozc` (Japanese) or `fcitx5-chinese-addons` (Chinese) with `maitri pkg add`, plus `fcitx5-configtool` to add the engine to your input methods and set the key that switches between them.
 
 ### Use ALT as SUPER
 

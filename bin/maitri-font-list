@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# maitri:summary=List available monospace fonts
+# maitri:examples=maitri font list | maitri font set "CaskaydiaMono Nerd Font"
+
+fc-list :spacing=100 -f "%{family[0]}\n" | grep -v -i -E 'emoji|signwriting|maitri' | sort -u

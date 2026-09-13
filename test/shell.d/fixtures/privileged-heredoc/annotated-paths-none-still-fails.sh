@@ -1,8 +1,8 @@
-if omarchy-battery-present; then
-  # omarchy:heredoc-expands paths=none -- only interpolates the omarchy bin path
+if maitri-battery-present; then
+  # maitri:heredoc-expands paths=none -- only interpolates the maitri bin path
   cat <<EOF | sudo tee "/etc/udev/rules.d/99-power-profile.rules"
-SUBSYSTEM=="power_supply", ATTR{type}=="Mains", RUN+="/usr/bin/systemd-run --no-block --collect --unit=omarchy-power-profile --property=After=power-profiles-daemon.service $HOME/.local/share/omarchy/bin/omarchy-powerprofiles-set"
-SUBSYSTEM=="power_supply", ATTR{type}=="USB", RUN+="/usr/bin/systemd-run --no-block --collect --unit=omarchy-power-profile --property=After=power-profiles-daemon.service $HOME/.local/share/omarchy/bin/omarchy-powerprofiles-set"
+SUBSYSTEM=="power_supply", ATTR{type}=="Mains", RUN+="/usr/bin/systemd-run --no-block --collect --unit=maitri-power-profile --property=After=power-profiles-daemon.service $HOME/.local/share/maitri/bin/maitri-powerprofiles-set"
+SUBSYSTEM=="power_supply", ATTR{type}=="USB", RUN+="/usr/bin/systemd-run --no-block --collect --unit=maitri-power-profile --property=After=power-profiles-daemon.service $HOME/.local/share/maitri/bin/maitri-powerprofiles-set"
 EOF
 
   sudo systemctl enable power-profiles-daemon

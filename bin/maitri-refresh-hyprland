@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# maitri:summary=Overwrite all the user Hyprland Lua configs in ~/.config/hypr with the maitri defaults.
+
+maitri-refresh-config hypr/.luarc.json
+maitri-refresh-config hypr/autostart.lua
+maitri-refresh-config hypr/bindings.lua
+maitri-refresh-config hypr/input.lua
+maitri-refresh-config hypr/looknfeel.lua
+maitri-refresh-config hypr/hyprland.lua
+maitri-refresh-config hypr/monitors.lua
+
+mkdir -p ~/.local/state/maitri/toggles/hypr
+cp "$MAITRI_PATH/default/hypr/toggles/flags.lua" ~/.local/state/maitri/toggles/hypr/

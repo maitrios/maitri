@@ -1,0 +1,12 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = maitri-settings
+Target = maitri-settings-dev
+
+[Action]
+Description = Pausing Hyprland config auto-reload for maitri settings update...
+When = PreTransaction
+Depends = maitri
+Exec = /usr/bin/maitri-hyprland-reload-guard pause

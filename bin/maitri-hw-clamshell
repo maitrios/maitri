@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# maitri:summary=Returns true when clamshell mode is active
+# maitri:hidden=true
+
+# Clamshell = lid closed while driving one or more external monitors.
+maitri-hw-laptop-closed && maitri-hw-external-monitors

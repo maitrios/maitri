@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# maitri:summary=Cache background switcher thumbnails for the current theme
+
+theme_name=$(cat "$HOME/.local/state/maitri/current/theme.name" 2>/dev/null)
+
+maitri-menu-images \
+  --cache-only \
+  "$HOME/.local/state/maitri/current/theme/backgrounds" \
+  "$HOME/.config/maitri/backgrounds/$theme_name"

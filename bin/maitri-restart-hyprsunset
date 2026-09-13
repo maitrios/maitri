@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# maitri:summary=Restart the hyprsunset service (used for blue light filtering/night light).
+
+maitri-restart-app hyprsunset

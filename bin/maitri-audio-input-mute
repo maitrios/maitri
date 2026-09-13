@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# maitri:summary=Toggle microphone mute. Drives the hardware mic-mute LED on laptops that expose one.
+
+wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle >/dev/null
+
+if wpctl get-volume @DEFAULT_AUDIO_SOURCE@ | grep -q MUTED; then
+  maitri-brightness-keyboard-mute on
+  maitri-osd -i microphone-muted -m "Microphone muted"
+else
+  maitri-brightness-keyboard-mute off
+  maitri-osd -i microphone -m "Microphone on"
+fi

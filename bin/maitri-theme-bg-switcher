@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# maitri:summary=Open the maitri background switcher
+# maitri:group=theme
+# maitri:name=bg-switcher
+# maitri:aliases=maitri background
+
+theme_name=$(cat "$HOME/.local/state/maitri/current/theme.name" 2>/dev/null)
+current_background=$(readlink -f "$HOME/.local/state/maitri/current/background" 2>/dev/null)
+
+maitri-menu-images \
+  --selected "$current_background" \
+  "$HOME/.local/state/maitri/current/theme/backgrounds" \
+  "$HOME/.config/maitri/backgrounds/$theme_name"

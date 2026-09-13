@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# maitri:summary=Wake displays and restore brightness after idle
+# maitri:group=system
+# maitri:name=wake
+# maitri:examples=maitri system wake
+
+maitri-brightness-display on
+maitri-brightness-keyboard restore
+maitri-hyprland-monitor-clamshell >/dev/null 2>&1 || true

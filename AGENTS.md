@@ -6,7 +6,7 @@ matching guide before starting:
 - [`agents/skills/command-metadata.md`](agents/skills/command-metadata.md) - adding or changing commands in `bin/`
 - [`agents/skills/install-scripts.md`](agents/skills/install-scripts.md) - working under `install/` or on system/user setup commands
 - [`agents/skills/shell-dev.md`](agents/skills/shell-dev.md) - editing the Quickshell desktop under `shell/`
-- [`agents/skills/icon-font.md`](agents/skills/icon-font.md) - adding branded glyphs to `default/fonts/omarchy/omarchy.ttf`
+- [`agents/skills/icon-font.md`](agents/skills/icon-font.md) - adding branded glyphs to `default/fonts/maitri/maitri.ttf`
 - [`agents/skills/acceptance-tests.md`](agents/skills/acceptance-tests.md) - writing or running graphical acceptance tests under `test/acceptance.d/`
 - [`agents/skills/visual-verification.md`](agents/skills/visual-verification.md) - verifying any change with a visual effect in the running UI
 - [`docs/migrations.md`](docs/migrations.md) - creating or changing migrations under `migrations/`
@@ -23,11 +23,11 @@ matching guide before starting:
 
 # Command Naming
 
-All commands start with `omarchy-`. Prefixes indicate purpose.
+All commands start with `maitri-`. Prefixes indicate purpose.
 
-The authoritative list of user-facing command groups lives in `bin/omarchy` in `GROUP_DESCRIPTIONS`. Keep `GROUP_DESCRIPTIONS` updated when adding a new command prefix users are meant to browse to.
+The authoritative list of user-facing command groups lives in `bin/maitri` in `GROUP_DESCRIPTIONS`. Keep `GROUP_DESCRIPTIONS` updated when adding a new command prefix users are meant to browse to.
 
-A group whose commands are all `# omarchy:hidden=true` gets no entry. That table drives the top-level group listing on its own, so an entry there advertises the group even when every command in it is hidden. `apply-` and `provision-` are deliberately absent for that reason; both still route, and `omarchy <group>` still prints a group header without one.
+A group whose commands are all `# maitri:hidden=true` gets no entry. That table drives the top-level group listing on its own, so an entry there advertises the group even when every command in it is hidden. `apply-` and `provision-` are deliberately absent for that reason; both still route, and `maitri <group>` still prints a group header without one.
 
 Common prefixes include:
 
@@ -50,12 +50,12 @@ guidance does not drift from the router.
 
 # Runtime Environment
 
-- `$OMARCHY_PATH` is set at the top level by the uwsm session environment and is always available to Omarchy runtime code.
-- Commands in `bin/` and Quickshell QML should rely on `$OMARCHY_PATH` / `Quickshell.env("OMARCHY_PATH")`; do not derive fallback paths from `HOME`, `Quickshell.shellDir`, or re-export/default `OMARCHY_PATH` manually.
+- `$MAITRI_PATH` is set at the top level by the uwsm session environment and is always available to maitri runtime code.
+- Commands in `bin/` and Quickshell QML should rely on `$MAITRI_PATH` / `Quickshell.env("MAITRI_PATH")`; do not derive fallback paths from `HOME`, `Quickshell.shellDir`, or re-export/default `MAITRI_PATH` manually.
 
 # Privileged Commands
 
-- Follow the "Privilege Escalation" section of `default/agents/skills/omarchy/SKILL.md`. It draws the
+- Follow the "Privilege Escalation" section of `default/agents/skills/maitri/SKILL.md`. It draws the
   `sudo`/`pkexec` line by whether the caller has a terminal to enter a password in, and the repo's
   own scripts follow it.
 
@@ -68,20 +68,20 @@ guidance does not drift from the router.
 
 Use these instead of raw shell commands:
 
-- `omarchy-cmd-missing` / `omarchy-cmd-present` - check for commands
-- `omarchy-pkg-missing` / `omarchy-pkg-present` - check for packages (don't use these if you can just use `omarchy-pkg-add`/`omarchy-pkg-drop`)
-- `omarchy-pkg-add` - install packages (handles both pacman and AUR)
-- `omarchy-pkg-drop` - remove packages; use this instead of raw `pacman -R*`
-- `omarchy-notification-send` - send desktop notifications; do not call `notify-send` directly
-- `omarchy-hw-asus-rog` - detect ASUS ROG hardware (and similar `hw-*` commands)
+- `maitri-cmd-missing` / `maitri-cmd-present` - check for commands
+- `maitri-pkg-missing` / `maitri-pkg-present` - check for packages (don't use these if you can just use `maitri-pkg-add`/`maitri-pkg-drop`)
+- `maitri-pkg-add` - install packages (handles both pacman and AUR)
+- `maitri-pkg-drop` - remove packages; use this instead of raw `pacman -R*`
+- `maitri-notification-send` - send desktop notifications; do not call `notify-send` directly
+- `maitri-hw-asus-rog` - detect ASUS ROG hardware (and similar `hw-*` commands)
 
-Commands installed by Omarchy's default package set are runtime invariants. Invoke them directly; do not add defensive `omarchy-cmd-present` / `omarchy-cmd-missing` checks around them. Use command-presence helpers only for genuinely optional dependencies or code that can run before the default package set is installed.
+Commands installed by maitri's default package set are runtime invariants. Invoke them directly; do not add defensive `maitri-cmd-present` / `maitri-cmd-missing` checks around them. Use command-presence helpers only for genuinely optional dependencies or code that can run before the default package set is installed.
 
 Exceptions are allowed for migration and package-helper scripts where the helper may not be available yet, where the helper itself is being implemented, or where direct package-manager behavior is required.
 
 # Menu
 
-- The menu definition lives in `default/omarchy/omarchy-menu.jsonc`.
+- The menu definition lives in `default/maitri/maitri-menu.jsonc`.
 - Do not add `aliases` to new menu entries. Aliases are reserved for
   established alternate names users already type, kept for compatibility.
 
@@ -97,9 +97,9 @@ Run focused automated tests for the area you changed. Current test entry points:
 
 - `./test/all` - aggregate runner for CLI and shell tests; it intentionally does not run graphical acceptance tests
 - `./test/cli` - CLI routing, command metadata, theme helpers, and safe dispatch coverage
-- `./test/shell` - all Omarchy shell tests under `test/shell.d/`
+- `./test/shell` - all maitri shell tests under `test/shell.d/`
 
-New Omarchy shell tests should live in `test/shell.d/*-test.sh` so `./test/shell` picks them up automatically. Source `test/shell.d/base-test.sh` for shared root-path discovery, assertions, and Node test helpers.
+New maitri shell tests should live in `test/shell.d/*-test.sh` so `./test/shell` picks them up automatically. Source `test/shell.d/base-test.sh` for shared root-path discovery, assertions, and Node test helpers.
 
 The graphical acceptance suite runs in a disposable VM, not in the active
 development session; see [`agents/skills/acceptance-tests.md`](agents/skills/acceptance-tests.md).
@@ -112,9 +112,9 @@ tests; follow [`agents/skills/visual-verification.md`](agents/skills/visual-veri
 To copy a default config to user config with automatic backup:
 
 ```bash
-omarchy-refresh-config hypr/hyprland.lua
+maitri-refresh-config hypr/hyprland.lua
 ```
 
-This copies `$OMARCHY_PATH/config/hypr/hyprland.lua` to `~/.config/hypr/hyprland.lua`. The argument
+This copies `$MAITRI_PATH/config/hypr/hyprland.lua` to `~/.config/hypr/hyprland.lua`. The argument
 is interpolated into both paths and only checked with `[[ -e ]]`, so pass a plain relative path: a
 name containing `..` resolves and copies, landing outside `~/.config` rather than being rejected.

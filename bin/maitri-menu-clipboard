@@ -1,0 +1,6 @@
+#!/bin/bash
+# maitri:summary=Launch the clipboard manager
+# maitri:group=menu
+# maitri:examples=maitri menu clipboard
+
+maitri-shell shell toggle maitri.clipboard

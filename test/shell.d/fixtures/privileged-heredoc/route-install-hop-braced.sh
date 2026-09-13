@@ -1,5 +1,5 @@
-tmp=/tmp/omarchy-generated
+tmp=/tmp/maitri-generated
 cat >"$tmp" <<EOF
-command=$HOME/.local/share/omarchy/bin/example
+command=$HOME/.local/share/maitri/bin/example
 EOF
-sudo install -m644 "${tmp}" /etc/omarchy/example.conf
+sudo install -m644 "${tmp}" /etc/maitri/example.conf

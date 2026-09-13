@@ -1,5 +1,5 @@
-cat >/etc/omarchy/agent.conf <<EOF
+cat >/etc/maitri/agent.conf <<EOF
 enabled=true
   EOF
-helper=$HOME/.local/share/omarchy/bin/omarchy-agent
+helper=$HOME/.local/share/maitri/bin/maitri-agent
 EOF

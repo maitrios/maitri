@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# maitri:summary=Show which theme is styling the Plymouth boot screen
+# maitri:examples=maitri plymouth current
+
+# maitri-plymouth-set installs the theme's unlock.png as a byte-for-byte
+# copy of logo.png, so matching it back identifies the current theme.
+installed_logo=/usr/share/plymouth/themes/maitri/logo.png
+
+if cmp -s "$MAITRI_PATH/default/plymouth/logo.png" "$installed_logo"; then
+  echo default
+  exit
+fi
+
+maitri-plymouth-list | while read -r name; do
+  if cmp -s "$(maitri-theme-dir "$name")/unlock.png" "$installed_logo"; then
+    echo "$name"
+    exit
+  fi
+done

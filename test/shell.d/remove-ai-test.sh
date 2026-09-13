@@ -9,13 +9,13 @@ trap 'rm -rf "$tmp_dir"' EXIT
 
 mkdir -p "$tmp_dir/bin"
 
-cat >"$tmp_dir/bin/omarchy-pkg-drop" <<'SCRIPT'
+cat >"$tmp_dir/bin/maitri-pkg-drop" <<'SCRIPT'
 #!/bin/bash
 printf 'drop:%s\n' "$*" >>"$TEST_LOG"
 SCRIPT
-chmod +x "$tmp_dir/bin/omarchy-pkg-drop"
+chmod +x "$tmp_dir/bin/maitri-pkg-drop"
 
-# omarchy-remove-ai-perplexity asks through gum whether the user's data goes
+# maitri-remove-ai-perplexity asks through gum whether the user's data goes
 # too. The stub answers "no" unless a test says otherwise and logs the call: a
 # real gum would hang the run, and one that answered "yes" on its own would be
 # the data loss the default-no exists to prevent. It logs to its own file
@@ -44,7 +44,7 @@ fresh_home() {
 fresh_home
 mkdir -p "$HOME/.config/t3code" "$HOME/.t3" "$HOME/.grok" "$HOME/.local/share/opencode" "$HOME/.npm"
 touch "$HOME/.claude.json"
-"$ROOT/bin/omarchy-remove-ai-t3-code" >/dev/null
+"$ROOT/bin/maitri-remove-ai-t3-code" >/dev/null
 
 [[ ! -e $HOME/.t3 ]] || fail "T3 Code removal deletes its own data"
 pass "T3 Code removal deletes its own data"
@@ -68,7 +68,7 @@ seed_perplexity() {
 # </dev/null pins stdin off a terminal, so this run exercises the
 # non-interactive path no matter where the suite itself is running.
 seed_perplexity
-"$ROOT/bin/omarchy-remove-ai-perplexity" </dev/null >/dev/null
+"$ROOT/bin/maitri-remove-ai-perplexity" </dev/null >/dev/null
 
 for gone in .cache/Perplexity .cache/perplexity-rpc-server .local/share/perplexity-rpc-server; do
   [[ ! -e $HOME/$gone ]] || fail "Perplexity removal deletes the app's runtime and caches" "$gone"
@@ -91,7 +91,7 @@ pass "Perplexity removal keeps the user's data unasked when there is no terminal
 # script(1) puts the remover on a pty, the only way -t 0 answers true in a
 # test; the stubbed gum then supplies the answer.
 seed_perplexity
-script -qec "'$ROOT/bin/omarchy-remove-ai-perplexity'" /dev/null >/dev/null 2>&1
+script -qec "'$ROOT/bin/maitri-remove-ai-perplexity'" /dev/null >/dev/null 2>&1
 
 [[ -d $HOME/.config/Perplexity && -d $HOME/.local/state/perplexity && -f $HOME/.config/perplexity-flags.conf ]] ||
   fail "Perplexity removal keeps the user's data when the answer is no"
@@ -107,7 +107,7 @@ pass "Perplexity removal asks with the destructive answer defaulted off"
 # the removal between the package and the prompt.
 seed_perplexity
 rm -rf "$HOME/.config/Perplexity" "$HOME/.local/state/perplexity"
-script -qec "'$ROOT/bin/omarchy-remove-ai-perplexity'" /dev/null >/dev/null 2>&1 ||
+script -qec "'$ROOT/bin/maitri-remove-ai-perplexity'" /dev/null >/dev/null 2>&1 ||
   fail "Perplexity removal survives user-data directories that are already gone"
 pass "Perplexity removal survives user-data directories that are already gone"
 
@@ -115,14 +115,14 @@ pass "Perplexity removal survives user-data directories that are already gone"
 # invisible, so the remover must keep the data instead of blocking on it.
 seed_perplexity
 gum_calls_before=$(wc -l <"$TEST_GUM_LOG")
-script -qec "'$ROOT/bin/omarchy-remove-ai-perplexity' 2>/dev/null" /dev/null >/dev/null 2>&1 ||
+script -qec "'$ROOT/bin/maitri-remove-ai-perplexity' 2>/dev/null" /dev/null >/dev/null 2>&1 ||
   fail "Perplexity removal completes when stderr is not a terminal"
 [[ -d $HOME/.config/Perplexity ]] && (( $(wc -l <"$TEST_GUM_LOG") == gum_calls_before )) ||
   fail "Perplexity removal keeps the user's data unasked when stderr is not a terminal"
 pass "Perplexity removal keeps the user's data unasked when stderr is not a terminal"
 
 seed_perplexity
-TEST_GUM_STATUS=0 script -qec "'$ROOT/bin/omarchy-remove-ai-perplexity'" /dev/null >/dev/null 2>&1
+TEST_GUM_STATUS=0 script -qec "'$ROOT/bin/maitri-remove-ai-perplexity'" /dev/null >/dev/null 2>&1
 
 for gone in .config/Perplexity .local/state/perplexity .config/perplexity-flags.conf; do
   [[ ! -e $HOME/$gone ]] || fail "Perplexity removal deletes the user's data on an explicit yes" "$gone"
@@ -131,7 +131,7 @@ pass "Perplexity removal deletes the user's data on an explicit yes"
 
 # Without HOME the rm -rf paths would degrade to /-rooted ones; -u makes that a
 # refusal instead.
-if env -u HOME "$ROOT/bin/omarchy-remove-ai-perplexity" </dev/null >/dev/null 2>&1; then
+if env -u HOME "$ROOT/bin/maitri-remove-ai-perplexity" </dev/null >/dev/null 2>&1; then
   fail "Perplexity removal refuses to run without HOME"
 fi
 pass "Perplexity removal refuses to run without HOME"
@@ -180,7 +180,7 @@ SCRIPT
 chmod +x "$tmp_dir/bin/gum"
 
 fresh_openclaw_home
-"$ROOT/bin/omarchy-remove-ai-openclaw" >/dev/null
+"$ROOT/bin/maitri-remove-ai-openclaw" >/dev/null
 
 for gone in .config/systemd/user/openclaw-gateway.service \
   .config/systemd/user/openclaw-gateway.service.bak \
@@ -222,7 +222,7 @@ chmod +x "$tmp_dir/bin/openclaw"
 
 : >"$TEST_LOG"
 fresh_openclaw_home
-"$ROOT/bin/omarchy-remove-ai-openclaw" >/dev/null
+"$ROOT/bin/maitri-remove-ai-openclaw" >/dev/null
 
 grep -q '^openclaw:gateway uninstall$' "$TEST_LOG" ||
   fail "OpenClaw removal prefers upstream's own gateway teardown"
@@ -235,7 +235,7 @@ pass "OpenClaw removal prefers upstream's own gateway teardown"
 # Without the unit file there is nothing of ours registered, so systemd stays untouched.
 systemctl_calls_before=$(grep -c '^systemctl:' "$TEST_LOG" || true)
 fresh_home
-"$ROOT/bin/omarchy-remove-ai-openclaw" >/dev/null
+"$ROOT/bin/maitri-remove-ai-openclaw" >/dev/null
 systemctl_calls_after=$(grep -c '^systemctl:' "$TEST_LOG" || true)
 
 [[ $systemctl_calls_before == "$systemctl_calls_after" ]] ||
@@ -262,7 +262,7 @@ chmod +x "$tmp_dir/bin/systemctl"
 drop_calls_before=$(grep -c '^drop:openclaw$' "$TEST_LOG" || true)
 fresh_openclaw_home
 rc=0
-"$ROOT/bin/omarchy-remove-ai-openclaw" >/dev/null 2>&1 || rc=$?
+"$ROOT/bin/maitri-remove-ai-openclaw" >/dev/null 2>&1 || rc=$?
 drop_calls_after=$(grep -c '^drop:openclaw$' "$TEST_LOG" || true)
 
 [[ $rc != 0 ]] || fail "OpenClaw removal aborts when the gateway cannot be stopped"
@@ -285,7 +285,7 @@ chmod +x "$tmp_dir/bin/systemctl"
 : >"$TEST_LOG"
 fresh_openclaw_home
 rc=0
-"$ROOT/bin/omarchy-remove-ai-openclaw" >/dev/null 2>&1 || rc=$?
+"$ROOT/bin/maitri-remove-ai-openclaw" >/dev/null 2>&1 || rc=$?
 
 [[ $rc != 0 ]] || fail "OpenClaw removal aborts when systemd cannot be reached"
 [[ -f $HOME/.config/systemd/user/openclaw-gateway.service ]] ||

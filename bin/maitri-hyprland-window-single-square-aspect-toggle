@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# maitri:summary=Toggle single-window square aspect ratio.
+
+case $(maitri-hyprland-toggle single-window-aspect-ratio) in
+  on) maitri-notification-send -g  "Enable single-window square aspect ratio" ;;
+  off) maitri-notification-send -g  "Disable single-window square aspect ratio" ;;
+esac

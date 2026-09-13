@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# maitri:summary=Select and set the system timezone
+# maitri:group=menu
+# maitri:name=timezone
+
+set -e
+
+timezone=$(timedatectl list-timezones | maitri-menu-select "Set timezone" -- --width 520 --maxheight 520) || exit 1
+sudo timedatectl set-timezone "$timezone"
+maitri-shell -q maitri.clock refresh
+maitri-notification-send "Timezone is now set to $timezone"

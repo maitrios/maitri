@@ -1,0 +1,11 @@
+[Trigger]
+Operation = Upgrade
+Type = Package
+Target = *
+
+[Action]
+Description = Checking maitri update entrypoint...
+When = PreTransaction
+Depends = maitri
+Exec = /usr/bin/maitri-update-pacman-guard
+AbortOnFail

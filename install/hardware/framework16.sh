@@ -1,3 +1,3 @@
-if omarchy-hw-framework16; then
-  omarchy-pkg-add qmk-hid
+if maitri-hw-framework16; then
+  maitri-pkg-add qmk-hid
 fi

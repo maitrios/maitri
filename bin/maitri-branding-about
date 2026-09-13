@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# maitri:summary=Edit, set, or reset About branding
+# maitri:group=branding
+# maitri:name=about
+# maitri:args=<image|text|reset>
+# maitri:examples=maitri branding about image | maitri branding about text | maitri branding about reset
+
+set -euo pipefail
+
+case "${1:-}" in
+image)
+  image=$(maitri-file-select --title "Pick PNG or SVG for About" --extensions "png svg")
+  if maitri-transcode-ascii "$image" ~/.config/maitri/branding/about.txt --width 54 --height 26; then
+    maitri-launch-about >/dev/null 2>&1
+  fi
+  ;;
+text)
+  maitri-launch-editor ~/.config/maitri/branding/about.txt >/dev/null 2>&1 && maitri-launch-about >/dev/null 2>&1
+  ;;
+reset)
+  cp "$MAITRI_PATH/icon.txt" ~/.config/maitri/branding/about.txt && maitri-launch-about >/dev/null 2>&1
+  ;;
+*)
+  echo "Usage: maitri-branding-about <image|text|reset>" >&2
+  exit 1
+  ;;
+esac

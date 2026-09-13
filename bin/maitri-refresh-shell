@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# maitri:summary=Reset shell.json to maitri defaults
+# maitri:examples=maitri refresh shell
+
+set -euo pipefail
+
+maitri-refresh-config maitri/shell.json
+maitri-bar defaults
+
+maitri-restart-shell

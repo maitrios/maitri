@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# maitri:summary=Install Zed Editor and configure it with the current maitri theme
+
+echo "Installing Zed Editor..."
+maitri-pkg-add zed omazed
+
+# Apply maitri theme to Zed
+omazed setup
+
+setsid uwsm-app -- gtk-launch dev.zed.Zed >/dev/null 2>&1 &

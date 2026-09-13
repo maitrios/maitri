@@ -5,7 +5,7 @@ set -euo pipefail
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/base-test.sh"
 
 migration="$ROOT/migrations/1786482992.sh"
-packaged_defaults="$ROOT/etc/limine-entry-tool.d/omarchy-defaults.conf"
+packaged_defaults="$ROOT/etc/limine-entry-tool.d/maitri-defaults.conf"
 
 grep -Fq 'KERNEL_CMDLINE[default]+=" initramfs_async=0"' "$packaged_defaults" ||
   fail "the packaged Limine defaults still unpack the initramfs synchronously"
@@ -19,7 +19,7 @@ calls="$test_tmp/calls.log"
 mkdir -p "$stub_bin"
 : >"$calls"
 
-cat >"$stub_bin/omarchy-cmd-present" <<'SH'
+cat >"$stub_bin/maitri-cmd-present" <<'SH'
 #!/bin/bash
 
 (( ${LIMINE_MKINITCPIO_INSTALLED:-1} == 1 ))
@@ -42,7 +42,7 @@ SH
 
 chmod +x "$stub_bin"/*
 
-defaults_conf="$test_tmp/omarchy-defaults.conf"
+defaults_conf="$test_tmp/maitri-defaults.conf"
 running_cmdline="$test_tmp/cmdline"
 rebuild_marker="$test_tmp/rebuild-complete"
 
@@ -59,9 +59,9 @@ current_cmdline="cryptdevice=PARTUUID=fake:root root=/dev/mapper/root rw $config
 run_migration() {
   PATH="$stub_bin:$PATH" \
     TEST_LOG="$calls" \
-    OMARCHY_LIMINE_DEFAULTS_CONF="$defaults_conf" \
-    OMARCHY_RUNNING_CMDLINE="$running_cmdline" \
-    OMARCHY_LIMINE_REBUILD_MARKER="$rebuild_marker" \
+    MAITRI_LIMINE_DEFAULTS_CONF="$defaults_conf" \
+    MAITRI_RUNNING_CMDLINE="$running_cmdline" \
+    MAITRI_LIMINE_REBUILD_MARKER="$rebuild_marker" \
     bash -euo pipefail "$migration" >/dev/null
 }
 

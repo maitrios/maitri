@@ -1,16 +1,16 @@
-# Omarchy
+# maitri
 
-Omarchy is a beautiful, modern & opinionated Linux distribution by DHH.
+maitri is a beautiful, modern & opinionated Linux distribution by DHH.
 
 Read more at [omarchy.org](https://omarchy.org).
 
-## The Omarchy Manual
+## The maitri Manual
 
 The manual lives in [`manual/`](manual/), which is its authoritative source. It's
-mirrored to [learn.omacom.io](https://learn.omacom.io/2/the-omarchy-manual), where
+mirrored to [learn.omacom.io](https://learn.omacom.io/2/the-maitri-manual), where
 its screenshots are also hosted.
 
-- [Welcome to Omarchy!](manual/01-welcome-to-omarchy.md)
+- [Welcome to maitri!](manual/01-welcome-to-maitri.md)
 
 **The Basics**
 
@@ -26,7 +26,7 @@ its screenshots are also hosted.
 - [Text Extraction & Dictation](manual/11-text-extraction-dictation.md)
 - [Screenshots & Recording](manual/12-screenshots-recording.md)
 - [Toggles, idle & screensaver](manual/13-toggles-idle-screensaver.md)
-- [Omarchy CLI](manual/14-omarchy-cli.md)
+- [maitri CLI](manual/14-maitri-cli.md)
 
 **The Applications**
 
@@ -70,10 +70,10 @@ its screenshots are also hosted.
 - [FAQ](manual/46-faq.md)
 - [System snapshots](manual/47-system-snapshots.md)
 - [Security](manual/48-security.md)
-- [Omarchy on...](manual/49-omarchy-on.md)
+- [maitri on...](manual/49-maitri-on.md)
 - [Dual Boot Install](manual/50-dual-boot-install.md)
 - [Unattended Installs](manual/51-unattended-installs.md)
 
 ## License
 
-Omarchy is released under the [MIT License](https://opensource.org/licenses/MIT).
+maitri is released under the [MIT License](https://opensource.org/licenses/MIT).

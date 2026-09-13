@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# maitri:summary=Launch or focus on a given web app identified by the window-pattern.
+# maitri:args=<window-pattern> <url-and-flags...>
+
+if (($# == 0)); then
+  echo "Usage: maitri-launch-or-focus-webapp [window-pattern] [url-and-flags...]"
+  exit 1
+fi
+
+WINDOW_PATTERN="$1"
+shift
+LAUNCH_COMMAND="maitri-launch-webapp $@"
+
+exec maitri-launch-or-focus "$WINDOW_PATTERN" "$LAUNCH_COMMAND"
