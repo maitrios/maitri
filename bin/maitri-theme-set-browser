@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# maitri:summary=Apply the current theme color to Chromium, Chrome, Edge, and Brave
+# maitri:summary=Apply the current theme color to Helium, Chromium, Chrome, Edge, and Brave
 # maitri:hidden=true
 
 source "$MAITRI_PATH/install/helpers/browser-policy.sh"
@@ -25,6 +25,7 @@ refresh_running_browser() {
 failed=0
 maitri-theme-set-browser-policy "${THEME_HEX_COLOR#\#}" || failed=1
 
+refresh_running_browser helium helium
 refresh_running_browser chromium chromium
 refresh_running_browser chrome google-chrome-stable || refresh_running_browser chrome google-chrome
 refresh_running_browser msedge microsoft-edge-stable

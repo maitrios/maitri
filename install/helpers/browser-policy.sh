@@ -1,10 +1,11 @@
-# Chromium-family machine policy is mandatory for every profile. Directories
+# Chromium-family (Helium included) machine policy is mandatory for every profile. Directories
 # stay 0755 root:root; maitri-theme-set-browser-policy is the privileged
 # write for color.json.
 
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/as-root.sh"
 
 BROWSER_POLICY_MANAGED_DIRS=(
+  /etc/helium/policies/managed
   /etc/chromium/policies/managed
   /etc/opt/chrome/policies/managed
   /etc/opt/edge/policies/managed
@@ -14,6 +15,8 @@ BROWSER_POLICY_MANAGED_DIRS=(
 # Ancestors of the managed dirs, shortest first. A writable or attacker-owned
 # parent can rename the leaf aside; install -d follows a planted symlink.
 BROWSER_POLICY_PARENT_DIRS=(
+  /etc/helium
+  /etc/helium/policies
   /etc/chromium
   /etc/chromium/policies
   /etc/opt/chrome

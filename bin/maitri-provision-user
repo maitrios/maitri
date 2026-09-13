@@ -116,7 +116,7 @@ done
 source "$MAITRI_INSTALL/user/all.sh"
 
 maitri-refresh-applications
-env -u BROWSER xdg-settings set default-web-browser chromium.desktop
+env -u BROWSER xdg-settings set default-web-browser helium.desktop
 
 if (( first_install )); then
   mkdir -p "$state_dir/migrations"

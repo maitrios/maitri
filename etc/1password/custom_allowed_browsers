@@ -1,0 +1,4 @@
+# Browsers the 1Password desktop app accepts native-messaging connections from,
+# beyond its built-in list. Helium is maitri's default browser; its binary is
+# "helium". One process name per line.
+helium
