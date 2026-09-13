@@ -45,7 +45,6 @@
   "learn.bash": {"icon":"󱆃","label":"Bash","action":"maitri-launch-webapp 'https://devhints.io/bash'"},
   "learn.tmux-keybindings": {"icon":"","label":"Tmux","action":"maitri-menu-tmux-keybindings"},
   "learn.herdr-keybindings": {"icon":"","label":"Herdr","action":"maitri-menu-herdr-keybindings"},
-  "learn.community": {"icon":"󰙯","label":"Community","action":"maitri-launch-discord-community"},
 
   // Trigger
   "trigger.emoji": {"icon":"","label":"Emoji","aliases":["emoji","emojis"],"action":"maitri-menu-emoji"},

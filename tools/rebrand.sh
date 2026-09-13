@@ -46,7 +46,6 @@ DELETE_LIST=(
   'default/pacman/mirrorlist-rc'
   'migrations/1788112314.sh'
   'bin/omarchy-launch-discord-community'
-  'applications/icons/omarchy-discord.png'
   'bin/omarchy-upload-log'
   'applications/Basecamp.desktop'
   'applications/HEY.desktop'
@@ -68,9 +67,6 @@ DELETE_LIST=(
   'default/chromium/extensions/whatsapp-slim'
   'test/shell.d/chromium-whatsapp-slim-test.sh'
   'test/shell.d/whatsapp-slim-test.sh'
-  'install/user/chromium.sh'
-  'bin/omarchy-install-chromium-google-account'
-  'config/chromium/Default/Preferences'
 )
 
 # Stock upstream themes are not shipped; only maitri's own live in themes/.
