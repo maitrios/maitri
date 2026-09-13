@@ -67,9 +67,35 @@ MAITRI_SNAPPER_CONF_PATH="$test_tmp/etc/conf.d/snapper" \
 
 cmp -s "$template" "$test_tmp/etc/snapper/configs/root" || fail "snapshot configure installs the maitri Snapper template"
 grep -Fx 'SNAPPER_CONFIGS="root"' "$test_tmp/etc/conf.d/snapper" >/dev/null || fail "snapshot configure writes /etc/conf.d/snapper"
-grep -Fx 'systemctl disable --now snapper-timeline.timer' "$test_tmp/calls.log" >/dev/null || fail "snapshot configure disables timeline snapshots"
+grep -Fx 'systemctl disable --now snapper-timeline.timer' "$test_tmp/calls.log" >/dev/null || fail "snapshot configure disables timeline snapshots without a home config"
 grep -Fx 'systemctl enable --now snapper-cleanup.timer limine-snapper-sync.service' "$test_tmp/calls.log" >/dev/null || fail "snapshot configure enables cleanup and Limine snapshot sync"
 pass "snapshot configure normalizes Snapper policy and services"
+
+# With /home on its own subvolume, maitri adds a timeline-snapshotted home config.
+home_template="$ROOT/default/snapper/home"
+grep -Fx 'SUBVOLUME="/home"' "$home_template" >/dev/null
+grep -Fx 'TIMELINE_CREATE="yes"' "$home_template" >/dev/null
+grep -Fx 'TIMELINE_LIMIT_HOURLY="10"' "$home_template" >/dev/null
+grep -Fx 'TIMELINE_LIMIT_DAILY="7"' "$home_template" >/dev/null
+pass "home Snapper template keeps hourly and daily snapshots"
+
+: >"$test_tmp/calls.log"
+rm -rf "$test_tmp/etc"
+
+TEST_LOG="$test_tmp/calls.log" \
+PATH="$fake_bin:$PATH" \
+MAITRI_SNAPPER_CONFIGURE_TEST=1 \
+MAITRI_SNAPPER_HOME_SUBVOLUME_TEST=1 \
+MAITRI_PATH="$ROOT" \
+MAITRI_SNAPPER_CONFIG_PATH="$test_tmp/etc/snapper/configs/root" \
+MAITRI_SNAPPER_HOME_CONFIG_PATH="$test_tmp/etc/snapper/configs/home" \
+MAITRI_SNAPPER_CONF_PATH="$test_tmp/etc/conf.d/snapper" \
+  bash -euo pipefail "$ROOT/install/config/snapper.sh" >/dev/null
+
+cmp -s "$home_template" "$test_tmp/etc/snapper/configs/home" || fail "snapshot configure installs the maitri home Snapper template"
+grep -Fx 'SNAPPER_CONFIGS="root home"' "$test_tmp/etc/conf.d/snapper" >/dev/null || fail "snapshot configure registers the home config"
+grep -Fx 'systemctl enable --now snapper-timeline.timer' "$test_tmp/calls.log" >/dev/null || fail "snapshot configure enables timeline snapshots for /home"
+pass "snapshot configure adds hourly home snapshots when /home is a subvolume"
 
 setup_system="$ROOT/bin/maitri-apply-system"
 grep -F 'config/all.sh' "$setup_system" >/dev/null ||
@@ -125,6 +151,7 @@ find_maitri_iso_root() {
   local candidate
   for candidate in \
     ${MAITRI_ISO_PATH:+"$MAITRI_ISO_PATH"} \
+    "$ROOT/iso" \
     "$ROOT/../maitri-iso" \
     "$ROOT/../maitri/maitri-iso" \
     "$ROOT/../../maitri-iso" \
@@ -152,6 +179,6 @@ if [[ -f $phases && -f $manifest ]]; then
   ! grep -F '_configure_snapper_root' "$phases" >/dev/null || fail "ISO does not duplicate maitri Snapper setup"
   grep -F 'run_system_finalizer' "$phases" >/dev/null || fail "ISO runs packaged system setup"
   grep -F '/etc/systemd/system/timers.target.wants/snapper-cleanup.timer' "$manifest" >/dev/null || fail "fresh ISO manifest has snapper-cleanup timer enabled"
-  ! grep -F '/etc/systemd/system/timers.target.wants/snapper-timeline.timer' "$manifest" >/dev/null || fail "fresh ISO manifest does not enable snapper timeline timer"
+  grep -F '/etc/systemd/system/timers.target.wants/snapper-timeline.timer' "$manifest" >/dev/null || fail "fresh ISO manifest enables the snapper timeline timer for /home"
 fi
 pass "maitri-iso delegates Snapper setup to packaged system setup"

@@ -1,0 +1,78 @@
+#!/bin/bash
+
+# maitri:summary=Convert /home to its own btrfs subvolume and enable hourly snapshots
+# maitri:requires-sudo=true
+
+# Fresh installs already have /home on the @home subvolume, and
+# install/config/snapper.sh registers the home Snapper config there. This is
+# for machines where /home is a plain directory on the root subvolume: the
+# files are reflink-copied into a new @home (instant, no extra disk), fstab
+# mounts it, and a reboot activates it.
+
+set -euo pipefail
+
+if [[ $(findmnt -n -o FSTYPE /) != btrfs ]]; then
+  echo "Home snapshots need a btrfs root filesystem."
+  exit 1
+fi
+
+configure_home_snapper() {
+  sudo env MAITRI_PATH="$MAITRI_PATH" bash -euo pipefail "$MAITRI_PATH/install/config/snapper.sh"
+}
+
+if sudo btrfs subvolume show /home &>/dev/null; then
+  echo "/home is already its own btrfs subvolume; registering the snapshot config."
+  configure_home_snapper
+  exit 0
+fi
+
+home_fstype=$(findmnt -n -o FSTYPE -T /home)
+if [[ $home_fstype != btrfs ]]; then
+  echo "/home lives on a separate $home_fstype filesystem, which can't be converted."
+  exit 1
+fi
+
+device=$(findmnt -n -o SOURCE -T /home | sed 's/\[.*//')
+root_device=$(findmnt -n -o SOURCE -T / | sed 's/\[.*//')
+if [[ $device != "$root_device" ]]; then
+  echo "/home is on a separate btrfs filesystem ($device); convert it manually if you want snapshots."
+  exit 1
+fi
+
+echo "/home isn't its own btrfs subvolume yet, so it can't be snapshotted."
+echo "maitri can convert it to an @home subvolume. Your files are reflink-copied"
+echo "(instant, no extra disk), but the switch needs a reboot to take effect."
+gum confirm "Convert /home to a btrfs subvolume now?" || exit 0
+
+# Safety net before touching the layout
+maitri-snapshot create || (($? == 127))
+
+uuid=$(findmnt -n -o UUID -T /home)
+# Reuse the root entry's mount options, swapping in the @home subvolume
+opts=$(awk '$2=="/" && $3=="btrfs" {print $4}' /etc/fstab | head -1 | sed -E 's/,?subvol(id)?=[^,]*//g')
+[[ -n $opts ]] || opts="defaults"
+
+top=$(mktemp -d)
+sudo mount -o subvolid=5 "$device" "$top"
+
+if [[ -e $top/@home ]]; then
+  echo "An @home subvolume already exists on $device; aborting to avoid clobbering it." >&2
+  sudo umount "$top" && rmdir "$top"
+  exit 1
+fi
+
+sudo btrfs subvolume create "$top/@home"
+sudo cp -a --reflink=always /home/. "$top/@home/"
+sudo umount "$top" && rmdir "$top"
+
+# Mount @home at /home on every boot
+if ! awk '$2=="/home"' /etc/fstab | grep -q .; then
+  echo "UUID=$uuid /home btrfs ${opts},subvol=/@home 0 0" | sudo tee -a /etc/fstab >/dev/null
+fi
+
+# The new mount only activates after a reboot, and every write to the old /home
+# until then is lost, so reboot promptly rather than trying to quiesce a session.
+echo "/home is ready as an @home subvolume. Rebooting in 10s to activate snapshots; save your work."
+echo "Run 'maitri setup home-snapshots' once more after the reboot to register the snapshot config."
+sleep 10
+maitri-system-reboot
