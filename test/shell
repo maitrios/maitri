@@ -5,6 +5,12 @@ set -euo pipefail
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 TEST_DIR="$ROOT/test/shell.d"
 
+# The suites read $MAITRI_PATH and call maitri-* commands the way the
+# installed runtime does. On a machine that is not running maitri, point both
+# at this checkout so the tests exercise the tree under test.
+export MAITRI_PATH="${MAITRI_PATH:-$ROOT}"
+export PATH="$ROOT/bin:$PATH"
+
 shopt -s nullglob
 tests=()
 for test in "$TEST_DIR"/*-test.sh; do

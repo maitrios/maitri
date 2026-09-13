@@ -2,7 +2,7 @@ echo "Move stock Hyprland user overrides into package defaults"
 
 stock_input_sha="bf7602d679a31da028528d9b7dac64463217a9df42b254d3baefb7ce35674be5"
 stock_bindings_sha="932d647b07d24907d46c0b7752bb81ad87276ccd057670be6c3a5c5e950c19aa"
-plain_bindings_sha="cde93672f53dad31c13c1a81cad6aae162ab95e0592d362dbf99ca7eabe76d43"
+plain_bindings_sha="164b129e8ed2d64db00cfacefc89a7e61210519547ba9544aeed208c9f3e6f83"
 
 file_sha() {
   sha256sum "$1" | awk '{ print $1 }'
