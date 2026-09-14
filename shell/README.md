@@ -147,7 +147,7 @@ The `maitri plugin` commands wrap those calls. `maitri bar move` and
 To hack on a built-in plugin safely, clone it into user config instead of
 editing the built-in source. The complete plugin directory is copied, including
 every declared kind and local dependency. A built-in id such as
-`maitri.clock` becomes `<username>.clock` (e.g. `dhh.clock`), with `My Clock`
+`maitri.clock` becomes `<username>.clock` (e.g. `sam.clock`), with `My Clock`
 as its display name. The username prefix keeps shared clones from colliding
 with each other or with other plugin authors.
 

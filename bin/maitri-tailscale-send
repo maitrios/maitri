@@ -2,7 +2,7 @@
 
 # maitri:summary=Send files to a machine on your tailnet with Taildrop
 # maitri:args=<machine> [file...]
-# maitri:examples=maitri tailscale send dhh-fd | maitri tailscale send dhh-fd ~/Downloads/notes.pdf
+# maitri:examples=maitri tailscale send sam-fd | maitri tailscale send sam-fd ~/Downloads/notes.pdf
 
 set -euo pipefail
 

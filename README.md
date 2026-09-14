@@ -7,7 +7,7 @@ fully configured, Hyprland-based desktop with sane defaults and a curated set of
 *Maitrī* is a Sanskrit word for loving-kindness — unconditional friendliness and goodwill. That's the
 feeling we're after: a calmer, kinder computer.
 
-maitri is a friendly fork of [Omarchy](https://omarchy.org) by DHH. The Hyprland config, the Quickshell <!-- rebrand:keep -->
+maitri is a friendly fork of [Omarchy](https://omarchy.org). The Hyprland config, the Quickshell <!-- rebrand:keep -->
 desktop, the theming engine and the package-backed update machinery all come from there, and we owe
 that project an enormous thanks. maitri tracks Omarchy releases and layers its own identity on top: <!-- rebrand:keep -->
 the Vicinae launcher, fish, Helium, VS Code, maitri's themes and the `[maitri]` package channel.
@@ -21,6 +21,8 @@ follow the guided installer. The ISO carries every package it needs, so the inst
 See [iso/README.md](iso/README.md) for building the ISO yourself.
 
 ## Updating
+
+This is the **Karuna** generation of maitri (v0.3 and up): loving-kindness first, compassion next.
 
 maitri is package-backed: the desktop lives in the `maitri` and `maitri-settings` pacman packages,
 served from the `[maitri]` repository alongside the official Arch mirrors.
@@ -47,12 +49,6 @@ maitri ships seven themes — six dark plus **Daybreak** (light) — with a shar
   lock screen and panels, the Vicinae launcher and maitri menu, SDDM login, Plymouth boot splash.
 - **Defaults** — fish shell, Helium browser, VS Code editor, foot terminal.
 - **Apps** — a curated set of GUI, CLI, web apps and AI tooling. See [APPS.md](APPS.md).
-
-## The maitri manual
-
-The chapters under [`manual/`](manual/) are adapted from the Omarchy manual and describe the <!-- rebrand:keep -->
-desktop in depth; where maitri differs (launcher, shell, browser, editor) this README and
-[APPS.md](APPS.md) are authoritative.
 
 ## Hacking on maitri
 

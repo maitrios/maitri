@@ -3,7 +3,7 @@
 # maitri:summary=Apply maitri hardware-specific packages and system configuration
 # maitri:group=apply
 # maitri:requires-sudo=true
-# maitri:examples=maitri apply hardware --install-user dhh
+# maitri:examples=maitri apply hardware --install-user sam
 # maitri:hidden=true
 
 set -euo pipefail

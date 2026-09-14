@@ -98,13 +98,13 @@ assertDeepEqual(
 )
 
 assertDeepEqual(
-  clipboard.displayRows([{ type: 'text', text: 'file:///home/dhh/Videos/screenrecording-2026-05-29_13-56-43-720p.gif\n' }], '', 50)[0],
+  clipboard.displayRows([{ type: 'text', text: 'file:///home/sam/Videos/screenrecording-2026-05-29_13-56-43-720p.gif\n' }], '', 50)[0],
   {
     entryType: 'file',
-    fullText: '/home/dhh/Videos/screenrecording-2026-05-29_13-56-43-720p.gif',
+    fullText: '/home/sam/Videos/screenrecording-2026-05-29_13-56-43-720p.gif',
     previewText: 'screenrecording-2026-05-29_13-56-43-720p.gif',
-    previewImage: '/home/dhh/Videos/screenrecording-2026-05-29_13-56-43-720p.gif',
-    path: '/home/dhh/Videos/screenrecording-2026-05-29_13-56-43-720p.gif',
+    previewImage: '/home/sam/Videos/screenrecording-2026-05-29_13-56-43-720p.gif',
+    path: '/home/sam/Videos/screenrecording-2026-05-29_13-56-43-720p.gif',
     mime: 'text/plain',
     index: 0
   },
@@ -112,13 +112,13 @@ assertDeepEqual(
 )
 
 assertDeepEqual(
-  clipboard.displayRows([{ type: 'text', text: 'file:///home/dhh/One.txt\nfile:///home/dhh/Two.txt\n' }], '', 50)[0].previewText,
+  clipboard.displayRows([{ type: 'text', text: 'file:///home/sam/One.txt\nfile:///home/sam/Two.txt\n' }], '', 50)[0].previewText,
   '2 files',
   'clipboard display rows summarize multiple file uri entries'
 )
 
 assertDeepEqual(
-  clipboard.displayRows([{ type: 'text', text: 'file:///home/dhh/Videos/demo.mp4\n' }], '', 50)[0].previewImage,
+  clipboard.displayRows([{ type: 'text', text: 'file:///home/sam/Videos/demo.mp4\n' }], '', 50)[0].previewImage,
   '',
   'clipboard display rows do not preview video file uri entries inline'
 )
@@ -199,7 +199,7 @@ assert(
 )
 
 const hugeFileList = []
-for (let i = 0; i < 5000; i++) hugeFileList.push('file:///home/dhh/clip-' + i + '.mp4')
+for (let i = 0; i < 5000; i++) hugeFileList.push('file:///home/sam/clip-' + i + '.mp4')
 const hugeFileRow = clipboard.displayRows([{ type: 'text', text: hugeFileList.join('\n') + '\n' }], '', 50)[0]
 assert(
   hugeFileRow.entryType === 'file' && hugeFileRow.fullText.split('\n').every(path => path.endsWith('.mp4')),

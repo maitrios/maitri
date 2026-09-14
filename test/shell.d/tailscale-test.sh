@@ -30,8 +30,8 @@ const status = tailscale.parseStatus(JSON.stringify({
   AuthURL: '',
   TailscaleIPs: ['100.74.97.73', 'fd7a:115c:a1e0::ff32:6149'],
   Self: {
-    HostName: 'dhh-fd',
-    DNSName: 'dhh-fd.tail32f559.ts.net.',
+    HostName: 'sam-fd',
+    DNSName: 'sam-fd.tail32f559.ts.net.',
     TailscaleIPs: ['100.74.97.73'],
     UserID: 1001,
     CapMap: { 'https://tailscale.com/cap/file-sharing': null }
@@ -162,8 +162,8 @@ const accounts = tailscale.parseAccounts(JSON.stringify([
   {
     id: 'db1b',
     nickname: 'Home',
-    tailnet: 'dhh.github',
-    account: 'dhh@github',
+    tailnet: 'sam.github',
+    account: 'sam@github',
     selected: true
   },
   {

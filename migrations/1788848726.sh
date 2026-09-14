@@ -1,4 +1,4 @@
-echo "Retire the stock user icon font missed by the Quattro upgrade"
+echo "Retire the stock user icon font missed by the Omarchy 4 upgrade"
 
 legacy_font="$HOME/.local/share/fonts/maitri.ttf"
 

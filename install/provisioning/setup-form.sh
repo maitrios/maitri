@@ -104,7 +104,7 @@ maitri_prompt_keyboard() {
 maitri_prompt_username() {
   local status
   while true; do
-    username=$(gum input --placeholder "Alphanumeric without spaces (like dhh)" --prompt.foreground="#845DF9" --prompt "Username> ") && status=0 || status=$?
+    username=$(gum input --placeholder "Alphanumeric without spaces (like sam)" --prompt.foreground="#845DF9" --prompt "Username> ") && status=0 || status=$?
     ((status == 0)) || return $status
 
     if [[ "$username" =~ $MAITRI_USERNAME_PATTERN ]]; then

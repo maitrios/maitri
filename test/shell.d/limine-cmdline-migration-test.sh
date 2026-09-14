@@ -48,7 +48,7 @@ rebuild_marker="$test_tmp/rebuild-complete"
 
 cp "$packaged_defaults" "$defaults_conf"
 
-# A boot image baked before quattro's defaults landed: the pre-quattro command
+# A boot image baked before Omarchy 4's defaults landed: the pre-Omarchy-4 command
 # line plus the machine's own root parameters, and none of the new ones.
 stale_cmdline='quiet splash cryptdevice=PARTUUID=fake:root root=/dev/mapper/root rw'
 

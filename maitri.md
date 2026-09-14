@@ -1,7 +1,7 @@
 # maitri — Maintenance Guide
 
 **maitri** (pronounced *MY-tree*) is an Arch-based Hyprland desktop made by [Kindness](https://kindness.ai).
-It is a rebranded fork of [Omarchy](https://github.com/basecamp/omarchy) that tracks upstream releases. <!-- rebrand:keep -->
+It is a rebranded fork of [Omarchy](https://github.com/basecamp/omarchy) that tracks upstream releases. The current generation, **Karuna** (v0.3+), is built on Omarchy 4; the earlier git-pull line lives on the `legacy` branch. <!-- rebrand:keep -->
 
 ## The three repositories
 

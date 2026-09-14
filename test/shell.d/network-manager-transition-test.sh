@@ -27,7 +27,7 @@ grep -F '20-wlan.network' "$hardware_network" >/dev/null
 grep -F 'maitri-networkd-retired' "$hardware_network" >/dev/null
 pass "hardware setup retires archinstall networkd state"
 
-grep -F 'MAITRI_UPGRADE_TO_QUATTRO_LIVE' "$migration" >/dev/null
+grep -F 'MAITRI_LEGACY_UPGRADE_LIVE' "$migration" >/dev/null
 grep -F 'systemctl disable --now "$unit"' "$migration" >/dev/null
 grep -F 'systemctl stop systemd-networkd.service' "$migration" >/dev/null
 grep -F 'NetworkManager.service' "$migration" >/dev/null

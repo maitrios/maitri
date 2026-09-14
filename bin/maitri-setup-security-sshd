@@ -72,7 +72,7 @@ authorize_key() {
 authorize_keys_from_github() {
   local username keys added=0
 
-  username=$(gum input --prompt "GitHub username> " --placeholder "dhh") || exit 1
+  username=$(gum input --prompt "GitHub username> " --placeholder "sam") || exit 1
   if [[ -z $username ]]; then
     echo -e "\e[31mNo GitHub username given.\e[0m" >&2
     exit 1

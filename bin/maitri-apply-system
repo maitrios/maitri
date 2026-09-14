@@ -3,7 +3,7 @@
 # maitri:summary=Apply maitri system setup in the installed target
 # maitri:group=apply
 # maitri:requires-sudo=true
-# maitri:examples=maitri apply system --install-user dhh --first-install
+# maitri:examples=maitri apply system --install-user sam --first-install
 # maitri:hidden=true
 
 set -euo pipefail

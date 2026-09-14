@@ -9,7 +9,7 @@ trap 'rm -r "$tmp_dir"' EXIT
 
 # gum reads its scripted answers from GUM_SCRIPT, one "status:output" line per
 # invocation, so a test spells out exactly what the human did at each screen:
-# "0:dhh" answers, "1:" is Esc, "130:" is Ctrl+C. Only the widgets that take a
+# "0:sam" answers, "1:" is Esc, "130:" is Ctrl+C. Only the widgets that take a
 # list drain stdin, matching the real ones, so the piped layouts and timezones
 # can be asserted.
 cat >"$tmp_dir/gum" <<'EOF'
@@ -144,7 +144,7 @@ pass "keyboard prompt propagates Esc and Ctrl+C without dying under set -e"
 
 # Username
 
-TAKEN_USERS=dhh run_prompt maitri_prompt_username "0:Not A Username" "0:root" "0:cups-browsed" "0:dhh" "0:david"
+TAKEN_USERS=sam run_prompt maitri_prompt_username "0:Not A Username" "0:root" "0:cups-browsed" "0:sam" "0:david"
 assert_status 0 "username prompt accepts a valid name"
 [[ $(field username) == "david" ]] || fail "username prompt keeps re-asking until the name is valid"
 assert_notices "username prompt explains each rejection" "Username must be alphanumeric with no spaces

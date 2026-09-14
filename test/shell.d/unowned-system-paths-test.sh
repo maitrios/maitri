@@ -44,7 +44,7 @@ allowed = {
 
 # One-time 3.x upgrade. It runs before this rule existed and cannot be made to
 # retroactively matter for machines that already ran it.
-skip_scripts = {"bin/maitri-upgrade-to-quattro"}
+skip_scripts = set()
 
 pkgs_candidates = [
   root.parent / "maitri-pkgs/pkgbuilds",

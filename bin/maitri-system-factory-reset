@@ -10,8 +10,8 @@
 #
 # The running root (@) is swapped for a fresh writable clone of the @factory
 # snapshot, so user-installed packages and /etc drift are gone too. That
-# snapshot is taken by the maitri Quattro installer, so only machines
-# installed from that ISO can be reset; a machine upgraded to Quattro from an
+# snapshot is taken by the Omarchy 4 installer, so only machines
+# installed from that ISO can be reset; a machine upgraded to Omarchy 4 from an
 # earlier version has no baseline to return to and is turned away.
 #
 # The heavy lifting happens on the next boot via maitri-system-factory-reset-finish, staged
@@ -383,15 +383,15 @@ stage_full_reset() {
 }
 
 # A reset is a clone of @factory, so a machine without one has nothing to
-# return to. Only the Quattro installer takes that snapshot.
+# return to. Only the Omarchy 4 installer takes that snapshot.
 require_factory_snapshot() {
   [[ -d $TOP_MNT/@factory ]] && return 0
 
   echo
   gum style --bold --foreground 3 "This machine has no factory snapshot to reset to."
   echo
-  gum style "A reset restores the @factory snapshot the maitri Quattro installer takes"
-  gum style "right after installing. Machines upgraded to Quattro from an earlier version,"
+  gum style "A reset restores the @factory snapshot the Omarchy 4 installer takes"
+  gum style "right after installing. Machines upgraded to Omarchy 4 from an earlier version,"
   gum style "or installed some other way, never got one, so there is no baseline here to"
   gum style "return to."
   echo

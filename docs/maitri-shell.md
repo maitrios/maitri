@@ -66,7 +66,7 @@ no checkout to delete. Add, Clone, and Remove open a terminal so their warning,
 editor, confirmation, and output stay visible.
 
 Cloning `maitri.clock`, for example, creates and switches to
-`~/.config/maitri/plugins/<username>.clock/` (e.g. `dhh.clock`), names it
+`~/.config/maitri/plugins/<username>.clock/` (e.g. `sam.clock`), names it
 `My Clock`, and preserves the built-in IPC identity so existing shortcuts keep
 working. The username prefix keeps a shared clone from colliding with anyone
 else's. Saving files in any installed plugin reloads its code automatically,

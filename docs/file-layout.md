@@ -274,7 +274,7 @@ Completion markers live under `~/.local/state/maitri/done/`. Use
 `maitri-done check <name>` to check one and `maitri-done mark <name>` to record it.
 Use `maitri-done ensure <name>` as a conditional when the guarded work should
 run only once; it records completion before returning success.
-The Quattro upgrade completes graphical first-run for upgraded users and moves
+The Omarchy 4 upgrade completes graphical first-run for upgraded users and moves
 the legacy finalization marker from `~/.local/state/maitri/` into `done/`.
 
 ## Root-side install orchestration

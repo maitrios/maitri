@@ -44,8 +44,10 @@ CONTENT_EXCLUDE=(
 # Upstream-only files maitri does not ship. Applied on every sync so they do
 # not resurrect. Globs are expanded against the index.
 DELETE_LIST=(
-  'bin/omarchy-upgrade-to-quattro'
-  'test/shell.d/upgrade-to-quattro-test.sh'
+  'bin/omarchy-upgrade-to-*'
+  'test/shell.d/upgrade-to-*-test.sh'
+  'manual'
+  'plans'
   'default/pacman/pacman-rc.conf'
   'default/pacman/mirrorlist-rc'
   'migrations/1788112314.sh'

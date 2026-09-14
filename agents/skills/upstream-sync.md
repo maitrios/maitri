@@ -28,7 +28,7 @@ If the merge stops on conflicts:
   belongs in `DELETE_LIST` or `KEEP_THEMES` in `tools/rebrand.sh`, so a sync re-deletes it.
 - Upstream identifiers that must survive the rename (attribution, `github.com/basecamp/omarchy`,
   `omarchy.org`) are in `PROTECTED_TOKENS`. After a sync, `git grep -n 'omarchy.org\|basecamp/omarchy'` <!-- rebrand:keep -->
-  outside `manual/` and `docs/` shows the spots to hand-edit toward maitrios/maitri.
+  outside `docs/` shows the spots to hand-edit toward maitrios/maitri.
 - Upstream migrations are kept and renamed; maitri installs ride the same migration queue. Only add
   a migration to the delete list when it repairs state maitri never shipped.
 - New migrations that hash pre-rename stock files (see `migrations/1788745941.sh`) need their hash

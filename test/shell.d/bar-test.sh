@@ -338,15 +338,15 @@ assertEqual(bar.entryIndex(entries, 'b'), 2, 'bar finds entry indexes')
 assertDeepEqual(bar.entriesBefore(entries, 'b').map(bar.entryId), ['a', 'maitri.tray'], 'bar returns entries before target')
 assertDeepEqual(bar.entriesAfter(entries, 'a').map(bar.entryId), ['maitri.tray', 'b'], 'bar returns entries after target')
 
-assertEqual(bar.expandPath('~/module.qml', '/home/dhh'), '/home/dhh/module.qml', 'bar expands tilde paths')
-assertEqual(bar.expandPath('$HOME/module.qml', '/home/dhh'), '/home/dhh/module.qml', 'bar expands HOME paths')
+assertEqual(bar.expandPath('~/module.qml', '/home/sam'), '/home/sam/module.qml', 'bar expands tilde paths')
+assertEqual(bar.expandPath('$HOME/module.qml', '/home/sam'), '/home/sam/module.qml', 'bar expands HOME paths')
 assert(bar.customModuleSafeName('local.weather'), 'bar accepts safe custom module names')
 assert(!bar.customModuleSafeName('../escape'), 'bar rejects path traversal custom module names')
 assertEqual(bar.customModuleType({ id: 'custom', exec: 'date' }), 'command', 'bar infers command custom modules')
 assertEqual(bar.customModuleType({ id: 'custom', source: '~/Custom.qml' }), 'qml', 'bar infers qml custom modules')
 assertEqual(
-  bar.customModulePath({ id: 'local.weather' }, '/home/dhh', '/home/dhh/.config/maitri'),
-  '/home/dhh/.config/maitri/bar/modules/local.weather.qml',
+  bar.customModulePath({ id: 'local.weather' }, '/home/sam', '/home/sam/.config/maitri'),
+  '/home/sam/.config/maitri/bar/modules/local.weather.qml',
   'bar builds default custom module paths'
 )
 JS

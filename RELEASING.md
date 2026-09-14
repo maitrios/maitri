@@ -4,8 +4,8 @@ A release is a git tag here, a pair of pinned packages on maitri-pkgs, and an IS
 
 ## Versioning
 
-maitri uses SemVer tags `vMAJOR.MINOR.PATCH`. `v0.x` is pre-stable; `v0.2.0` is the first
-package-backed (Omarchy 4 based) release. Tags from the 0.x git-pull line end at `v0.1-legacy`. <!-- rebrand:keep -->
+maitri uses SemVer tags `vMAJOR.MINOR.PATCH`. `v0.x` is pre-stable; `v0.3.0` is the first release of
+**Karuna**, maitri's package-backed generation (built on Omarchy 4). Tags from the 0.x git-pull line end at `v0.1-legacy`; the old `v0.2.0` release belongs to that line. Tags from the 0.x git-pull line end at `v0.1-legacy`. <!-- rebrand:keep -->
 
 ## Cut a stable release
 

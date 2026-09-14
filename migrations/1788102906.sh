@@ -37,7 +37,7 @@ as_root() {
 # udev runs RUN+= as root, and
 # ~/.local/share/maitri is a symlink that same unprivileged user owns: replacing
 # it with a tree of their own and provoking a power_supply event runs their code
-# as root. Quattro ships the rules as 99-maitri-*.rules under /usr/bin, but the
+# as root. Omarchy 4 ships the rules as 99-maitri-*.rules under /usr/bin, but the
 # one-shot migration that swept the old filenames was itself dropped, so an
 # install that came up through the 3.x line keeps the old file until this
 # migration removes it.
