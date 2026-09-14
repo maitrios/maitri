@@ -3,7 +3,7 @@
 # maitri:summary=Build and install an maitri package from a local checkout
 # maitri:group=dev
 # maitri:args=[package-name] [path-to-checkout]
-# maitri:examples=maitri dev pkg-test | maitri dev pkg-test maitri-dev ~/Work/maitri/maitri-installer
+# maitri:examples=maitri dev pkg-test | maitri dev pkg-test maitri-dev ~/dev/kindness/maitri
 
 set -euo pipefail
 
@@ -18,17 +18,17 @@ can't shadow.
 
 Defaults:
   packages          maitri-settings-dev maitri-dev
-  path-to-checkout  ~/Work/maitri/maitri-installer
+  path-to-checkout  ~/dev/kindness/maitri
 
 Examples:
   maitri dev pkg-test
   maitri dev pkg-test maitri-settings-dev
-  maitri dev pkg-test maitri-dev ~/Work/maitri/maitri-installer
+  maitri dev pkg-test maitri-dev ~/dev/kindness/maitri
 
 The pkgver of the built package is tagged 'dev.<short-sha>[.dirty]' so
 'pacman -Q' makes it obvious where the installed version came from.
 
-PKGBUILDs are read from \${MAITRI_PKGBUILDS_DIR:-~/Work/maitri/maitri-pkgs/pkgbuilds}/<package-name>/.
+PKGBUILDs are read from \${MAITRI_PKGBUILDS_DIR:-~/dev/kindness/maitri-pkgs/pkgbuilds}/<package-name>/.
 USAGE
   exit 0
 fi
@@ -73,14 +73,14 @@ dev_package_name() {
 
 if (( $# == 0 )); then
   PKGS=(maitri-settings-dev maitri-dev)
-  CHECKOUT="$HOME/Work/maitri/maitri-installer"
+  CHECKOUT="$HOME/dev/kindness/maitri"
   MAKEPKG_ARGS=()
 else
   PKGS=("$(dev_package_name "$1")")
-  CHECKOUT="${2:-$HOME/Work/maitri/maitri-installer}"
+  CHECKOUT="${2:-$HOME/dev/kindness/maitri}"
   MAKEPKG_ARGS=("${@:3}")
 fi
-PKGBUILDS_ROOT="${MAITRI_PKGBUILDS_DIR:-$HOME/Work/maitri/maitri-pkgs/pkgbuilds}"
+PKGBUILDS_ROOT="${MAITRI_PKGBUILDS_DIR:-$HOME/dev/kindness/maitri-pkgs/pkgbuilds}"
 
 if [[ ! -d "$CHECKOUT" ]]; then
   echo "Error: checkout not found at $CHECKOUT" >&2
