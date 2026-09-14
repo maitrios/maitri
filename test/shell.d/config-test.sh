@@ -409,7 +409,7 @@ jq -e '
 [[ -f $TMPDIR/home/.local/state/maitri/restart-shell-called ]] || fail "shell refresh restarts shell"
 pass "shell refresh places optional service widgets when services are available"
 
-if grep -RIl 'upgrade-to-omarchy-4\|maitri 4\.0 is upgraded' "$ROOT/migrations" >/dev/null; then
+if grep -RIl 'maitri-upgrade-to-\|maitri 4\.0 is upgraded' "$ROOT/migrations" >/dev/null; then
   fail "4.0 upgrade is not modeled as a migration"
 fi
 pass "4.0 upgrade is handled outside the migration runner"
