@@ -2,7 +2,7 @@
 
 # maitri:summary=Print the directory holding a theme, preferring a user-installed copy
 # maitri:args=<theme-name>
-# maitri:examples=maitri theme dir tokyo-night
+# maitri:examples=maitri theme dir spark
 
 theme="${1:-}"
 

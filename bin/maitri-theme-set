@@ -2,7 +2,7 @@
 
 # maitri:summary=Apply an maitri theme
 # maitri:args=<theme-name>
-# maitri:examples=maitri theme list | maitri theme set "Tokyo Night"
+# maitri:examples=maitri theme list | maitri theme set "Spark"
 
 if [[ -z $1 ]]; then
   echo "Usage: maitri-theme-set <theme-name>"

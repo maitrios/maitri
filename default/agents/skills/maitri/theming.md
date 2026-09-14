@@ -7,7 +7,7 @@ Read this before changing themes, backgrounds, fonts, or theme colors.
 ```bash
 maitri theme list              # Show available themes
 maitri theme current           # Show current theme
-maitri theme set <name>        # Apply theme ("Tokyo Night" and "tokyo-night" both work)
+maitri theme set <name>        # Apply theme ("Spark" and "spark" both work)
 maitri theme bg next           # Cycle background
 maitri theme install <url>     # Install from git repo
 ```

@@ -2,7 +2,7 @@
 
 # maitri:summary=Remove a user-installed theme
 # maitri:args=[theme-name]
-# maitri:examples=maitri theme remove "Tokyo Night"
+# maitri:examples=maitri theme remove "Spark"
 
 if [[ -z $1 ]]; then
   mapfile -t extra_themes < <(find ~/.config/maitri/themes -mindepth 1 -maxdepth 1 -type d ! -xtype l -printf '%f\n')

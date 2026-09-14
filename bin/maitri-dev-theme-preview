@@ -2,7 +2,7 @@
 
 # maitri:summary=Preview an maitri theme palette in the terminal
 # maitri:args=[theme-name|theme-dir|colors.toml] [--no-color] [--no-osc|--osc]
-# maitri:examples=maitri dev theme-preview | maitri dev theme-preview tokyo-night | maitri dev theme-preview themes/gruvbox/colors.toml --no-color --no-osc
+# maitri:examples=maitri dev theme-preview | maitri dev theme-preview spark | maitri dev theme-preview themes/gruvbox/colors.toml --no-color --no-osc
 
 set -o pipefail
 
