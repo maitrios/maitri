@@ -7,7 +7,7 @@ hl.config({
   general = {
     gaps_in = 5,
     gaps_out = 10,
-    border_size = 2,
+    border_size = 1,
 
     col = {
       active_border = active_border_color,
@@ -20,14 +20,24 @@ hl.config({
   },
 
   decoration = {
-    rounding = 0,
+    rounding = 12,
+    rounding_power = 4,
 
     shadow = {
-      enabled = false,
+      enabled = true,
+      range = 4,
+      render_power = 3,
+      color = "rgba(00000055)",
     },
 
+    -- Blur also carries the translucent Vicinae launcher (see apps/vicinae.lua).
     blur = {
-      enabled = false,
+      enabled = true,
+      size = 3,
+      passes = 2,
+      special = true,
+      brightness = 0.60,
+      contrast = 0.75,
     },
   },
 
