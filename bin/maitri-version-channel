@@ -4,10 +4,10 @@
 
 # Arch packages always come from the official mirrors, so the channel is
 # decided by which [maitri] repository pacman.conf points at: a GitHub
-# Release per channel on kindness-ai/maitri-pkgs.
-if grep -q "kindness-ai/maitri-pkgs/releases/download/stable" /etc/pacman.conf; then
+# Release per channel on maitrios/maitri-pkgs.
+if grep -q "maitrios/maitri-pkgs/releases/download/stable" /etc/pacman.conf; then
   echo stable
-elif grep -q "kindness-ai/maitri-pkgs/releases/download/edge" /etc/pacman.conf; then
+elif grep -q "maitrios/maitri-pkgs/releases/download/edge" /etc/pacman.conf; then
   echo edge
 else
   echo unknown

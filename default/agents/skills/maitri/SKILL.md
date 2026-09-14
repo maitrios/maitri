@@ -13,7 +13,7 @@ description: >
 
 # maitri Skill
 
-Manage [maitri](https://github.com/kindness-ai/maitri) Linux systems - a beautiful, opinionated Arch Linux desktop with Hyprland, made by Kindness and grown from Omarchy. <!-- rebrand:keep -->
+Manage [maitri](https://github.com/maitrios/maitri) Linux systems - a beautiful, opinionated Arch Linux desktop with Hyprland, made by Kindness and grown from Omarchy. <!-- rebrand:keep -->
 
 This skill is for end-user customization on installed systems.
 It is not for contributing to maitri source code.

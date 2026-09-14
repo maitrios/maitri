@@ -44,7 +44,7 @@ payload=$(jq -nc --arg prompt "$prompt" --arg selectionFile "$selection_file" --
   { prompt: $prompt, selectionFile: $selectionFile, doneFile: $doneFile }
   + (if $width == "" then {} else { width: ($width | tonumber) } end)')
 
-maitri-launch-vicinae "vicinae://launch/@kindness-ai/maitri/menu-input?fallbackText=$(jq -rn --arg p "$payload" '$p | @uri')" >/dev/null
+maitri-launch-vicinae "vicinae://launch/@maitrios/maitri/menu-input?fallbackText=$(jq -rn --arg p "$payload" '$p | @uri')" >/dev/null
 
 while [[ ! -e $done_file ]]; do
   sleep 0.05

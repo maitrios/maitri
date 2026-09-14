@@ -27,7 +27,7 @@ useful; filing there yourself is not part of this.
 
 1. **It is a verified bug in maitri's sphere**, established on evidence. Issues
    are for verified bugs only. An "is this even a bug?" and feature ideas belong in a
-   GitHub issue on kindness-ai/maitri too, clearly labelled as a question or a
+   GitHub issue on maitrios/maitri too, clearly labelled as a question or a
    suggestion rather than a bug.
 2. **The user has explicitly agreed.** Show them the exact title and body you
    propose, and wait for a yes. Never file unprompted.
@@ -40,8 +40,8 @@ useful; filing there yourself is not part of this.
 A duplicate issue costs a maintainer more time than no report at all.
 
 ```bash
-gh search issues --repo kindness-ai/maitri "<program> crash"
-gh issue list --repo kindness-ai/maitri --state all --search "<signal> <program>"
+gh search issues --repo maitrios/maitri "<program> crash"
+gh issue list --repo maitrios/maitri --state all --search "<signal> <program>"
 ```
 
 Search on the crashing program, the signal, and distinctive symbols from the
@@ -59,7 +59,7 @@ more than another duplicate.
 If a plausible match comes back, read it properly first:
 
 ```bash
-gh issue view <number> --repo kindness-ai/maitri --comments
+gh issue view <number> --repo maitrios/maitri --comments
 ```
 
 Confirm it is genuinely the same failure. The same program crashing is not the
@@ -74,7 +74,7 @@ A comment that only says the bug happens to you too is noise. If that is all you
 have, tell the user so and file nothing.
 
 ```bash
-gh issue comment <number> --repo kindness-ai/maitri --body "..."
+gh issue comment <number> --repo maitrios/maitri --body "..."
 ```
 
 ## Filing a new issue
@@ -82,7 +82,7 @@ gh issue comment <number> --repo kindness-ai/maitri --body "..."
 Only when the search turns up nothing that matches:
 
 ```bash
-gh issue create --repo kindness-ai/maitri --title "..." --body "..."
+gh issue create --repo maitrios/maitri --title "..." --body "..."
 ```
 
 Include what happened, what was expected, steps to reproduce, system details from

@@ -23,12 +23,12 @@ package-backed (Omarchy 4 based) release. Tags from the 0.x git-pull line end at
    scripts/bump-maitri vX.Y.Z
    ```
 
-   Verify with `gh release view stable -R kindness-ai/maitri-pkgs` (or `pacman -Sy && pacman -Si
+   Verify with `gh release view stable -R maitrios/maitri-pkgs` (or `pacman -Sy && pacman -Si
    maitri` on a stable machine).
 4. Publish the GitHub release, which triggers the ISO build:
 
    ```bash
-   gh release create vX.Y.Z --repo kindness-ai/maitri --target main --title "maitri vX.Y.Z" --generate-notes
+   gh release create vX.Y.Z --repo maitrios/maitri --target main --title "maitri vX.Y.Z" --generate-notes
    ```
 
    `build-iso.yml` waits for the `stable` channel to carry `maitri X.Y.Z`, builds the ISO, pushes it

@@ -141,11 +141,11 @@ run_channel dev
 assert_log_line $'gum\tconfirm\t--default=false\tSwitch to dev channel?' "dev asks for confirmation"
 assert_log_line $'refresh\tedge' "dev refreshes the edge pacman channel"
 assert_log_line $'sudo\tenv\tMAITRI_UPDATE_PACMAN=1\tpacman\t-S\t--needed\t--noconfirm\t--ask\t4\tmaitri-dev\tmaitri-settings-dev' "dev installs development maitri packages"
-assert_log_line $'git\tclone\thttps://github.com/kindness-ai/maitri.git\t'"$checkout" "dev clones the source checkout to ~/maitri"
+assert_log_line $'git\tclone\thttps://github.com/maitrios/maitri.git\t'"$checkout" "dev clones the source checkout to ~/maitri"
 assert_log_line $'link\t'"$checkout"$'\t--no-reboot' "dev links ~/maitri without an early reboot prompt"
 assert_log_line $'state\tset\treboot-required' "dev defers the reboot prompt to the update pipeline"
 assert_log_line $'update\t-y\tMAITRI_PATH='"$checkout" "dev runs the normal update pipeline from the source checkout"
-[[ $(grep -E '^(git|link|state|refresh|sudo|update)' "$log_file") == $'git\tclone\thttps://github.com/kindness-ai/maitri.git\t'"$checkout"$'\nlink\t'"$checkout"$'\t--no-reboot\nstate\tset\treboot-required\nrefresh\tedge\nsudo\tenv\tMAITRI_UPDATE_PACMAN=1\tpacman\t-S\t--needed\t--noconfirm\t--ask\t4\tmaitri-dev\tmaitri-settings-dev\nupdate\t-y\tMAITRI_PATH='"$checkout" ]] ||
+[[ $(grep -E '^(git|link|state|refresh|sudo|update)' "$log_file") == $'git\tclone\thttps://github.com/maitrios/maitri.git\t'"$checkout"$'\nlink\t'"$checkout"$'\t--no-reboot\nstate\tset\treboot-required\nrefresh\tedge\nsudo\tenv\tMAITRI_UPDATE_PACMAN=1\tpacman\t-S\t--needed\t--noconfirm\t--ask\t4\tmaitri-dev\tmaitri-settings-dev\nupdate\t-y\tMAITRI_PATH='"$checkout" ]] ||
   fail "dev activates the checkout before changing or updating packages" "$(cat "$log_file")"
 pass "dev activates the checkout before changing or updating packages"
 

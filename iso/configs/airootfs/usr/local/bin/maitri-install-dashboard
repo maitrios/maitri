@@ -712,7 +712,7 @@ render_failure() {
   blank_line
   render_failure_log_tail "$(media_diagnosis_rows "$media_diagnosis")"
   blank_line
-  center "${DIM}Get help at https://github.com/kindness-ai/maitri/issues${RESET}" "$CONTENT_WIDTH"
+  center "${DIM}Get help at https://github.com/maitrios/maitri/issues${RESET}" "$CONTENT_WIDTH"
   blank_line
 }
 

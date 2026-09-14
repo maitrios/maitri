@@ -6,7 +6,7 @@
 # maitri:examples=maitri theme install git@github.com:example/maitri-example-theme.git
 
 if [[ -z $1 ]]; then
-  echo -e "\e[32mSee https://github.com/kindness-ai/maitri#themes\n\e[0m"
+  echo -e "\e[32mSee https://github.com/maitrios/maitri#themes\n\e[0m"
   REPO_URL=$(gum input --placeholder="Git repo URL (https or git@host:org/repo.git)" --header="")
 else
   REPO_URL="$1"

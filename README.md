@@ -15,7 +15,7 @@ the Vicinae launcher, fish, Helium, VS Code, maitri's themes and the `[maitri]` 
 ## Install
 
 maitri installs from its ISO. Download the latest one from the
-[Releases](https://github.com/kindness-ai/maitri/releases) page, write it to a USB stick, boot, and
+[Releases](https://github.com/maitrios/maitri/releases) page, write it to a USB stick, boot, and
 follow the guided installer. The ISO carries every package it needs, so the install works offline.
 
 See [iso/README.md](iso/README.md) for building the ISO yourself.

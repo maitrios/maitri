@@ -7,9 +7,9 @@ It is a rebranded fork of [Omarchy](https://github.com/basecamp/omarchy) that tr
 
 | Repo | What lives there |
 |---|---|
-| [kindness-ai/maitri](https://github.com/kindness-ai/maitri) | The desktop: `bin/` commands, `install/` setup, `default/` and `config/` defaults, `etc/` drop-ins, `shell/` (Quickshell), `themes/`, `migrations/`, the ISO builder under `iso/` |
-| [kindness-ai/maitri-pkgs](https://github.com/kindness-ai/maitri-pkgs) | PKGBUILDs and the CI that builds and signs the `[maitri]` pacman repository, including the `maitri` and `maitri-settings` packages built from this repo |
-| [kindness-ai/maitri-vicinae](https://github.com/kindness-ai/maitri-vicinae) | The Vicinae extension that renders the maitri menu, keybindings and pickers |
+| [maitrios/maitri](https://github.com/maitrios/maitri) | The desktop: `bin/` commands, `install/` setup, `default/` and `config/` defaults, `etc/` drop-ins, `shell/` (Quickshell), `themes/`, `migrations/`, the ISO builder under `iso/` |
+| [maitrios/maitri-pkgs](https://github.com/maitrios/maitri-pkgs) | PKGBUILDs and the CI that builds and signs the `[maitri]` pacman repository, including the `maitri` and `maitri-settings` packages built from this repo |
+| [maitrios/maitri-vicinae](https://github.com/maitrios/maitri-vicinae) | The Vicinae extension that renders the maitri menu, keybindings and pickers |
 
 ## How a maitri install is wired
 

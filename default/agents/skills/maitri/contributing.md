@@ -3,11 +3,11 @@
 Read this when the user wants to report an maitri bug, suggest a feature, or
 contribute a fix upstream.
 
-maitri lives at https://github.com/kindness-ai/maitri and grew from Omarchy <!-- rebrand:keep -->
+maitri lives at https://github.com/maitrios/maitri and grew from Omarchy <!-- rebrand:keep -->
 (https://github.com/basecamp/omarchy). Route requests to the right place:
 
-- **Verified bugs** -> GitHub issues on kindness-ai/maitri.
-- **Feature ideas and suggestions** -> a GitHub issue on kindness-ai/maitri,
+- **Verified bugs** -> GitHub issues on maitrios/maitri.
+- **Feature ideas and suggestions** -> a GitHub issue on maitrios/maitri,
   labelled as a suggestion.
 - **Bugs in code maitri shares with Omarchy** (the shell, Hyprland config, <!-- rebrand:keep -->
   themes engine) may already be reported upstream; check there before filing.
@@ -40,7 +40,7 @@ For screen-recording failures specifically, rerun with
 File the issue with `gh` when available:
 
 ```bash
-gh issue create --repo kindness-ai/maitri --title "..." --body "..."
+gh issue create --repo maitrios/maitri --title "..." --body "..."
 ```
 
 Include: what happened, what was expected, steps to reproduce, system details,
@@ -51,7 +51,7 @@ the attached debug log, and the capture.
 Never develop against `/usr/share/maitri`. Clone a working copy instead:
 
 ```bash
-gh repo fork kindness-ai/maitri --clone
+gh repo fork maitrios/maitri --clone
 cd maitri
 ```
 

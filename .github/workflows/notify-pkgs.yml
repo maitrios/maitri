@@ -15,6 +15,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.MAITRI_PKGS_DISPATCH_TOKEN }}
         run: |
-          gh api repos/kindness-ai/maitri-pkgs/dispatches \
+          gh api repos/maitrios/maitri-pkgs/dispatches \
             -f event_type=maitri-main-push \
             -f "client_payload[sha]=${{ github.sha }}"

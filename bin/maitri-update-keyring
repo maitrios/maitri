@@ -4,7 +4,7 @@
 # maitri:requires-sudo=true
 
 MAITRI_KEY_FINGERPRINT=B15B4ED7BC9470F1710484ABB9562AC7D0D9EA1F
-MAITRI_KEY_URL=https://raw.githubusercontent.com/kindness-ai/maitri-pkgs/main/pkgbuilds/maitri-keyring/maitri.gpg
+MAITRI_KEY_URL=https://raw.githubusercontent.com/maitrios/maitri-pkgs/main/pkgbuilds/maitri-keyring/maitri.gpg
 
 if maitri-pkg-missing maitri-keyring || ! sudo pacman-key --list-keys "$MAITRI_KEY_FINGERPRINT" &>/dev/null; then
   # The signing key is not on a keyserver. Bootstrap trust from the keyring

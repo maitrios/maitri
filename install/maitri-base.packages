@@ -2,7 +2,7 @@
 # The ISO builder also reads this file when constructing the offline mirror.
 #
 # Everything here resolves from the official Arch repos except the packages
-# served from the [maitri] channel (kindness-ai/maitri-pkgs):
+# served from the [maitri] channel (maitrios/maitri-pkgs):
 #   aether asdcontrol cliamp dell-xps13-sidecar-amps herdr helium-browser-bin
 #   hyprland-preview-share-picker hyprmon-bin localsend maitri-fish maitri-nvim
 #   maitri-vicinae-extension mise-bin omacalc omacut omawrite sublime-text-4

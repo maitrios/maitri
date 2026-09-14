@@ -18,9 +18,9 @@ route="${2-root}"
 extension_command() {
   local command="$1" text="${2-}"
   if [[ -n $text ]]; then
-    printf 'vicinae://launch/@kindness-ai/maitri/%s?fallbackText=%s' "$command" "$(jq -rn --arg t "$text" '$t | @uri')"
+    printf 'vicinae://launch/@maitrios/maitri/%s?fallbackText=%s' "$command" "$(jq -rn --arg t "$text" '$t | @uri')"
   else
-    printf 'vicinae://launch/@kindness-ai/maitri/%s' "$command"
+    printf 'vicinae://launch/@maitrios/maitri/%s' "$command"
   fi
 }
 

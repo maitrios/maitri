@@ -51,7 +51,7 @@ jobs:
         if: github.event_name == 'release'
         run: |
           tag="${{ steps.ref.outputs.ref }}"; want="${tag#v}"
-          db="https://github.com/kindness-ai/maitri-pkgs/releases/download/stable/maitri.db.tar.gz"
+          db="https://github.com/maitrios/maitri-pkgs/releases/download/stable/maitri.db.tar.gz"
           for attempt in $(seq 1 40); do
             have=$(curl -fsSL "$db?nocache=$(date +%s)" 2>/dev/null | tar -xzO --wildcards 'maitri-[0-9]*/desc' 2>/dev/null | awk '/^%VERSION%$/ { getline; print; exit }' || true)
             if [[ ${have%%-*} == "$want" ]]; then echo "stable carries maitri $have"; exit 0; fi
