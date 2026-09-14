@@ -1,0 +1,166 @@
+#!/bin/bash
+
+set -e
+
+NO_CACHE=""
+KEEP_PKG_CACHE=""
+LOCAL_MAITRI_PATH=""
+LOCAL_PKGS_PATH=""
+while [[ $# -gt 0 ]]; do
+  case $1 in
+  --no-cache)
+    NO_CACHE=1
+    shift
+    ;;
+  --keep-pkg-cache)
+    KEEP_PKG_CACHE=1
+    shift
+    ;;
+  --no-boot-offer)
+    NO_BOOT_OFFER=1
+    shift
+    ;;
+  --debug)
+    MAITRI_INSTALL_DEBUG=1
+    shift
+    ;;
+  --edge)
+    MAITRI_ISO_REF=edge
+    MAITRI_MIRROR=edge
+    shift
+    ;;
+  --local-source)
+    LOCAL_MAITRI_PATH="${2:-}"
+    LOCAL_PKGS_PATH="${3:-}"
+    if [[ -z $LOCAL_MAITRI_PATH || -z $LOCAL_PKGS_PATH ]]; then
+      echo "Error: --local-source requires two args: <maitri-checkout> <pkgs-checkout>" >&2
+      exit 1
+    fi
+    MAITRI_MIRROR=edge
+    MAITRI_ISO_REF=local
+    shift 3
+    ;;
+  --dev)
+    MAITRI_ISO_REF=dev
+    MAITRI_MIRROR=edge
+    shift
+    ;;
+  *)
+    echo "Unknown option: $1"
+    echo "Usage: $0 [--no-cache] [--keep-pkg-cache] [--no-boot-offer] [--debug] [--edge|--dev] [--local-source <maitri-checkout> <pkgs-checkout>]"
+    exit 1
+    ;;
+  esac
+done
+
+if [[ -n $LOCAL_MAITRI_PATH ]]; then
+  [[ -d $LOCAL_MAITRI_PATH ]] || { echo "Error: maitri checkout not found at $LOCAL_MAITRI_PATH" >&2; exit 1; }
+  [[ -d $LOCAL_PKGS_PATH ]]    || { echo "Error: pkgs checkout not found at $LOCAL_PKGS_PATH" >&2; exit 1; }
+  LOCAL_MAITRI_PATH=$(realpath "$LOCAL_MAITRI_PATH")
+  LOCAL_PKGS_PATH=$(realpath "$LOCAL_PKGS_PATH")
+fi
+
+lint_file_permissions() {
+  local profiledef="configs/profiledef.sh"
+  local -A declared=()
+  local missing=()
+
+  while IFS= read -r path; do
+    [[ -n $path ]] && declared["$path"]=1
+  done < <(grep -oP '^\s*\["\K[^"]+(?="\])' "$profiledef" || true)
+
+  while IFS= read -r f; do
+    [[ -f $f ]] || continue
+
+    local rel="${f#configs/airootfs}"
+    local mode
+    mode=$(git ls-files --stage -- "$f" | awk '{print $1}')
+
+    if [[ $mode != 100755 && $(head -c 2 "$f") != "#!" ]]; then
+      continue
+    fi
+
+    if [[ -z ${declared[$rel]+x} ]]; then
+      missing+=("$rel")
+    fi
+  done < <(find configs/airootfs/usr/local/bin configs/airootfs/root -type f 2>/dev/null)
+
+  if (( ${#missing[@]} > 0 )); then
+    echo "ERROR: the following executable files are missing from $profiledef file_permissions:" >&2
+    printf '  %s\n' "${missing[@]}" >&2
+    echo "Add entries like [\"<path>\"]=\"0:0:755\" to profiledef.sh and retry." >&2
+    exit 1
+  fi
+}
+
+lint_file_permissions
+
+# Purging the host package cache needs interactive sudo; --keep-pkg-cache
+# skips it so unattended builds (test rigs, agents) can run without a prompt.
+if [[ -z $KEEP_PKG_CACHE ]]; then
+  sudo rm -rf /var/cache/pacman/pkg/*
+fi
+
+BUILD_SCRIPT="builder/build-iso.sh"
+BUILD_ROOT=$(realpath "${BASH_SOURCE[0]%/*}/..")
+BUILD_RELEASE_PATH="$BUILD_ROOT/release"
+mkdir -p "$BUILD_RELEASE_PATH"
+
+MAITRI_ISO_REF="${MAITRI_ISO_REF:-main}"
+MAITRI_MIRROR="${MAITRI_MIRROR:-stable}"
+
+DOCKER_ARGS=(
+  --rm
+  --privileged
+  -e "MAITRI_ISO_REF=$MAITRI_ISO_REF"
+  -e "MAITRI_MIRROR=$MAITRI_MIRROR"
+  -e "MAITRI_INSTALL_DEBUG=${MAITRI_INSTALL_DEBUG:-}"
+  -e "HOST_UID=$(id -u)"
+  -e "HOST_GID=$(id -g)"
+  -v "$BUILD_RELEASE_PATH/:/out/"
+  -v "$BUILD_ROOT/$BUILD_SCRIPT:/$BUILD_SCRIPT:ro"
+  -v "$BUILD_ROOT/builder:/builder:ro"
+  -v "$BUILD_ROOT/configs:/configs:ro"
+)
+
+if [[ -n $LOCAL_MAITRI_PATH ]]; then
+  DOCKER_ARGS+=(
+    -v "$LOCAL_MAITRI_PATH:/maitri-source:ro"
+    -v "$LOCAL_PKGS_PATH:/maitri-pkgs:ro"
+  )
+fi
+
+if [[ -d /var/cache/pacman/pkg ]]; then
+  DOCKER_ARGS+=(-v "/var/cache/pacman/pkg:/var/cache/pacman/pkg")
+fi
+
+# Mount the build cache directory where packages are downloaded. Channels use
+# different package snapshots and must never share an offline mirror cache.
+if [[ -z "$NO_CACHE" ]]; then
+  OFFLINE_REPO_BUILD_CACHE_DIR="$HOME/.cache/maitri/iso_${MAITRI_MIRROR}/airootfs/var/cache/maitri"
+  mkdir -p "$OFFLINE_REPO_BUILD_CACHE_DIR"
+  DOCKER_ARGS+=(-v "$OFFLINE_REPO_BUILD_CACHE_DIR:/var/cache/airootfs/var/cache/maitri")
+else
+  # The locally cached :latest image is a cache too — docker run never
+  # re-checks the registry for it, so refresh it when building cold.
+  DOCKER_ARGS+=(--pull=always)
+fi
+
+# The docker group is root-equivalent, so maitri operators stay out of it on
+# purpose. When the socket refuses the calling user, run the client through
+# sudo instead of requiring group membership.
+DOCKER=(docker)
+if ! docker version &>/dev/null; then
+  DOCKER=(sudo docker)
+fi
+
+"${DOCKER[@]}" run "${DOCKER_ARGS[@]}" archlinux/archlinux:latest /$BUILD_SCRIPT
+
+latest_iso=$(\ls -t "$BUILD_RELEASE_PATH"/*.iso | head -n1)
+iso_ref="${latest_iso%.*}-$MAITRI_ISO_REF.iso"
+mv -f "$latest_iso" "$iso_ref"
+
+if [[ -z "${NO_BOOT_OFFER:-}" ]]; then
+  echo
+  gum confirm "Boot $iso_ref?" && "$BUILD_ROOT/bin/maitri-iso-boot" "$iso_ref"
+fi

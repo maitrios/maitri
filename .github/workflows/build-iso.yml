@@ -1,0 +1,155 @@
+name: Build maitri ISO
+
+# Builds the installer ISO when a GitHub Release is published and links it from
+# the release; the workflow_dispatch button is for test builds (artifact only).
+# The ISO bundles the [maitri] packages, so a release build first waits for the
+# stable channel to carry the maitri package for this tag.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to build from (test builds)"
+        default: main
+      channel:
+        description: "Package channel to bundle"
+        default: stable
+        type: choice
+        options: [stable, edge]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-iso-${{ github.event.release.tag_name || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - name: Resolve build ref and channel
+        id: ref
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "ref=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+            echo "channel=stable" >> "$GITHUB_OUTPUT"
+            echo "iso_ref=stable" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${{ github.event.inputs.ref || 'main' }}" >> "$GITHUB_OUTPUT"
+            echo "channel=${{ github.event.inputs.channel || 'stable' }}" >> "$GITHUB_OUTPUT"
+            if [ "${{ github.event.inputs.channel }}" = "edge" ]; then
+              echo "iso_ref=edge" >> "$GITHUB_OUTPUT"
+            else
+              echo "iso_ref=main" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - name: Wait for the maitri package on the channel
+        if: github.event_name == 'release'
+        run: |
+          tag="${{ steps.ref.outputs.ref }}"; want="${tag#v}"
+          db="https://github.com/kindness-ai/maitri-pkgs/releases/download/stable/maitri.db.tar.gz"
+          for attempt in $(seq 1 40); do
+            have=$(curl -fsSL "$db?nocache=$(date +%s)" 2>/dev/null | tar -xzO --wildcards 'maitri-[0-9]*/desc' 2>/dev/null | awk '/^%VERSION%$/ { getline; print; exit }' || true)
+            if [[ ${have%%-*} == "$want" ]]; then echo "stable carries maitri $have"; exit 0; fi
+            echo "stable carries maitri ${have:-nothing}; waiting for $want ($attempt/40)"
+            sleep 30
+          done
+          echo "::error::the stable channel never published maitri $want; run scripts/bump-maitri $tag in maitri-pkgs first"
+          exit 1
+
+      # archiso + an offline package mirror need a lot of disk; reclaim ~30GB.
+      - name: Free up disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          large-packages: true
+          swap-storage: false
+
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.ref.outputs.ref }}
+
+      - name: Build ISO (archiso inside an Arch container)
+        run: |
+          mkdir -p release
+          docker run --rm --privileged \
+            -e MAITRI_ISO_REF="${{ steps.ref.outputs.iso_ref }}" \
+            -e MAITRI_MIRROR="${{ steps.ref.outputs.channel }}" \
+            -e HOST_UID="$(id -u)" \
+            -e HOST_GID="$(id -g)" \
+            -v "$PWD/iso/configs:/configs:ro" \
+            -v "$PWD/iso/builder:/builder:ro" \
+            -v "$PWD/release:/out" \
+            archlinux/archlinux:latest \
+            /builder/build-iso.sh
+
+      - name: Name the ISO
+        id: iso
+        run: |
+          built="$(ls -t release/*.iso | head -n1)"
+          ref="${{ steps.ref.outputs.ref }}"
+          name="maitri-${ref//\//-}.iso"
+          mv -f "$built" "release/$name"
+          (cd release && sha256sum "$name" > "$name.sha256")
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          ls -lh release/
+
+      # The offline ISO is several GB, above GitHub's 2 GiB release-asset cap, so
+      # it is published to Docker Hub as an OCI artifact (via ORAS) and linked
+      # from the release notes; the small .sha256 sidecar attaches to the release.
+      - name: Set up ORAS
+        if: github.event_name == 'release'
+        uses: oras-project/setup-oras@v1
+
+      - name: Publish ISO to Docker Hub & link from the release
+        if: github.event_name == 'release'
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          DOCKERHUB_NAMESPACE: ${{ vars.DOCKERHUB_NAMESPACE }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          name="${{ steps.iso.outputs.name }}"
+          iso="release/$name"
+          tag="${{ steps.ref.outputs.ref }}"; tag="${tag//\//-}"
+          ns="${DOCKERHUB_NAMESPACE:-$DOCKERHUB_USERNAME}"
+          ns="${ns%/maitri-iso}"
+          repo="docker.io/$ns/maitri-iso"
+          sha=$(cut -d' ' -f1 "$iso.sha256")
+
+          echo "$DOCKERHUB_TOKEN" | oras login docker.io -u "$DOCKERHUB_USERNAME" --password-stdin
+          ( cd release && oras push "$repo:$tag" \
+              --artifact-type application/vnd.maitri.iso \
+              --annotation "org.opencontainers.image.title=$name" \
+              --annotation "io.maitri.iso.sha256=$sha" \
+              "$name:application/octet-stream" )
+          oras tag "$repo:$tag" latest
+
+          gh release upload "${{ github.event.release.tag_name }}" -R "${{ github.repository }}" --clobber "$iso.sha256"
+
+          body=$(gh release view "${{ github.event.release.tag_name }}" -R "${{ github.repository }}" --json body -q .body)
+          {
+            printf '%s\n\n---\n\n' "$body"
+            printf '## 📀 Download\n\n'
+            printf 'The installer ISO (offline-capable) is published as an OCI artifact on Docker Hub.\n'
+            printf 'Pull it with [ORAS](https://oras.land):\n\n'
+            printf '```sh\noras pull %s:%s\nsha256sum -c %s.sha256\n```\n\n' "$repo" "$tag" "$name"
+            printf '`sha256: %s`\n' "$sha"
+          } > release-notes.md
+          gh release edit "${{ github.event.release.tag_name }}" -R "${{ github.repository }}" --notes-file release-notes.md
+
+      - name: Upload ISO artifact (backup / test builds)
+        uses: actions/upload-artifact@v5
+        with:
+          name: maitri-iso-${{ github.run_number }}
+          path: |
+            release/*.iso
+            release/*.sha256
+          retention-days: 7
+          compression-level: 0
