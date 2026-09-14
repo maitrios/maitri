@@ -3,7 +3,7 @@
 The maitri ISO is the only supported way to install maitri. It boots a live Arch environment with
 the maitri configurator, installs Arch and the maitri packages from a mirror bundled inside the
 ISO (so the install works offline), runs maitri's system setup in the target, creates the user with
-fish as the login shell, and finalizes the user. It is Omarchy's ISO builder, rebranded and pointed at
+fish as the login shell, and finalizes the user. It is Omarchy's ISO builder, rebranded and pointed at <!-- rebrand:keep -->
 the `[maitri]` channel.
 
 ## Creating the ISO
