@@ -110,7 +110,7 @@ sleep 0.8
 
 geometry=$(shell_ipc shell debugBarGeometry)
 jq -e '
-  any(.[]; .id == "maitri.menu" and .visible == true and .width > 0 and .height > 0) and
+  any(.[]; .id == "maitri.launcher" and .visible == true and .width > 0 and .height > 0) and
   any(.[]; .id == "maitri.clock" and .visible == true and .width > 0 and .height > 0)
 ' <<<"$geometry" >/dev/null || {
   printf 'Geometry:\n' >&2

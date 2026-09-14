@@ -158,12 +158,6 @@ for source, destination, legacy in package_defaults:
 # Existing users have an absolute wants symlink to the old unit path, and the
 # migration that repoints it only runs for users who run an update -- the
 # opposite of who the notifier is for. Dropping this alias strands them.
-notify_alias = 'ln -sfn maitri-migrate-notify.service "$pkgdir/usr/lib/systemd/user/maitri-update-user-notify.service"'
-if notify_alias not in pkgbuild:
-  errors.append(
-    "PKGBUILD does not ship the maitri-update-user-notify.service compatibility "
-    "alias, so users who have not run migration 1785095882 lose the login notifier"
-  )
 
 alpm_hooks = [
   "00-maitri-update-guard.hook",

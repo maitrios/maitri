@@ -409,8 +409,11 @@ jq -e '
 }
 pass "shell IPC returns effective shell config"
 
+# maitri ships the shell menu disabled (Vicinae is the launcher); enable it for the smoke check.
+[[ $(shell_ipc shell setPluginEnabled maitri.menu true) == "ok" ]] || fail_with_log "shell IPC enables the menu plugin"
 [[ $(shell_ipc shell summon maitri.menu '{"menu":"apps"}') == "ok" ]] || fail_with_log "shell IPC summons menu apps overlay"
 shell_ipc_quiet shell hide maitri.menu >/dev/null
+shell_ipc_quiet shell setPluginEnabled maitri.menu false >/dev/null
 [[ $(shell_ipc shell summon missing.plugin "{}") == "unknown" ]] || fail_with_log "shell IPC rejects unknown plugin"
 pass "shell IPC summon and hide contract works"
 
@@ -486,7 +489,7 @@ sleep 0.8
 
 default_ids=$(jq -c '(.bar.layout.left + .bar.layout.center + .bar.layout.right) | map(.id // .)' "$ROOT/config/maitri/shell.json")
 visible_default_ids='[
-  "maitri.menu",
+  "maitri.launcher",
   "maitri.workspaces",
   "maitri.clock",
   "maitri.weather",
