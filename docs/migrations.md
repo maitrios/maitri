@@ -161,7 +161,7 @@ rm ~/.local/state/maitri/migrations/<migration>.sh
 maitri-migrate
 ```
 
-maitri 4.0 is upgraded through `bin/maitri-upgrade-to-quattro`, not through the
+There is no in-place upgrade from the git-pull based maitri 0.x line; those machines reinstall from the ISO. Omarchy 4 was upgraded through `omarchy-upgrade-to-quattro`, not through the <!-- rebrand:keep -->
 normal migration runner. Do not add compatibility migrations for old installer
 layouts; put pre-4 package-layout transition work in the upgrade command instead.
 

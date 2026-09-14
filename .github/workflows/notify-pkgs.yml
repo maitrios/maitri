@@ -1,0 +1,20 @@
+name: Notify maitri-pkgs
+
+# Every push to main becomes a maitri-dev / maitri-settings-dev build on the
+# edge channel. maitri-pkgs' build-edge-dev.yml listens for this event.
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ask maitri-pkgs to rebuild the dev packages
+        env:
+          GH_TOKEN: ${{ secrets.MAITRI_PKGS_DISPATCH_TOKEN }}
+        run: |
+          gh api repos/kindness-ai/maitri-pkgs/dispatches \
+            -f event_type=maitri-main-push \
+            -f "client_payload[sha]=${{ github.sha }}"

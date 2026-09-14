@@ -193,7 +193,7 @@ It only does the things `/etc/skel` can't:
   and `~/.config/gtk-3.0/bookmarks` (needs `$HOME` expansion).
 - Hyprland's package-owned default input reads `XKBLAYOUT` / `XKBVARIANT`
   from `/etc/vconsole.conf`; no per-user Hyprland config rewrite is needed.
-- `xdg-settings set default-web-browser chromium.desktop` and
+- `xdg-settings set default-web-browser helium.desktop` and
   `xdg-mime default HEY.desktop x-scheme-handler/mailto` (XDG-aware paths).
 - `maitri-refresh-applications` (composes generated `.desktop` launchers).
 - Sources `install/user/all.sh` — theme, git, mise, keyring, per-user

@@ -13,7 +13,7 @@ description: >
 
 # maitri Skill
 
-Manage [maitri](https://github.com/kindness-ai/maitri) Linux systems - a beautiful, opinionated Arch Linux desktop with Hyprland, made by Kindness and grown from Omarchy.
+Manage [maitri](https://github.com/kindness-ai/maitri) Linux systems - a beautiful, opinionated Arch Linux desktop with Hyprland, made by Kindness and grown from Omarchy. <!-- rebrand:keep -->
 
 This skill is for end-user customization on installed systems.
 It is not for contributing to maitri source code.
@@ -102,7 +102,7 @@ maitri is built on:
 | **Arch Linux** | Base OS | `/etc/`, `~/.config/` |
 | **Hyprland** | Wayland compositor/WM | `~/.config/hypr/` |
 | **maitri shell** | Status bar + notifications (Quickshell) | `~/.config/maitri/shell.json` |
-| **Launcher/menus** | Quickshell menu | `~/.config/maitri/extensions/maitri-menu.jsonc` |
+| **Launcher/menus** | Vicinae + the maitri extension | `~/.config/maitri/extensions/maitri-menu.jsonc`, `~/.config/vicinae/settings.json` |
 | **Alacritty/Foot/Kitty/Ghostty** | Terminals | `~/.config/<terminal>/` |
 | **maitri OSD** | On-screen display | Quickshell plugin |
 

@@ -3,6 +3,6 @@ contact_links:
   - name: Suggestion
     url: https://github.com/kindness-ai/maitri/issues/new
     about: Suggest a new feature or a change to an existing one.
-  - name: Upstream Omarchy
+  - name: Upstream Omarchy # rebrand:keep
     url: https://github.com/basecamp/omarchy
-    about: maitri grew from Omarchy. Issues in shared code may already be tracked there.
+    about: maitri grew from Omarchy. Issues in shared code may already be tracked there. # rebrand:keep

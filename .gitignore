@@ -2,3 +2,6 @@
 # Python bytecode (orchestrator)
 __pycache__/
 *.pyc
+
+# Local editor settings (not part of maitri)
+/.vscode/

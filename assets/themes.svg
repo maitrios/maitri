@@ -1,0 +1,86 @@
+<svg width="680" viewBox="0 0 680 620" xmlns="http://www.w3.org/2000/svg">
+<rect x="0" y="0" width="680" height="620" rx="16" fill="#0D1015"/>
+<text x="40" y="44" fill="#E6E9F0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="22" font-weight="600">maitri themes</text>
+<text x="40" y="66" fill="#7E879B" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13">Seven themes — six dark + Daybreak (light) · Spark is the default</text>
+<rect x="40" y="90" width="186" height="150" rx="10" fill="#0B0F17" stroke="#2C3548" stroke-width="1"/>
+<text x="56" y="120" fill="#E6E9F0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="500">Spark</text>
+<rect x="160" y="105" width="50" height="18" rx="9" fill="#82AAFF"/>
+<text x="185" y="118" fill="#0B0F17" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="500" text-anchor="middle">Default</text>
+<rect x="56" y="134" width="54" height="8" rx="4" fill="#82AAFF"/>
+<text x="56" y="168" fill="#7E879B" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="11">accent #82AAFF</text>
+<text x="56" y="186" fill="#7E879B" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="11">bg #0B0F17</text>
+<circle cx="63" cy="216" r="7" fill="#FF6E6E"/>
+<circle cx="91" cy="216" r="7" fill="#7DE38B"/>
+<circle cx="119" cy="216" r="7" fill="#FFD479"/>
+<circle cx="147" cy="216" r="7" fill="#82AAFF"/>
+<circle cx="175" cy="216" r="7" fill="#C99BFF"/>
+<circle cx="203" cy="216" r="7" fill="#6FE6D9"/>
+<rect x="247" y="90" width="186" height="150" rx="10" fill="#08120F" stroke="#294C42" stroke-width="1"/>
+<text x="263" y="120" fill="#E6E9F0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="500">Harbor</text>
+<rect x="263" y="134" width="54" height="8" rx="4" fill="#4FE0C4"/>
+<text x="263" y="168" fill="#7E879B" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="11">accent #4FE0C4</text>
+<text x="263" y="186" fill="#7E879B" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="11">bg #08120F</text>
+<circle cx="270" cy="216" r="7" fill="#FF6E6E"/>
+<circle cx="298" cy="216" r="7" fill="#7DE38B"/>
+<circle cx="326" cy="216" r="7" fill="#FFD479"/>
+<circle cx="354" cy="216" r="7" fill="#82AAFF"/>
+<circle cx="382" cy="216" r="7" fill="#C99BFF"/>
+<circle cx="410" cy="216" r="7" fill="#6FE6D9"/>
+<rect x="454" y="90" width="186" height="150" rx="10" fill="#120A13" stroke="#4A2E50" stroke-width="1"/>
+<text x="470" y="120" fill="#E6E9F0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="500">Orchid</text>
+<rect x="470" y="134" width="54" height="8" rx="4" fill="#E59BFF"/>
+<text x="470" y="168" fill="#7E879B" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="11">accent #E59BFF</text>
+<text x="470" y="186" fill="#7E879B" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="11">bg #120A13</text>
+<circle cx="477" cy="216" r="7" fill="#FF6E6E"/>
+<circle cx="505" cy="216" r="7" fill="#7DE38B"/>
+<circle cx="533" cy="216" r="7" fill="#FFD479"/>
+<circle cx="561" cy="216" r="7" fill="#82AAFF"/>
+<circle cx="589" cy="216" r="7" fill="#C99BFF"/>
+<circle cx="617" cy="216" r="7" fill="#6FE6D9"/>
+<rect x="40" y="264" width="186" height="150" rx="10" fill="#140E06" stroke="#4E3A1C" stroke-width="1"/>
+<text x="56" y="294" fill="#E6E9F0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="500">Ember</text>
+<rect x="56" y="308" width="54" height="8" rx="4" fill="#FFB454"/>
+<text x="56" y="342" fill="#7E879B" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="11">accent #FFB454</text>
+<text x="56" y="360" fill="#7E879B" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="11">bg #140E06</text>
+<circle cx="63" cy="390" r="7" fill="#FF6E6E"/>
+<circle cx="91" cy="390" r="7" fill="#7DE38B"/>
+<circle cx="119" cy="390" r="7" fill="#FFD479"/>
+<circle cx="147" cy="390" r="7" fill="#82AAFF"/>
+<circle cx="175" cy="390" r="7" fill="#C99BFF"/>
+<circle cx="203" cy="390" r="7" fill="#6FE6D9"/>
+<rect x="247" y="264" width="186" height="150" rx="10" fill="#140A0B" stroke="#4E2730" stroke-width="1"/>
+<text x="263" y="294" fill="#E6E9F0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="500">Garnet</text>
+<rect x="263" y="308" width="54" height="8" rx="4" fill="#FF6E84"/>
+<text x="263" y="342" fill="#7E879B" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="11">accent #FF6E84</text>
+<text x="263" y="360" fill="#7E879B" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="11">bg #140A0B</text>
+<circle cx="270" cy="390" r="7" fill="#FF6E6E"/>
+<circle cx="298" cy="390" r="7" fill="#7DE38B"/>
+<circle cx="326" cy="390" r="7" fill="#FFD479"/>
+<circle cx="354" cy="390" r="7" fill="#82AAFF"/>
+<circle cx="382" cy="390" r="7" fill="#C99BFF"/>
+<circle cx="410" cy="390" r="7" fill="#6FE6D9"/>
+<rect x="454" y="264" width="186" height="150" rx="10" fill="#0F0A18" stroke="#3A2E54" stroke-width="1"/>
+<text x="470" y="294" fill="#E6E9F0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="500">Amethyst</text>
+<rect x="470" y="308" width="54" height="8" rx="4" fill="#B08CFF"/>
+<text x="470" y="342" fill="#7E879B" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="11">accent #B08CFF</text>
+<text x="470" y="360" fill="#7E879B" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="11">bg #0F0A18</text>
+<circle cx="477" cy="390" r="7" fill="#FF6E6E"/>
+<circle cx="505" cy="390" r="7" fill="#7DE38B"/>
+<circle cx="533" cy="390" r="7" fill="#FFD479"/>
+<circle cx="561" cy="390" r="7" fill="#82AAFF"/>
+<circle cx="589" cy="390" r="7" fill="#C99BFF"/>
+<circle cx="617" cy="390" r="7" fill="#6FE6D9"/>
+<rect x="247" y="438" width="186" height="150" rx="10" fill="#F5F5F5" stroke="#CFCFDE" stroke-width="1"/>
+<text x="263" y="468" fill="#1F1F1F" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="500">Daybreak</text>
+<rect x="367" y="453" width="50" height="18" rx="9" fill="#644AC9"/>
+<text x="392" y="466" fill="#F5F5F5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="500" text-anchor="middle">Light</text>
+<rect x="263" y="482" width="54" height="8" rx="4" fill="#644AC9"/>
+<text x="263" y="516" fill="#635D97" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="11">accent #644AC9</text>
+<text x="263" y="534" fill="#635D97" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="11">bg #F5F5F5</text>
+<circle cx="270" cy="564" r="7" fill="#CB3A2A"/>
+<circle cx="298" cy="564" r="7" fill="#14710A"/>
+<circle cx="326" cy="564" r="7" fill="#846E15"/>
+<circle cx="354" cy="564" r="7" fill="#644AC9"/>
+<circle cx="382" cy="564" r="7" fill="#A3144D"/>
+<circle cx="410" cy="564" r="7" fill="#036A96"/>
+</svg>

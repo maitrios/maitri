@@ -3,13 +3,13 @@
 Read this when the user wants to report an maitri bug, suggest a feature, or
 contribute a fix upstream.
 
-maitri lives at https://github.com/kindness-ai/maitri and grew from Omarchy
+maitri lives at https://github.com/kindness-ai/maitri and grew from Omarchy <!-- rebrand:keep -->
 (https://github.com/basecamp/omarchy). Route requests to the right place:
 
 - **Verified bugs** -> GitHub issues on kindness-ai/maitri.
 - **Feature ideas and suggestions** -> a GitHub issue on kindness-ai/maitri,
   labelled as a suggestion.
-- **Bugs in code maitri shares with Omarchy** (the shell, Hyprland config,
+- **Bugs in code maitri shares with Omarchy** (the shell, Hyprland config, <!-- rebrand:keep -->
   themes engine) may already be reported upstream; check there before filing.
 
 ## Filing a Good Bug Report

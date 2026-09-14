@@ -118,3 +118,20 @@ maitri-refresh-config hypr/hyprland.lua
 This copies `$MAITRI_PATH/config/hypr/hyprland.lua` to `~/.config/hypr/hyprland.lua`. The argument
 is interpolated into both paths and only checked with `[[ -e ]]`, so pass a plain relative path: a
 name containing `..` resolves and copies, landing outside `~/.config` rather than being rejected.
+
+# maitri Deltas From Omarchy <!-- rebrand:keep -->
+
+maitri is a rebranded fork that tracks Omarchy releases; see [`maitri.md`](maitri.md). <!-- rebrand:keep -->
+
+- Never merge a raw Omarchy tag. Sync through `tools/sync-upstream.sh <tag>`, which rebrands onto the <!-- rebrand:keep -->
+  `upstream` branch first; read [`agents/skills/upstream-sync.md`](agents/skills/upstream-sync.md).
+- Run `tools/rebrand.sh --check` before committing. `test/shell.d/rebrand-test.sh` fails the suite if
+  the upstream brand leaks into a path or an unprotected string.
+- Files maitri deliberately drops from upstream go in the delete list in `tools/rebrand.sh`, or the
+  next sync restores them.
+- The launcher, menu, clipboard and emoji picker are Vicinae (`maitri-launch-vicinae`,
+  `maitri-menu`, `maitri-menu-select`, `maitri-menu-input`); the Quickshell menu plugin is disabled in
+  `config/maitri/shell.json`. Menu content still lives in `default/maitri/maitri-menu.jsonc`.
+- fish is the login shell, Helium the browser, VS Code the editor, Spark the theme. Only the seven
+  maitri themes ship under `themes/`.
+- `./test/shell` points `MAITRI_PATH` and `PATH` at the checkout so the suites run on any machine.

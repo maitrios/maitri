@@ -1,5 +1,10 @@
 # maitri-shell
 
+> maitri ships this shell with the `maitri.menu`, `maitri.emojis` and `maitri.clipboard` plugins
+> disabled in `config/maitri/shell.json`: Vicinae is the launcher, menu, clipboard and emoji picker,
+> and the maitri Vicinae extension renders `default/maitri/maitri-menu.jsonc`. Everything below about
+> the menu plugin still applies if you re-enable it.
+
 A single long-running [Quickshell](https://quickshell.org/) instance
 that hosts the maitri desktop. The bar, panels, overlays, menus, and
 services all run inside as plugins. IPC is the canonical way for CLIs
