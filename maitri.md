@@ -9,7 +9,7 @@ It is a rebranded fork of [Omarchy](https://github.com/basecamp/omarchy) that tr
 |---|---|
 | [kindness-ai/maitri](https://github.com/kindness-ai/maitri) | The desktop: `bin/` commands, `install/` setup, `default/` and `config/` defaults, `etc/` drop-ins, `shell/` (Quickshell), `themes/`, `migrations/`, the ISO builder under `iso/` |
 | [kindness-ai/maitri-pkgs](https://github.com/kindness-ai/maitri-pkgs) | PKGBUILDs and the CI that builds and signs the `[maitri]` pacman repository, including the `maitri` and `maitri-settings` packages built from this repo |
-| [kindness-ai/vicinae-maitri](https://github.com/kindness-ai/vicinae-maitri) | The Vicinae extension that renders the maitri menu, keybindings and pickers |
+| [kindness-ai/maitri-vicinae](https://github.com/kindness-ai/maitri-vicinae) | The Vicinae extension that renders the maitri menu, keybindings and pickers |
 
 ## How a maitri install is wired
 
@@ -29,7 +29,7 @@ It is a rebranded fork of [Omarchy](https://github.com/basecamp/omarchy) that tr
   `pacman -Syu`), then `maitri-migrate` for pending per-user migrations, then post-update hooks.
   See [docs/update-process.md](docs/update-process.md).
 - **Launcher.** Vicinae is the launcher, clipboard and emoji picker. The maitri menu is the
-  vicinae-maitri extension rendering `default/maitri/maitri-menu.jsonc`; `maitri-menu` routes to it,
+  maitri-vicinae extension rendering `default/maitri/maitri-menu.jsonc`; `maitri-menu` routes to it,
   and `maitri-menu-select` / `maitri-menu-input` are its dmenu. The Quickshell menu, emoji and
   clipboard plugins stay shipped but disabled in `config/maitri/shell.json`.
 
