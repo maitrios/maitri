@@ -32,6 +32,8 @@ PROTECTED_TOKENS=(
   'omacom.io'
   'discord.gg/'
   'Heinemeier'
+  # The upstream release we track, named in migrations and comments as "Omarchy 4".
+  'Omarchy 4'
 )
 
 # Files whose contents are never rewritten.

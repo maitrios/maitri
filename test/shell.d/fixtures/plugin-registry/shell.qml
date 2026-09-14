@@ -452,7 +452,7 @@ ShellRoot {
     root.assertTrue(registry.isEnabled("maitri.hybrid"), "a multi-kind built-in remains loadable without its widget")
 
     var cloneBase = registry.pluginsDir + "/sam.clock"
-    root.assertEqual(registry.localPluginIdForPath(cloneBase + "/BarWidget.qml"), "dhh.clock", "personal clone changes are watched")
+    root.assertEqual(registry.localPluginIdForPath(cloneBase + "/BarWidget.qml"), "sam.clock", "personal clone changes are watched")
     root.assertEqual(registry.localPluginIdForPath(registry.pluginsDir + "/acme.clock/BarWidget.qml"), "acme.clock", "installed plugin changes are watched")
     root.assertEqual(registry.localPluginIdForPath(cloneBase + "/.git/index"), "", "plugin git metadata is ignored")
     root.assertEqual(registry.localPluginIdForPath(registry.pluginsDir + "/.clone.abc123/manifest.json"), "", "hidden staging and backup dirs are ignored")
