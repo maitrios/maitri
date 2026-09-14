@@ -10,8 +10,8 @@ o.bind("XF86PowerOff", "Power menu", "maitri-menu toggle system", { locked = tru
 o.bind("SUPER + K", "Keybindings", "maitri-launch-vicinae vicinae://launch/@maitrios/maitri/keybindings")
 o.bind("SUPER + ALT + K", "Tmux keybindings", "maitri-menu-tmux-keybindings")
 o.bind("SUPER + CTRL + K", "Herdr keybindings", "maitri-menu-herdr-keybindings")
-o.bind("SUPER + CTRL + Q", "Calculator", "omacalc")
-o.bind("XF86Calculator", "Calculator", "omacalc")
+o.bind("SUPER + CTRL + Q", "Calculator", { launch = "gnome-calculator", focus = "^org.gnome.Calculator$" })
+o.bind("XF86Calculator", "Calculator", { launch = "gnome-calculator", focus = "^org.gnome.Calculator$" })
 
 o.bind_toggle("SUPER + SHIFT + SPACE", "Toggle top bar", "bar")
 o.bind("SUPER + CTRL + SPACE", "Background switcher", "maitri-launch-vicinae vicinae://launch/@maitrios/maitri/background-picker")

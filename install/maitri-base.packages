@@ -3,15 +3,14 @@
 #
 # Everything here resolves from the official Arch repos except the packages
 # served from the [maitri] channel (maitrios/maitri-pkgs):
-#   aether asdcontrol cliamp dell-xps13-sidecar-amps herdr helium-browser-bin
+#   asdcontrol dell-xps13-sidecar-amps herdr helium-browser-bin
 #   hyprland-preview-share-picker hyprmon-bin localsend maitri-fish maitri-nvim
-#   maitri-vicinae-extension mise-bin omacalc omacut omawrite sublime-text-4
-#   tensaku tobi-try ttf-ia-writer ttf-jetbrains-mono-nerd-basic ttfx tzupdate
+#   maitri-vicinae-extension mise-bin sublime-text-4
+#   tensaku ttf-ia-writer ttf-jetbrains-mono-nerd-basic ttfx tzupdate
 #   ufw-docker vi vicinae-bin visual-studio-code-bin warp-terminal-bin
 #   xdg-terminal-exec yaru-icon-theme yay
 # Adding a non-Arch package here means adding its PKGBUILD to maitri-pkgs first.
 
-aether
 alsa-utils
 asdcontrol
 avahi
@@ -25,7 +24,6 @@ brightnessctl
 btop
 chezmoi
 clang
-cliamp
 cups
 cups-filters
 cups-pk-helper
@@ -52,6 +50,7 @@ fontconfig
 foot
 fzf
 git
+gnome-calculator
 gnome-disk-utility
 gnome-keyring
 gnome-themes-extra
@@ -108,9 +107,6 @@ nss-mdns
 nvim
 obs-studio
 obsidian
-omacalc
-omacut
-omawrite
 pacman-contrib
 pamixer
 pinta
@@ -138,7 +134,6 @@ tesseract
 tesseract-data-eng
 tldr
 tmux
-tobi-try
 tree-sitter-cli
 ttf-ia-writer
 ttf-jetbrains-mono-nerd-basic

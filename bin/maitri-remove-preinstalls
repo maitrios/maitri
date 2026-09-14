@@ -39,8 +39,6 @@ if gum confirm "Are you sure you want to remove all preinstalled web apps, TUI w
   fi
 
   maitri-pkg-drop \
-    aether \
-    cliamp \
     libreoffice-fresh \
     xournalpp \
     pinta \
@@ -48,8 +46,5 @@ if gum confirm "Are you sure you want to remove all preinstalled web apps, TUI w
     obs-studio \
     kdenlive \
     moonlight-qt \
-    lazydocker \
-    omacut \
-    omacalc \
-    omawrite
+    lazydocker
 fi

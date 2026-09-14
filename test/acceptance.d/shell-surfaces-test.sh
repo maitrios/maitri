@@ -96,8 +96,8 @@ wait_until "notification popup closes" 15 layer_absent "maitri-notifications"
 
 # The menu's Apps submenu does the full launcher loop: open, search by
 # typing, launch the top hit.
-if window_present "(?i)omawrite" >/dev/null 2>&1; then
-  fail "app launch test starts with no Omawrite window" "an Omawrite window is already open"
+if window_present "(?i)pinta" >/dev/null 2>&1; then
+  fail "app launch test starts with no Pinta window" "an Pinta window is already open"
 fi
 
 maitri-menu summon apps >/dev/null
@@ -105,13 +105,13 @@ wait_until "apps menu opens" 15 layer_present "maitri-menu"
 sleep 1
 screenshot "success-apps-menu-open"
 
-wtype "omawrite"
+wtype "pinta"
 sleep 1
 screenshot "success-apps-menu-search"
 wtype -k Return
 
-wait_until "apps menu launches the top search hit" 60 window_present "(?i)omawrite"
+wait_until "apps menu launches the top search hit" 60 window_present "(?i)pinta"
 wait_until "apps menu closes after launching" 15 layer_absent "maitri-menu"
 
-close_windows "(?i)omawrite"
-wait_until "Omawrite window closes" 30 window_absent "(?i)omawrite"
+close_windows "(?i)pinta"
+wait_until "Pinta window closes" 30 window_absent "(?i)pinta"

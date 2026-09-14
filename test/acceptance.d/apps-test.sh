@@ -37,7 +37,7 @@ launch_and_verify() {
 apps='terminal|foot|^foot$
 browser|chromium --new-window|(?i)chromium
 neovim|xdg-terminal-exec --app-id=org.maitri.nvim nvim|org.maitri.nvim
-writer|omawrite|(?i)omawrite'
+paint|pinta|(?i)pinta'
 
 status=0
 while IFS='|' read -r name command class timeout; do

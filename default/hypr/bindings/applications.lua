@@ -12,11 +12,9 @@ if o.preinstalled_bindings_enabled() then
   o.bind("SUPER + ALT + RETURN", "Tmux", { maitri = "terminal-tmux" })
   o.bind("SUPER + CTRL + RETURN", "Herdr", { maitri = "terminal-herdr" })
   o.bind("SUPER + SHIFT + M", "Music", { maitri = "spotify" })
-  o.bind("SUPER + SHIFT + ALT + M", "Music TUI", { tui = "cliamp", focus = true })
   o.bind("SUPER + SHIFT + D", "Docker", { tui = "maitri-launch-docker-tui" })
   o.bind("SUPER + SHIFT + G", "Signal", { maitri = "signal" })
   o.bind("SUPER + SHIFT + O", "Obsidian", { launch = "obsidian", focus = "^obsidian$" })
-  o.bind("SUPER + SHIFT + W", "Omawrite", { launch = "omawrite" })
   o.bind("SUPER + SHIFT + SLASH", "Passwords", { maitri = "1password" })
 
   o.bind("SUPER + SHIFT + Y", "YouTube", { webapp = "https://youtube.com/" })
