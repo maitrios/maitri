@@ -1,7 +1,8 @@
 name: Build maitri ISO
 
 # Builds the installer ISO when a GitHub Release is published and links it from
-# the release; the workflow_dispatch button is for test builds (artifact only).
+# the release; the workflow_dispatch button is for test builds (artifact only)
+# or, with release_tag set, for re-publishing an existing release from main.
 # The ISO bundles the [maitri] packages, so a release build first waits for the
 # stable channel to carry the maitri package for this tag.
 on:
@@ -17,6 +18,9 @@ on:
         default: stable
         type: choice
         options: [stable, edge]
+      release_tag:
+        description: "Publish as this existing release (e.g. v0.3.0); builds that tag from stable"
+        default: ""
 
 permissions:
   contents: write
@@ -37,7 +41,14 @@ jobs:
             echo "ref=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
             echo "channel=stable" >> "$GITHUB_OUTPUT"
             echo "iso_ref=stable" >> "$GITHUB_OUTPUT"
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          elif [ -n "${{ github.event.inputs.release_tag }}" ]; then
+            echo "ref=${{ github.event.inputs.release_tag }}" >> "$GITHUB_OUTPUT"
+            echo "channel=stable" >> "$GITHUB_OUTPUT"
+            echo "iso_ref=stable" >> "$GITHUB_OUTPUT"
+            echo "publish=true" >> "$GITHUB_OUTPUT"
           else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
             echo "ref=${{ github.event.inputs.ref || 'main' }}" >> "$GITHUB_OUTPUT"
             echo "channel=${{ github.event.inputs.channel || 'stable' }}" >> "$GITHUB_OUTPUT"
             if [ "${{ github.event.inputs.channel }}" = "edge" ]; then
@@ -48,7 +59,7 @@ jobs:
           fi
 
       - name: Wait for the maitri package on the channel
-        if: github.event_name == 'release'
+        if: steps.ref.outputs.publish == 'true'
         run: |
           tag="${{ steps.ref.outputs.ref }}"; want="${tag#v}"
           db="https://github.com/maitrios/maitri-pkgs/releases/download/stable/maitri.db.tar.gz"
@@ -60,6 +71,20 @@ jobs:
           done
           echo "::error::the stable channel never published maitri $want; run scripts/bump-maitri $tag in maitri-pkgs first"
           exit 1
+
+      - name: Set up ORAS
+        if: steps.ref.outputs.publish == 'true'
+        uses: oras-project/setup-oras@v1
+
+      # A bad token should fail here, not after the build.
+      - name: Check Docker Hub credentials
+        if: steps.ref.outputs.publish == 'true'
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          [[ -n $DOCKERHUB_USERNAME && -n $DOCKERHUB_TOKEN ]] || { echo "::error::DOCKERHUB_USERNAME / DOCKERHUB_TOKEN secrets are empty"; exit 1; }
+          echo "$DOCKERHUB_TOKEN" | oras login docker.io -u "$DOCKERHUB_USERNAME" --password-stdin
 
       # archiso + an offline package mirror need a lot of disk; reclaim ~30GB.
       - name: Free up disk space
@@ -103,12 +128,8 @@ jobs:
       # The offline ISO is several GB, above GitHub's 2 GiB release-asset cap, so
       # it is published to Docker Hub as an OCI artifact (via ORAS) and linked
       # from the release notes; the small .sha256 sidecar attaches to the release.
-      - name: Set up ORAS
-        if: github.event_name == 'release'
-        uses: oras-project/setup-oras@v1
-
       - name: Publish ISO to Docker Hub & link from the release
-        if: github.event_name == 'release'
+        if: steps.ref.outputs.publish == 'true'
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -132,9 +153,9 @@ jobs:
               "$name:application/octet-stream" )
           oras tag "$repo:$tag" latest
 
-          gh release upload "${{ github.event.release.tag_name }}" -R "${{ github.repository }}" --clobber "$iso.sha256"
+          gh release upload "${{ steps.ref.outputs.ref }}" -R "${{ github.repository }}" --clobber "$iso.sha256"
 
-          body=$(gh release view "${{ github.event.release.tag_name }}" -R "${{ github.repository }}" --json body -q .body)
+          body=$(gh release view "${{ steps.ref.outputs.ref }}" -R "${{ github.repository }}" --json body -q .body)
           {
             printf '%s\n\n---\n\n' "$body"
             printf '## 📀 Download\n\n'
@@ -143,7 +164,7 @@ jobs:
             printf '```sh\noras pull %s:%s\nsha256sum -c %s.sha256\n```\n\n' "$repo" "$tag" "$name"
             printf '`sha256: %s`\n' "$sha"
           } > release-notes.md
-          gh release edit "${{ github.event.release.tag_name }}" -R "${{ github.repository }}" --notes-file release-notes.md
+          gh release edit "${{ steps.ref.outputs.ref }}" -R "${{ github.repository }}" --notes-file release-notes.md
 
       # Runs even when the Docker Hub publish fails, so a credential problem
       # never costs the 45-minute build.
