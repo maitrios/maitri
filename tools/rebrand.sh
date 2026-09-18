@@ -75,6 +75,7 @@ DELETE_LIST=(
   'default/chromium/extensions/whatsapp-slim'
   'test/shell.d/chromium-whatsapp-slim-test.sh'
   'test/shell.d/whatsapp-slim-test.sh'
+  'config/starship.toml'
 )
 
 # Stock upstream themes are not shipped; only maitri's own live in themes/.

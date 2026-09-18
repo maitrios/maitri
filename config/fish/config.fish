@@ -1,5 +1,5 @@
 # maitri fish config. The maitri-fish package provides the shell functions,
-# aliases, completions and tool integrations (mise, zoxide, starship, fzf)
+# aliases, completions, the pure prompt and tool integrations (mise, zoxide, fzf)
 # from its vendor conf.d, so this file only carries the maitri environment
 # and the look. Add your own aliases, functions and exports below.
 

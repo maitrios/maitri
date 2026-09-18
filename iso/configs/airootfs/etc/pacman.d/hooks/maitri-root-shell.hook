@@ -1,7 +1,7 @@
 # remove from airootfs!
 #
 # Mirror maitri-settings' /etc/skel shell defaults into /root so the live ISO
-# console has the same bashrc, starship prompt, and aliases as an installed
+# console has the same bashrc and aliases as an installed
 # maitri system. Fires during airootfs pacstrap (when maitri-settings is
 # installed); the "remove from airootfs" magic string causes
 # zzzz99-remove-custom-hooks-from-airootfs.hook to delete this file before
@@ -18,4 +18,4 @@ Description = Mirroring /etc/skel shell defaults into /root for the live ISO...
 When = PostTransaction
 Depends = coreutils
 Depends = maitri-settings
-Exec = /bin/sh -c 'install -d -m 0700 /root/.config && for f in .bashrc .bash_profile; do [ -f "/etc/skel/$f" ] && install -m 0644 "/etc/skel/$f" "/root/$f"; done; [ -f /etc/skel/.config/starship.toml ] && install -m 0644 /etc/skel/.config/starship.toml /root/.config/starship.toml; true'
+Exec = /bin/sh -c 'for f in .bashrc .bash_profile; do [ -f "/etc/skel/$f" ] && install -m 0644 "/etc/skel/$f" "/root/$f"; done; true'
