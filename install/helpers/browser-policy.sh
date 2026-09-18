@@ -1,6 +1,6 @@
-# Chromium-family (Helium included) machine policy is mandatory for every profile. Directories
-# stay 0755 root:root; maitri-theme-set-browser-policy is the privileged
-# write for color.json.
+# Browser policy directories are enterprise trust roots, so anything maitri
+# touches there stays 0755 root:root and is never created for a browser that
+# is not installed.
 
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/as-root.sh"
 
@@ -31,8 +31,6 @@ BROWSER_POLICY_FIREFOX_DIRS=(
   /usr/lib/firefox/distribution
   /opt/zen-browser/distribution
 )
-
-BROWSER_POLICY_DEFAULT_COLOR="#1c2027"
 
 browser_policy_purge_dir() {
   local dir=$1
@@ -88,47 +86,6 @@ browser_policy_setup_dir() {
   browser_policy_setup_parents_for "$dir"
   browser_policy_setup_parent "$dir"
   browser_policy_purge_dir "$dir"
-}
-
-# Themes are user-installed. Accept only three 0-255 components.
-browser_policy_theme_hex() {
-  local theme_rgb=$1
-
-  if [[ $theme_rgb =~ ^[[:space:]]*([0-9]{1,3})[[:space:]]*,[[:space:]]*([0-9]{1,3})[[:space:]]*,[[:space:]]*([0-9]{1,3})[[:space:]]*$ ]] &&
-    (( 10#${BASH_REMATCH[1]} < 256 && 10#${BASH_REMATCH[2]} < 256 && 10#${BASH_REMATCH[3]} < 256 )); then
-    printf '#%02x%02x%02x' "$((10#${BASH_REMATCH[1]}))" "$((10#${BASH_REMATCH[2]}))" "$((10#${BASH_REMATCH[3]}))"
-    return
-  fi
-
-  printf '%s' "$BROWSER_POLICY_DEFAULT_COLOR"
-}
-
-browser_policy_install_color() {
-  local policy_dir=$1
-  local hex=$2
-  local dest=$policy_dir/color.json
-  local tmp
-
-  [[ -d $policy_dir && ! -L $policy_dir ]] || return 0
-  [[ $hex =~ ^#[0-9a-f]{6}$ ]] || return 1
-
-  tmp=$(mktemp) || return 1
-  printf '{"BrowserThemeColor": "%s", "BrowserColorScheme": "device"}\n' "$hex" >"$tmp"
-
-  if [[ -L $dest || -d $dest ]]; then
-    if ! rm -rf -- "$dest" 2>/dev/null; then
-      rm -f "$tmp"
-      return 1
-    fi
-  fi
-
-  if install -m 0644 -T "$tmp" "$dest" 2>/dev/null; then
-    rm -f "$tmp"
-    return 0
-  fi
-
-  rm -f "$tmp"
-  return 1
 }
 
 browser_policy_firefox_policy_file_ok() {

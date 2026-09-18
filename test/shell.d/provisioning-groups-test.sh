@@ -41,21 +41,15 @@ export MAITRI_PATH="$ROOT"
 
 # A deferred-provisioning install records neither privileged group.
 MAITRI_INSTALL_USER="" bash -eE "$ROOT/install/config/docker.sh"
-MAITRI_INSTALL_USER="" bash -eE "$ROOT/install/config/browser-policy.sh"
 
 [[ ! -f $MAITRI_PROVISIONING_DIR/groups ]] ||
   ! grep -Eq '^(docker|input)$' "$MAITRI_PROVISIONING_DIR/groups" ||
   fail "default install must not record docker or input groups"
 [[ ! -f $TMPDIR/usermod.calls ]] || fail "usermod not called without an install user"
-[[ ! -f $TMPDIR/groupadd.calls ]] || ! grep -F maitri-browser-policy "$TMPDIR/groupadd.calls" >/dev/null ||
-  fail "browser-policy group is not created"
-grep -F -- '-d -m 0755 -o root -g root /etc/chromium/policies/managed' "$TMPDIR/install.calls" >/dev/null ||
-  fail "browser-policy directory is created root-owned"
 pass "deferred provisioning records no privileged groups"
 
 # The same remains true when an install user already exists.
 MAITRI_INSTALL_USER=existing bash -eE "$ROOT/install/config/docker.sh"
-MAITRI_INSTALL_USER=existing bash -eE "$ROOT/install/config/browser-policy.sh"
 [[ ! -f $TMPDIR/usermod.calls ]] || fail "default install must not grant privileged groups"
 pass "existing install user gets neither docker nor input access"
 

@@ -1,5 +1,4 @@
 run_logged "$MAITRI_INSTALL/config/theme-system.sh"
-run_logged "$MAITRI_INSTALL/config/browser-policy.sh"
 run_logged "$MAITRI_INSTALL/config/increase-lockout-limit.sh"
 run_logged "$MAITRI_INSTALL/config/lockscreen-pam.sh"
 run_logged "$MAITRI_INSTALL/config/fix-powerprofilesctl-shebang.sh"

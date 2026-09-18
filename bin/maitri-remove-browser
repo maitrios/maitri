@@ -24,21 +24,18 @@ chromium)
   set_fallback_default_browser chromium.desktop
   maitri-pkg-drop chromium
   rm -f ~/.config/chromium-flags.conf
-  sudo rm -f /etc/chromium/policies/managed/color.json
   ;;
 chrome)
   echo "Removing Chrome..."
   set_fallback_default_browser google-chrome.desktop
   maitri-pkg-drop google-chrome
   rm -f ~/.config/chrome-flags.conf
-  sudo rm -f /etc/opt/chrome/policies/managed/color.json
   ;;
 edge)
   echo "Removing Edge..."
   set_fallback_default_browser microsoft-edge.desktop
   maitri-pkg-drop microsoft-edge-stable-bin
   rm -f ~/.config/microsoft-edge-stable-flags.conf
-  sudo rm -f /etc/opt/edge/policies/managed/color.json
   ;;
 brave)
   echo "Removing Brave..."

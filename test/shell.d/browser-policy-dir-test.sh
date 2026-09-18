@@ -35,63 +35,6 @@ unprivileged_as_root() {
   fi
 }
 
-write_dir=$test_tmp/writable
-mkdir -p "$write_dir"
-browser_policy_install_color "$write_dir" "#aabbcc" ||
-  fail "theme colour writes into a writable policy directory"
-grep -F '"BrowserThemeColor": "#aabbcc"' "$write_dir/color.json" >/dev/null ||
-  fail "theme colour writes BrowserThemeColor"
-mode=$(stat -c '%a' "$write_dir/color.json")
-[[ $mode == "644" ]] || fail "theme colour creates a root-mode policy file" "mode=$mode"
-pass "theme colour writes a 0644 color.json"
-
-if (( EUID == 0 )); then
-  pass "running as root; skipping the mktemp-failure check"
-else
-  chmod u+w "$write_dir"
-  export TMPDIR=$test_tmp/missing-tmp
-  if browser_policy_install_color "$write_dir" "#dead00" 2>/dev/null; then
-    fail "theme colour fails when mktemp cannot create a file"
-  fi
-  unset TMPDIR
-  grep -F '"BrowserThemeColor": "#aabbcc"' "$write_dir/color.json" >/dev/null ||
-    fail "a failed mktemp leaves an existing color.json intact"
-  pass "a failed mktemp does not truncate color.json"
-fi
-
-printf 'original\n' >"$test_tmp/pwn"
-rm -f "$write_dir/color.json"
-ln -s "$test_tmp/pwn" "$write_dir/color.json"
-browser_policy_install_color "$write_dir" "#aabbcc" ||
-  fail "theme colour replaces a planted color.json symlink"
-[[ -f $write_dir/color.json && ! -L $write_dir/color.json ]] ||
-  fail "theme colour unlinks a planted color.json symlink instead of writing through it"
-grep -Fxq 'original' "$test_tmp/pwn" || fail "theme colour leaves the symlink target unchanged"
-pass "theme colour does not follow a planted color.json symlink"
-
-plant_write=$test_tmp/plant-dir
-mkdir -p "$plant_write/color.json/nested"
-printf 'inside\n' >"$plant_write/color.json/nested/x"
-browser_policy_install_color "$plant_write" "#aabbcc" ||
-  fail "theme colour replaces a planted color.json directory"
-[[ -f $plant_write/color.json && ! -d $plant_write/color.json ]] ||
-  fail "theme colour does not write into a planted color.json directory"
-pass "theme colour does not write into a planted color.json directory"
-
-missing_dir=$test_tmp/missing
-browser_policy_install_color "$missing_dir" "#aabbcc" ||
-  fail "theme colour skips a policy directory that does not exist"
-[[ ! -e $missing_dir ]] || fail "theme colour does not create a missing policy directory"
-pass "theme colour skips a missing policy directory"
-
-if browser_policy_install_color "$write_dir" "aabbcc" 2>/dev/null; then
-  fail "theme colour rejects hex without a leading #"
-fi
-if browser_policy_install_color "$write_dir" "#AABBCC" 2>/dev/null; then
-  fail "theme colour rejects uppercase hex"
-fi
-pass "theme colour accepts only # plus six lowercase hex digits"
-
 planted_dir=$test_tmp/planted
 mkdir -p "$planted_dir/evil"
 printf 'evil\n' >"$planted_dir/evil/f"
@@ -202,44 +145,6 @@ grep -Fxq 'planted' "$fx_link_root/attacker/policies.json" ||
   fail "replacing a Firefox distribution symlink does not delete the symlink target"
 pass "Firefox setup does not follow a planted distribution symlink"
 
-[[ $(browser_policy_theme_hex "242,240,229") == "#f2f0e5" ]] ||
-  fail "theme colour converts an RGB triple to hex"
-[[ $(browser_policy_theme_hex $'14,31,41\n') == "#0e1f29" ]] ||
-  fail "theme colour accepts a trailing newline"
-[[ $(browser_policy_theme_hex "0,0,0") == "#000000" ]] ||
-  fail "theme colour pads single-digit components"
-[[ $(browser_policy_theme_hex " 12 , 11 , 12 ") == "#0c0b0c" ]] ||
-  fail "theme colour tolerates surrounding whitespace"
-[[ $(browser_policy_theme_hex "08,09,10") == "#08090a" ]] ||
-  fail "theme colour treats leading zeros as decimal"
-for malformed in "" "not,a,color" "1,2" "1,2,3,4" "256,0,0" "999,999,999" "-1,0,0" \
-  "1,2,3;id" '1,2,$(id)' "0x10,0,0" "1,2,3 4,5,6"; do
-  [[ $(browser_policy_theme_hex "$malformed") == "#1c2027" ]] ||
-    fail "theme colour falls back to the stock grey for '$malformed'"
-done
-pass "theme colour is six hex digits or the stock grey"
-
-for theme in "$ROOT"/themes/*/chromium.theme; do
-  [[ -f $theme ]] || continue
-  rgb=$(<$theme)
-  hex=$(browser_policy_theme_hex "$rgb")
-  [[ $hex =~ ^#[0-9a-f]{6}$ ]] ||
-    fail "shipped $(basename "$(dirname "$theme")") chromium.theme parses as hex" "got: $hex from $(printf %q "$rgb")"
-  if [[ $hex == "#1c2027" && ! $rgb =~ ^[[:space:]]*28[[:space:]]*,[[:space:]]*32[[:space:]]*,[[:space:]]*39[[:space:]]*$ ]]; then
-    fail "shipped $(basename "$(dirname "$theme")") chromium.theme is a valid RGB triple" "got: $(printf %q "$rgb")"
-  fi
-done
-pass "shipped chromium.theme files parse as RGB triples"
-
-grep -F 'browser_policy_theme_hex' "$ROOT/bin/maitri-theme-set-browser" >/dev/null ||
-  fail "maitri-theme-set-browser parses chromium.theme through browser_policy_theme_hex"
-grep -F 'maitri-theme-set-browser-policy' "$ROOT/bin/maitri-theme-set-browser" >/dev/null ||
-  fail "maitri-theme-set-browser writes colour through maitri-theme-set-browser-policy"
-if grep -E 'printf.*THEME_RGB_COLOR' "$ROOT/bin/maitri-theme-set-browser" >/dev/null; then
-  fail "maitri-theme-set-browser does not hand unvetted theme words to printf"
-fi
-pass "maitri-theme-set-browser validates the theme colour"
-
 fx_policy=$test_tmp/policies.json
 printf '%s\n' '{"policies":{}}' >"$fx_policy"
 chmod 644 "$fx_policy"
@@ -275,36 +180,10 @@ fi
 [[ -d $dir_dist/policies.json ]] || fail "Firefox policy install leaves a planted policies.json directory in place"
 pass "Firefox policy install does not write into a planted policies.json directory"
 
-grep -F 'exit "$failed"' "$ROOT/bin/maitri-theme-set-browser" >/dev/null ||
-  fail "maitri-theme-set-browser exits non-zero when a policy write fails"
-pass "maitri-theme-set-browser exits non-zero when a policy write fails"
-
-# Bash 5.3 adopts the EXIT trap's last status as the script's exit status, so a
-# handler ending on a false test turns a clean run into a failure and aborts the
-# migration that calls this through maitri-theme-set-browser.
-policy_cleanup=$(sed -n '/^cleanup() {/,/^}/p' "$ROOT/bin/maitri-theme-set-browser-policy")
-[[ -n $policy_cleanup ]] || fail "maitri-theme-set-browser-policy defines an EXIT cleanup handler"
-eval "$policy_cleanup"
-staged=""
-cleanup || fail "maitri-theme-set-browser-policy's EXIT trap succeeds with nothing staged"
-staged=$test_tmp/staged-policy
-: >"$staged"
-cleanup || fail "maitri-theme-set-browser-policy's EXIT trap succeeds with a staged file"
-[[ ! -e $staged ]] || fail "maitri-theme-set-browser-policy's EXIT trap removes the staged file"
-unset -f cleanup
-pass "maitri-theme-set-browser-policy's EXIT trap never leaks a failure status"
-
-grep -F 'maitri-theme-set-browser || true' "$ROOT/migrations/1787515927.sh" >/dev/null ||
-  fail "the policy-directory migration hardens Firefox even when the theme refresh fails"
-pass "the policy-directory migration does not abort on a failed theme refresh"
-
 policy_files=(
   "$ROOT/bin/maitri-install-browser"
   "$ROOT/bin/maitri-provision-owner"
-  "$ROOT/bin/maitri-theme-set-browser"
-  "$ROOT/bin/maitri-theme-set-browser-policy"
   "$ROOT/install/config/theme-system.sh"
-  "$ROOT/install/config/browser-policy.sh"
   "$ROOT/install/helpers/browser-policy.sh"
   "$ROOT/migrations/1787515927.sh"
 )
