@@ -7,7 +7,7 @@ this page is the human-readable summary.
 
 ## Defaults
 
-- **Shell** → fish (`maitri-fish` carries the functions and completions; bash stays configured)
+- **Shell** → fish with the pure prompt (`maitri-fish` carries the functions and completions; bash stays configured)
 - **Browser** → Helium (also the engine behind the web-app launchers)
 - **Editor** → VS Code
 - **Terminal** → foot (Alacritty, kitty and Ghostty are one `maitri install terminal` away)

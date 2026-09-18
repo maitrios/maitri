@@ -174,7 +174,6 @@ The maitri shell (bar, notifications, plugins, idle) is configured in
 | btop | `~/.config/btop/btop.conf` |
 | fastfetch | `/etc/fastfetch/config.jsonc` default; `~/.config/fastfetch/config.jsonc` user override |
 | lazygit | `~/.config/lazygit/config.yml` |
-| starship | `~/.config/starship.toml` |
 | git | `~/.config/git/config` |
 
 ## Safe Customization Patterns
