@@ -2,7 +2,7 @@ echo "Retire the starship prompt now that fish ships pure"
 
 starship_config="$HOME/.config/starship.toml"
 
-# Every starship.toml maitri (and Omarchy before it) has seeded into /etc/skel.
+# Every starship.toml maitri, and the upstream it forked from, has seeded into /etc/skel.
 # A file matching one of these is the untouched default; anything else is the
 # user's own and stays, along with the starship package it configures.
 shipped_hashes=(
