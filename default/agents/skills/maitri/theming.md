@@ -34,7 +34,7 @@ the terminal configs `alacritty.toml`, `foot.ini`, `ghostty.conf` and
 through `$MAITRI_PATH/default/themed/*.tpl`, and named on stderr.
 
 Everything else a cloned theme ships is kept, including `btop.theme`,
-`chromium.theme`, `helix.toml`, `icons.theme`, `keyboard.rgb` and `shell.toml`.
+`helix.toml`, `icons.theme`, `keyboard.rgb` and `shell.toml`.
 maitri tells a cloned theme from the user's own by the `.git` directory a clone
 leaves behind.
 

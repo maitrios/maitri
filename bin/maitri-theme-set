@@ -328,7 +328,6 @@ post_theme_commands=(
   maitri-theme-set-claude
   maitri-theme-set-hermes
   maitri-theme-set-t3code
-  maitri-theme-set-browser
   maitri-theme-set-vscode
   maitri-theme-set-obsidian
   maitri-theme-set-keyboard

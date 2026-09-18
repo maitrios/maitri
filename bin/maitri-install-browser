@@ -6,10 +6,6 @@
 
 source "$MAITRI_PATH/install/helpers/browser-policy.sh"
 
-setup_chromium_policy_directory() {
-  browser_policy_setup_dir "$1"
-}
-
 announce_browser_installed() {
   echo ""
   echo "$1 browser installed. Make it the default via Setup > Defaults > Browser."
@@ -32,45 +28,35 @@ chromium)
   echo "Installing Chromium..."
   maitri-pkg-add chromium || exit 1
 
-  setup_chromium_policy_directory /etc/chromium/policies/managed
   copy_chromium_flags ~/.config/chromium-flags.conf
-  maitri-theme-set-browser
   announce_browser_installed "Chromium"
   ;;
 chrome)
   echo "Installing Chrome..."
   maitri-pkg-aur-add google-chrome || exit 1
 
-  setup_chromium_policy_directory /etc/opt/chrome/policies/managed
   copy_chromium_flags ~/.config/chrome-flags.conf
-  maitri-theme-set-browser
   announce_browser_installed "Chrome"
   ;;
 edge)
   echo "Installing Edge..."
   maitri-pkg-aur-add microsoft-edge-stable-bin || exit 1
 
-  setup_chromium_policy_directory /etc/opt/edge/policies/managed
   copy_chromium_flags ~/.config/microsoft-edge-stable-flags.conf
-  maitri-theme-set-browser
   announce_browser_installed "Edge"
   ;;
 brave)
   echo "Installing Brave..."
   maitri-pkg-aur-add brave-bin || exit 1
 
-  setup_chromium_policy_directory /etc/brave/policies/managed
   copy_chromium_flags ~/.config/brave-flags.conf
-  maitri-theme-set-browser
   announce_browser_installed "Brave"
   ;;
 brave-origin)
   echo "Installing Brave Origin..."
   maitri-pkg-aur-add brave-origin-bin || exit 1
 
-  setup_chromium_policy_directory /etc/brave/policies/managed
   copy_chromium_flags ~/.config/brave-origin-flags.conf
-  maitri-theme-set-browser
   announce_browser_installed "Brave Origin"
   ;;
 firefox)

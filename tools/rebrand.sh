@@ -76,6 +76,12 @@ DELETE_LIST=(
   'test/shell.d/chromium-whatsapp-slim-test.sh'
   'test/shell.d/whatsapp-slim-test.sh'
   'config/starship.toml'
+  'bin/omarchy-theme-set-browser'
+  'bin/omarchy-theme-set-browser-policy'
+  'etc/sudoers.d/omarchy-theme-browser'
+  'default/themed/chromium.theme.tpl'
+  'install/config/browser-policy.sh'
+  'test/shell.d/browser-policy-sudoers-test.sh'
 )
 
 # Stock upstream themes are not shipped; only maitri's own live in themes/.
