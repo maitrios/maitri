@@ -2,6 +2,10 @@ name: Notify maitri-pkgs
 
 # Every push to main becomes a maitri-dev / maitri-settings-dev build on the
 # edge channel. maitri-pkgs' build-edge-dev.yml listens for this event.
+#
+# github.token cannot dispatch to another repo, so MAITRI_PKGS_DISPATCH_TOKEN
+# must be a fine-grained PAT scoped to maitrios/maitri-pkgs with
+# Contents: read and write.
 
 on:
   push:
@@ -15,6 +19,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.MAITRI_PKGS_DISPATCH_TOKEN }}
         run: |
+          [[ -n $GH_TOKEN ]] || { echo "::error::MAITRI_PKGS_DISPATCH_TOKEN secret is empty; maitri-pkgs falls back to its six-hourly schedule"; exit 1; }
           gh api repos/maitrios/maitri-pkgs/dispatches \
             -f event_type=maitri-main-push \
             -f "client_payload[sha]=${{ github.sha }}"
