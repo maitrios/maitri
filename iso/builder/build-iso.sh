@@ -206,8 +206,15 @@ mapfile -t all_packages < <(
 # "target not found". Published maitri runtime packages that predate the rename
 # still list it in maitri-other.packages, so map it here until every channel
 # ships a runtime that names broadcom-wl-dkms itself.
+#
+# t2linux did the same on 2026-09-16: apple-bcm-firmware left the arch-mact2 repo
+# and apple-bcm-firmware-fetcher (conflicts=apple-bcm-firmware) took its place,
+# pulling the Wi-Fi and Bluetooth firmware from the on-disk macOS volume at
+# install time instead of shipping it.
 mapfile -t all_packages < <(
-  printf '%s\n' "${all_packages[@]}" | sed 's/^broadcom-wl$/broadcom-wl-dkms/' | sort -u
+  printf '%s\n' "${all_packages[@]}" |
+    sed -e 's/^broadcom-wl$/broadcom-wl-dkms/' -e 's/^apple-bcm-firmware$/apple-bcm-firmware-fetcher/' |
+    sort -u
 )
 
 # With --local-source we already built these maitri* packages directly into
