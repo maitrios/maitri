@@ -17,7 +17,7 @@ theme[selected_bg]="{{ selection }}"
 theme[selected_fg]="{{ accent }}"
 
 # Color of inactive/disabled text
-theme[inactive_fg]="{{ muted }}"
+theme[inactive_fg]="{{ dark_foreground }}"
 
 # Color of text appearing on top of graphs, i.e uptime and current network graph scaling
 theme[graph_text]="{{ light_foreground }}"

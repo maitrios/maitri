@@ -70,7 +70,7 @@
 .cm-s-obsidian span.cm-keyword { color: {{ red }}; }
 .cm-s-obsidian span.cm-string { color: {{ green }}; }
 .cm-s-obsidian span.cm-number { color: {{ yellow }}; }
-.cm-s-obsidian span.cm-comment { color: {{ muted }}; }
+.cm-s-obsidian span.cm-comment { color: {{ dark_foreground }}; }
 .cm-s-obsidian span.cm-operator { color: {{ blue }}; }
 .cm-s-obsidian span.cm-def { color: {{ blue }}; }
 

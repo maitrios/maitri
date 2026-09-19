@@ -10,11 +10,11 @@
     "selection": "{{ selection }}",
     "selection_foreground": "{{ bright_foreground }}",
     "gutter": "{{ background }}",
-    "gutter_foreground": "{{ muted }}",
+    "gutter_foreground": "{{ dark_foreground }}",
     "accent": "{{ accent }}"
   },
   "rules": [
-    { "scope": "comment", "foreground": "{{ muted }}", "font_style": "italic" },
+    { "scope": "comment", "foreground": "{{ dark_foreground }}", "font_style": "italic" },
     { "scope": "string", "foreground": "{{ green }}" },
     { "scope": "constant.numeric", "foreground": "{{ yellow }}" },
     { "scope": "constant.language", "foreground": "{{ yellow }}" },
