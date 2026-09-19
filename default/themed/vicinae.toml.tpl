@@ -6,6 +6,9 @@
 # inputs, muted text) is set explicitly instead of being auto-derived.
 # Structural colors map to {{ selection }}, a visibly distinct shade in every
 # maitri palette, light or dark, so lines and borders stay legible.
+# De-emphasized text maps to the dark_foreground key, never muted: muted is the
+# ANSI color8 / divider shade and sits at 1.5-3.9:1 against the background in the
+# shipped palettes, well under the 4.5:1 needed to read it.
 [meta]
 name = "maitri"
 description = "maitri theme (generated from the active maitri palette)"
@@ -32,10 +35,10 @@ cyan = "{{ cyan }}"
 
 [colors.text]
 default = "{{ foreground }}"
-muted = "{{ muted }}"
+muted = "{{ dark_foreground }}"
 danger = "{{ red }}"
 success = "{{ green }}"
-placeholder = "{{ muted }}"
+placeholder = "{{ dark_foreground }}"
 selection = { background = "{{ accent }}", foreground = "{{ background }}" }
 
 [colors.text.links]
@@ -57,7 +60,7 @@ focus = { outline = "{{ accent }}" }
 [colors.list.item.hover]
 background = "{{ selection }}"
 foreground = "{{ foreground }}"
-secondary_foreground = "{{ muted }}"
+secondary_foreground = "{{ dark_foreground }}"
 
 [colors.list.item.selection]
 background = "{{ selection }}"

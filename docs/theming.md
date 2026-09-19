@@ -99,8 +99,14 @@ shell palette is loaded from:
 - `background` — primary background color
 - `accent` — preferred when present; otherwise some places fall back to
   `color4`
-- `muted` — de-emphasized elements (comments, placeholders, dividers); also
-  serves as ANSI `color8`
+- `muted` — structural de-emphasis: dividers, borders, separators, indent
+  guides, scrollbar tracks; also serves as ANSI `color8`. It is a *line* color,
+  not a text color — in the shipped palettes it sits at 1.5–3.9:1 against
+  `background`, so text set in it is unreadable.
+- `dark_foreground` — de-emphasized *text*: comments, placeholders, line
+  numbers, secondary labels. This is the key templates should use whenever the
+  value ends up as glyphs a person reads. Falls back to `color8`, then
+  `foreground`, so it always resolves.
 - `urgent` / `red` / `color1`
 
 Themes and user templates using the legacy short names remain supported.

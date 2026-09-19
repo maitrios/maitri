@@ -8,7 +8,7 @@
     "inverseText": "{{ background }}",
     "inactive": "{{ mix foreground background 40% }}",
     "inactiveShimmer": "{{ mix foreground background 25% }}",
-    "subtle": "{{ muted }}",
+    "subtle": "{{ dark_foreground }}",
     "suggestion": "{{ cyan }}",
     "permission": "{{ blue }}",
     "permissionShimmer": "{{ mix blue foreground 35% }}",

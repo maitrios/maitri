@@ -44,4 +44,4 @@ colors:
   syntax_string: "{{ green }}"
   syntax_number: "{{ yellow }}"
   syntax_keyword: "{{ magenta }}"
-  syntax_comment: "{{ muted }}"
+  syntax_comment: "{{ dark_foreground }}"
