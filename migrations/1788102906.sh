@@ -42,7 +42,7 @@ as_root() {
 # install that came up through the 3.x line keeps the old file until this
 # migration removes it.
 #
-# Pre-4 layout work normally belongs in the maitri 4 upgrade command, but that
+# Pre-4 layout work normally belongs in the Omarchy 4 upgrade command, but that
 # command only runs on a machine still making the crossing, so an install that
 # crossed already would never see it. The upgrade command ends by running
 # maitri-migrate, so this covers the installs still to upgrade as well.

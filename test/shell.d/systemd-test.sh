@@ -37,7 +37,7 @@ grep -F 'bcd1a76cb5c63514922bc5e11af22ae480fc6d06a99863364e02bdf3c7bdceaf' "$upg
 grep -F 'ExecStart=%h/.local/share/maitri/bin/maitri-system-sleep-monitor' "$upgrade_to_quattro" >/dev/null
 grep -F 'ExecStart=/usr/bin/maitri-system-sleep-monitor' "$upgrade_to_quattro" >/dev/null
 grep -F 'reset-failed maitri-sleep-lock.service' "$upgrade_to_quattro" >/dev/null
-pass "maitri 4 upgrade repairs the legacy sleep lock unit path"
+pass "Omarchy 4 upgrade repairs the legacy sleep lock unit path"
 
 [[ -e $ROOT/default/systemd/user/maitri-update-user-notify.path ]] &&
   fail "the retired migration watcher is back; pacman writing the migration directory during maitri update would notify about migrations that update is already applying"

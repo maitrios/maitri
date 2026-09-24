@@ -15,6 +15,10 @@ set -euo pipefail
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$ROOT"
 
+# A line that mentions Omarchy on purpose (attribution, "grew from Omarchy",
+# an upstream command name) carries the marker `rebrand:keep` -- as an HTML
+# comment in markdown, a `#` comment in shell or YAML -- and is left alone.
+#
 # Upstream identifiers that must survive the rename: attribution, upstream
 # repos, and hosts maitri does not own. Anything else spelled "omarchy" is ours
 # to rename. Keep tokens specific; "omarchy.org" also covers pkgs./mirror./learn.
@@ -28,6 +32,8 @@ PROTECTED_TOKENS=(
   'omacom.io'
   'discord.gg/'
   'Heinemeier'
+  # The upstream release we track, named in migrations and comments as "Omarchy 4".
+  'Omarchy 4'
 )
 
 # Files whose contents are never rewritten.
@@ -40,13 +46,14 @@ CONTENT_EXCLUDE=(
 # Upstream-only files maitri does not ship. Applied on every sync so they do
 # not resurrect. Globs are expanded against the index.
 DELETE_LIST=(
-  'bin/omarchy-upgrade-to-quattro'
-  'test/shell.d/upgrade-to-quattro-test.sh'
+  'bin/omarchy-upgrade-to-*'
+  'test/shell.d/upgrade-to-*-test.sh'
+  'manual'
+  'plans'
   'default/pacman/pacman-rc.conf'
   'default/pacman/mirrorlist-rc'
   'migrations/1788112314.sh'
   'bin/omarchy-launch-discord-community'
-  'applications/icons/omarchy-discord.png'
   'bin/omarchy-upload-log'
   'applications/Basecamp.desktop'
   'applications/HEY.desktop'
@@ -68,9 +75,13 @@ DELETE_LIST=(
   'default/chromium/extensions/whatsapp-slim'
   'test/shell.d/chromium-whatsapp-slim-test.sh'
   'test/shell.d/whatsapp-slim-test.sh'
-  'install/user/chromium.sh'
-  'bin/omarchy-install-chromium-google-account'
-  'config/chromium/Default/Preferences'
+  'config/starship.toml'
+  'bin/omarchy-theme-set-browser'
+  'bin/omarchy-theme-set-browser-policy'
+  'etc/sudoers.d/omarchy-theme-browser'
+  'default/themed/chromium.theme.tpl'
+  'install/config/browser-policy.sh'
+  'test/shell.d/browser-policy-sudoers-test.sh'
 )
 
 # Stock upstream themes are not shipped; only maitri's own live in themes/.
@@ -112,9 +123,11 @@ is_text() {
 # rewrite, restore. Tokens are passed via REBRAND_PROTECT (newline separated).
 PERL_REWRITE='
   BEGIN { @p = grep { length } split /\n/, $ENV{REBRAND_PROTECT}; }
-  for my $i (0..$#p) { my $t = $p[$i]; s/\Q$t\E/\x01P${i}\x01/g; }
-  s/OMARCHY/MAITRI/g; s/Omarchy/maitri/g; s/omarchy/maitri/g;
-  for my $i (0..$#p) { my $t = $p[$i]; s/\x01P${i}\x01/$t/g; }
+  unless (/rebrand:keep/) {
+    for my $i (0..$#p) { my $t = $p[$i]; s/\Q$t\E/\x01P${i}\x01/g; }
+    s/OMARCHY/MAITRI/g; s/Omarchy/maitri/g; s/omarchy/maitri/g;
+    for my $i (0..$#p) { my $t = $p[$i]; s/\x01P${i}\x01/$t/g; }
+  }
 '
 export REBRAND_PROTECT
 REBRAND_PROTECT=$(printf '%s\n' "${PROTECTED_TOKENS[@]}")
@@ -133,11 +146,11 @@ delete_upstream_only() {
     name=$(basename "$d")
     local keep=0 k
     for k in "${KEEP_THEMES[@]}"; do [[ $name == "$k" ]] && keep=1; done
-    (( keep )) || git rm -rq --ignore-unmatch -- "$d"
+    (( keep )) || git rm -rqf --ignore-unmatch -- "$d"
   done
   local entry
   for entry in "${DELETE_LIST[@]}"; do
-    git rm -rq --ignore-unmatch -- "$entry" "$(rename_segment "$entry")" 2>/dev/null || true
+    git rm -rqf --ignore-unmatch -- "$entry" "$(rename_segment "$entry")" 2>/dev/null || true
   done
 }
 
