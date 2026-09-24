@@ -2,6 +2,14 @@
 
 set -euo pipefail
 
+# Some suites mount tmpfs over /home, /run and /var to isolate root-only code
+# paths. Unprivileged runs get a user namespace for that; a root run (a CI
+# container) would mount on the real host, so give it a private namespace too.
+if (( EUID == 0 )) && [[ ${MAITRI_TEST_MOUNT_NAMESPACE:-0} != 1 ]] &&
+  unshare --mount --propagation private true 2>/dev/null; then
+  exec env MAITRI_TEST_MOUNT_NAMESPACE=1 unshare --mount --propagation private bash "$0" "$@"
+fi
+
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 TEST_DIR="$ROOT/test/shell.d"
 
