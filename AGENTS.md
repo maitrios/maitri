@@ -135,3 +135,8 @@ maitri is a rebranded fork that tracks Omarchy releases; see [`maitri.md`](maitr
 - fish is the login shell, Helium the browser, VS Code the editor, Spark the theme. Only the seven
   maitri themes ship under `themes/`.
 - `./test/shell` points `MAITRI_PATH` and `PATH` at the checkout so the suites run on any machine.
+- maitri stays on the stock Arch `linux` kernel (`linux-ptl` on Dell XPS Panther Lake). Omarchy 4.0.4's <!-- rebrand:keep -->
+  `linux-omarchy` switch is not taken: its migrations and tests sit in `DELETE_LIST`, and <!-- rebrand:keep -->
+  `install/maitri-other.packages`, `install/hardware/all.sh`, `install/hardware/nvidia.sh`,
+  `install/hardware/intel/ptl-kernel.sh`, the Limine `BOOT_ORDER` and the acceptance kernel check keep
+  their pre-4.0.4 content. Resolve sync conflicts on those toward maitri's side.

@@ -82,6 +82,13 @@ DELETE_LIST=(
   'default/themed/chromium.theme.tpl'
   'install/config/browser-policy.sh'
   'test/shell.d/browser-policy-sudoers-test.sh'
+  # Omarchy 4.0.4 moved every machine onto its bespoke linux-omarchy kernel; maitri stays on
+  # stock linux (plus linux-ptl on Dell XPS Panther Lake), see AGENTS.md.
+  'migrations/1789325478.sh'
+  'migrations/1789444024.sh'
+  'test/shell.d/omarchy-kernel-migration-test.sh'
+  'test/shell.d/kernel-headers-migration-test.sh'
+  'test/shell.d/limine-defaults-test.sh'
 )
 
 # Stock upstream themes are not shipped; only maitri's own live in themes/.
