@@ -4,11 +4,21 @@
 set -euo pipefail
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/base-test.sh"
 
-if ((EUID != 0)); then
-  if unshare --user --map-auto --map-root-user --mount true 2>/dev/null; then
-    exec unshare --user --map-auto --map-root-user --mount --propagation private bash "$0"
+if [[ ${MAITRI_WINDOWS_BOUNDARY_NAMESPACE:-0} != 1 ]]; then
+  if ((EUID != 0)); then
+    if unshare --user --map-auto --map-root-user --mount true 2>/dev/null; then
+      exec env MAITRI_WINDOWS_BOUNDARY_NAMESPACE=1 \
+        unshare --user --map-auto --map-root-user --mount --propagation private bash "$0"
+    fi
+    pass "automatic subordinate-id namespace unavailable; skipping root Windows VM boundary probe"
+    exit 0
   fi
-  pass "automatic subordinate-id namespace unavailable; skipping root Windows VM boundary probe"
+  # Already root (a container or CI runner). The tmpfs mounts below must still
+  # land in a private namespace, or they hide the host's /home, /run and /var.
+  if unshare --mount --propagation private true 2>/dev/null; then
+    exec env MAITRI_WINDOWS_BOUNDARY_NAMESPACE=1 unshare --mount --propagation private bash "$0"
+  fi
+  pass "private mount namespace unavailable; skipping root Windows VM boundary probe"
   exit 0
 fi
 
