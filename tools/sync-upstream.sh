@@ -33,7 +33,10 @@ git merge --no-commit -s ours "$tag" >/dev/null
 git read-tree -u --reset "$tag"
 git checkout "$start" -- "${MAITRI_TOOLING[@]}"
 tools/rebrand.sh --all
-git add -A
+# Only tracked files belong in the rebranded tag: read-tree already staged the
+# tag, rebrand renames with git mv, and the tag's .gitignore does not know about
+# files main ignores (iso/release builds), so `git add -A` would sweep them in.
+git add -u
 git commit -q -m "Merge omarchy $tag (rebranded)"
 echo "upstream: $(git rev-parse --short HEAD) = omarchy $tag, rebranded"
 
