@@ -146,11 +146,11 @@ delete_upstream_only() {
     name=$(basename "$d")
     local keep=0 k
     for k in "${KEEP_THEMES[@]}"; do [[ $name == "$k" ]] && keep=1; done
-    (( keep )) || git rm -rq --ignore-unmatch -- "$d"
+    (( keep )) || git rm -rqf --ignore-unmatch -- "$d"
   done
   local entry
   for entry in "${DELETE_LIST[@]}"; do
-    git rm -rq --ignore-unmatch -- "$entry" "$(rename_segment "$entry")" 2>/dev/null || true
+    git rm -rqf --ignore-unmatch -- "$entry" "$(rename_segment "$entry")" 2>/dev/null || true
   done
 }
 
