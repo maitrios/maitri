@@ -14,10 +14,11 @@ iso/bin/maitri-iso-make --edge          # edge channel: maitri-dev + maitri-sett
 iso/bin/maitri-iso-make --local-source ~/dev/kindness/maitri ~/dev/kindness/maitri-pkgs
 ```
 
-Output lands in `./release`. The build runs inside an `archlinux/archlinux` container with Docker
+Output lands in `iso/release/`. The build runs inside an `archlinux/archlinux` container with Docker
 (privileged, for `mkarchiso`) and needs roughly 30 GB of free disk. `--local-source` builds the dev
 package pair and `maitri-nvim` from the two checkouts and drops them into the offline mirror.
 `--no-boot-offer` skips the QEMU prompt at the end; `--debug` writes build info into the live root.
+The build starts by purging the host's pacman package cache with sudo; `--keep-pkg-cache` skips that.
 
 The builder trusts the maitri signing key from `builder/maitri.gpg`, installs `maitri-keyring`, and
 fills the offline mirror from `configs/pacman-online-<channel>.conf`: official Arch mirrors plus the
@@ -26,7 +27,7 @@ package it downloads (or the `--local-source` checkout).
 
 ## Testing the ISO
 
-`iso/bin/maitri-iso-boot release/maitri-*.iso` boots it in QEMU with OVMF (`--reuse` keeps the disk,
+`iso/bin/maitri-iso-boot iso/release/maitri-*.iso` boots it in QEMU with OVMF (`--reuse` keeps the disk,
 `--ssh-port` forwards SSH, `--` passes extra QEMU args). `iso/test/all` runs the unit tests.
 
 ## Autoinstall
