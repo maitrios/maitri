@@ -20,6 +20,7 @@ CELL_W, CELL_H = 10, 20
 SHADOW_DX, SHADOW_DY = 5, 6
 WORDMARK_WIDTH = 800
 ICON_SIZE = 256
+BOOT_HEART_SIZE = 360
 PREVIEW_SIZE = (1920, 1080)
 
 DEFAULT_THEME = "amethyst"
@@ -28,6 +29,11 @@ DEFAULT_TEXT = "#ffffff"
 
 def path(*parts):
     return os.path.join(ROOT, *parts)
+
+
+def read_text(relative):
+    with open(path(relative), encoding="utf-8") as f:
+        return f.read()
 
 
 def theme_colors(name):
@@ -95,6 +101,7 @@ def theme_wordmark(name):
 
 
 def render(svg, out, width):
+    os.makedirs(os.path.dirname(out), exist_ok=True)
     with tempfile.NamedTemporaryFile("w", suffix=".svg", delete=False) as f:
         f.write(svg)
     try:
@@ -107,6 +114,7 @@ def preview(background, text, logo, out):
     env = dict(os.environ, MAITRI_PATH=ROOT)
     subprocess.run([path("bin", "maitri-plymouth-preview"), "--no-view",
                     background, text, logo, out], check=True, env=env)
+    subprocess.run(["magick", out, "-strip", "-define", "png:exclude-chunks=date,time", out], check=True)
 
 
 def png_size(file):
@@ -140,15 +148,14 @@ def build():
     preview(theme_colors(DEFAULT_THEME)["background"], DEFAULT_TEXT, default_logo,
             path("default/plymouth/preview-unlock.png"))
 
-    render(open(path("assets/brand/icon.svg"), encoding="utf-8").read(),
-           path("icon.png"), ICON_SIZE)
+    render(read_text("assets/brand/icon.svg"), path("icon.png"), ICON_SIZE)
+    render(read_text("assets/brand/heart.svg"), path("default/plymouth/logos/heart.png"), BOOT_HEART_SIZE)
 
 
 def check():
     problems = []
-    with open(path("logo.svg"), encoding="utf-8") as f:
-        if f.read() != theme_wordmark(DEFAULT_THEME):
-            problems.append("logo.svg is stale; run tools/brand.py")
+    if read_text("logo.svg") != theme_wordmark(DEFAULT_THEME):
+        problems.append("logo.svg is stale; run tools/brand.py")
 
     def expect(file, width, height=None):
         if not os.path.isfile(path(file)):
@@ -175,6 +182,7 @@ def check():
             problems.append("%s is not the %s wordmark" % (file, DEFAULT_THEME))
     expect("default/plymouth/preview-unlock.png", *PREVIEW_SIZE)
     expect("icon.png", ICON_SIZE, ICON_SIZE)
+    expect("default/plymouth/logos/heart.png", BOOT_HEART_SIZE, BOOT_HEART_SIZE)
 
     for problem in problems:
         print("brand: %s" % problem, file=sys.stderr)

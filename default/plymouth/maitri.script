@@ -1,7 +1,7 @@
 # maitri Plymouth Theme Script
 
-Window.SetBackgroundTopColor(0.118, 0.118, 0.118);
-Window.SetBackgroundBottomColor(0.118, 0.118, 0.118);
+Window.SetBackgroundTopColor(0.059, 0.039, 0.094);
+Window.SetBackgroundBottomColor(0.059, 0.039, 0.094);
 
 logo.image = Image("logo.png");
 logo.sprite = Sprite(logo.image);
