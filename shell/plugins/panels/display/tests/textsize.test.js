@@ -71,14 +71,14 @@ test("without maitri's command nothing runs and the row is unreachable", () => {
   assert.deepEqual(Array.from(proc.command), [])
   assert.equal(proc.running, false)
 
-  const cursor = { cursorIndex: 0, cursorActive: false, textSizeAvailable: false, itemCount: () => 2 }
+  const cursor = { cursorIndex: 0, cursorActive: false, textSizeAvailable: false, focusedScaleAvailable: false, itemCount: () => 2 }
   panelFunction("moveCursor", cursor)(-1)
   assert.equal(cursor.cursorIndex, 0)
   cursor.textSizeAvailable = true
   panelFunction("moveCursor", cursor)(-1)
-  assert.equal(cursor.cursorIndex, -1, "Text size is the row above Management")
+  assert.equal(cursor.cursorIndex, -2, "Text size is above Management when there is no Scale row")
   panelFunction("moveCursor", cursor)(-1)
-  assert.equal(cursor.cursorIndex, -1)
+  assert.equal(cursor.cursorIndex, -2)
 })
 
 test("the panel delegates to maitri, writes nothing itself, and keeps text size out of profiles", () => {
@@ -89,7 +89,7 @@ test("the panel delegates to maitri, writes nothing itself, and keeps text size 
   assert.doesNotMatch(qml, /shell\.toml|text-scaling-factor|gsettings/)
   assert.doesNotMatch(read("Model.js"), /shell\.toml|text-scaling-factor|gsettings/)
   assert.match(qml, /TextSizeControl \{\s+id: compactTextSize\s+visible: root\.textSizeAvailable/)
-  assert.match(qml, /else if \(!root\.expanded && dx !== 0 && root\.cursorIndex === -1\) root\.adjustTextSize\(dx\)/)
+  assert.match(qml, /else if \(!root\.expanded && dx !== 0 && root\.cursorIndex === -2\) root\.adjustTextSize\(dx\)/)
   // Compact only, directly under Brightness.
   assert.ok(qml.indexOf("BrightnessControl {") < qml.indexOf("TextSizeControl {"))
   assert.ok(qml.indexOf("TextSizeControl {") < qml.indexOf('text: "MONITOR MANAGEMENT"'))

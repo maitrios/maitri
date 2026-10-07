@@ -577,6 +577,7 @@ Panel {
     if (!backendSocket.connected) {
       root.previewPending = false
       root.editPending = false
+      root.focusedScalePreviewQueued = false
       root.editorLoading = false
 
       root.lastError = "hyprmoncfg is reconnecting. Try again in a moment."
@@ -1409,7 +1410,10 @@ Panel {
     }
     if (envelope.error) {
       if (method === "editor_state") root.editorLoading = false
-      if (method === "edit_profile") root.editPending = false
+      if (method === "edit_profile") {
+        root.editPending = false
+        root.focusedScalePreviewQueued = false
+      }
       if (method === "preview" || method === "commit" || method === "revert") root.previewPending = false
       if (method === "set_profile_auto") root.profileModePending = false
       root.lastError = String(envelope.error.message || "hyprmoncfg request failed")
@@ -1447,6 +1451,7 @@ Panel {
       var result = envelope.result || {}
       if (!result.profile || !(result.profile.outputs instanceof Array)) {
         root.editPending = false
+        root.focusedScalePreviewQueued = false
         root.lastError = "hyprmoncfg returned an invalid edited profile."
         return
       }
@@ -1458,6 +1463,13 @@ Panel {
         root.normalizeWorkspaceCursor()
         if (root.activePage === "workspaces") root.ensureManualWorkspaceRules()
       })
+      if (root.focusedScalePreviewQueued) {
+        root.focusedScalePreviewQueued = false
+        Qt.callLater(function() {
+          if (root.sourceProfile !== "") root.previewDraft()
+          else root.applyDraft()
+        })
+      }
     } else if (method === "preview") {
       var transaction = envelope.result || {}
       root.previewTransaction = String(transaction.id || "")
@@ -1482,9 +1494,36 @@ Panel {
 
   function moveCursor(delta) {
     root.cursorActive = true
-    // Row -1 is Text size, above Management.
-    root.cursorIndex = Math.max(root.textSizeAvailable ? -1 : 0,
-      Math.min(root.itemCount() - 1, root.cursorIndex + delta))
+    // Row -2 is Text size and row -1 is Scale, both above Management.
+    var lowest = root.textSizeAvailable ? -2 : (root.focusedScaleAvailable ? -1 : 0)
+    var next = Math.max(lowest, Math.min(root.itemCount() - 1, root.cursorIndex + delta))
+    if (next === -1 && !root.focusedScaleAvailable) next = delta < 0 ? lowest : 0
+    root.cursorIndex = next
+    if (next === -1) root.focusedScaleCursor = root.focusedScaleValue
+  }
+
+  property bool focusedScalePreviewQueued: false
+  property string focusedScaleCursor: ""
+  readonly property bool focusedScaleAvailable: root.compatible && root.editorReady && !!root.selectedOutput
+    && root.selectedOutput.enabled !== false && String(root.selectedOutput.mirror_of || "") === ""
+  readonly property bool focusedScaleEnabled: root.managedChecked && !root.editPending && !root.previewPending
+    && root.previewTransaction === "" && !root.draftDirty && !root.focusedScalePreviewQueued
+  readonly property string focusedScaleValue: root.selectedOutput ? Model.formatScale(root.selectedOutput.scale) : ""
+  readonly property var focusedScalePresets: Model.scalePresets(root.editorDocument.displays, root.selectedOutputKey,
+    root.selectedOutput ? root.selectedOutput.scale : 1,
+    root.selectedOutput ? root.selectedOutput.width : 0)
+
+  function stepFocusedScale(delta) {
+    var current = root.focusedScaleCursor !== "" ? root.focusedScaleCursor : root.focusedScaleValue
+    root.focusedScaleCursor = Model.stepOptionValue(root.focusedScalePresets, current, delta)
+  }
+
+  function setFocusedScale(value) {
+    if (!root.focusedScaleAvailable || !root.focusedScaleEnabled) return
+    if (String(value) === "" || Model.formatScale(value) === root.focusedScaleValue) return
+    root.focusedScalePreviewQueued = true
+    root.editOutput({ scale: Number(value) }, root.selectedOutputKey)
+    if (!root.editPending) root.focusedScalePreviewQueued = false
   }
 
   // ---- Text size: maitri's desktop-wide setting, changed only through
@@ -1526,7 +1565,11 @@ Panel {
 
   function activateCursor() {
     if (!root.compatible) return
-    if (root.cursorIndex === -1) return
+    if (root.cursorIndex === -1) {
+      root.setFocusedScale(root.focusedScaleCursor)
+      return
+    }
+    if (root.cursorIndex < 0) return
     if (root.cursorIndex === 0) {
       root.setManaged(!root.managedChecked)
       return
@@ -1610,6 +1653,7 @@ Panel {
         root.editorResetQueued = false
         root.monitorTopologyRevision++
         root.editPending = false
+        root.focusedScalePreviewQueued = false
         root.profileModePending = false
 
         root.statusRetry = false
@@ -2016,12 +2060,13 @@ Panel {
         || sdrMinLuminanceField.input.activeFocus || sdrMaxLuminanceField.input.activeFocus
         || minLuminanceField.input.activeFocus || maxLuminanceField.input.activeFocus
         || maxAvgLuminanceField.input.activeFocus || iccProfileInput.activeFocus
-        || modeDropdown.popupOpen || scaleField.more.popupOpen
+        || modeDropdown.popupOpen || scaleField.more.popupOpen || compactScaleField.more.popupOpen
         || mirrorDropdown.popupOpen || colorManagementDropdown.popupOpen
         || workspaceStrategyDropdown.popupOpen || workspacePersistenceDropdown.popupOpen
       onMoveRequested: function(dx, dy) {
         if (!root.expanded && dy !== 0) root.moveCursor(dy)
-        else if (!root.expanded && dx !== 0 && root.cursorIndex === -1) root.adjustTextSize(dx)
+        else if (!root.expanded && dx !== 0 && root.cursorIndex === -2) root.adjustTextSize(dx)
+        else if (!root.expanded && dx !== 0 && root.cursorIndex === -1) root.stepFocusedScale(dx)
         else if (root.expanded) root.handleExpandedMove(dx, dy)
       }
       onReturnRequested: returnPressed = true
@@ -2165,9 +2210,10 @@ Panel {
           formHeight: compactBodyColumn.implicitHeight
           // The keyboard cursor's row is scrolled into view.
           currentField: !root.cursorActive ? null
-            : (root.cursorIndex === -1 ? compactTextSize
-              : (root.cursorIndex === 0 ? compactManagedToggle
-                : compactActionRows.itemAt(root.cursorIndex - 1)))
+            : (root.cursorIndex === -2 ? compactTextSize
+              : (root.cursorIndex === -1 ? compactScaleField
+                : (root.cursorIndex === 0 ? compactManagedToggle
+                  : compactActionRows.itemAt(root.cursorIndex - 1))))
 
           Column {
             id: compactBodyColumn
@@ -2365,7 +2411,7 @@ Panel {
                 width: parent.width
                 bar: root.bar
                 previewIndex: root.textSizePreviewIndex
-                hasCursor: root.cursorActive && root.cursorIndex === -1
+                hasCursor: root.cursorActive && root.cursorIndex === -2
                 foreground: root.foreground
                 dim: root.dim
                 accent: Color.accent
@@ -2373,7 +2419,39 @@ Panel {
                 onCommitted: function(pixels) { root.setTextSize(pixels) }
                 onHoveredRow: if (!root.reflowingText) {
                   root.cursorActive = true
-                  root.cursorIndex = -1
+                  root.cursorIndex = -2
+                }
+              }
+
+              PanelSeparator {
+                visible: root.focusedScaleAvailable && (root.textSizeAvailable || root.brightnessConnector !== "")
+                foreground: root.foreground
+              }
+
+              ScaleField {
+                id: compactScaleField
+                visible: root.focusedScaleAvailable
+                width: parent.width
+                enabled: root.focusedScaleEnabled
+                opacity: root.managedChecked ? 1.0 : root.unmanagedOpacity
+                presets: root.focusedScalePresets
+                allOptions: Model.scaleOptions(root.editorDocument.displays, root.selectedOutputKey,
+                  root.selectedOutput ? root.selectedOutput.scale : 1)
+                value: root.focusedScaleValue
+                cursorValue: root.focusedScaleCursor
+                hasCursor: root.cursorActive && root.cursorIndex === -1
+                popupParent: keyCatcher
+                ownerOpen: root.opened && !root.expanded && !compactBody.moving
+                foreground: root.foreground
+                fontFamily: root.fontFamily
+                onChanged: function(value) { root.setFocusedScale(value) }
+
+                HoverHandler {
+                  onHoveredChanged: if (hovered && !root.reflowingText && root.cursorIndex !== -1) {
+                    root.cursorActive = true
+                    root.cursorIndex = -1
+                    root.focusedScaleCursor = root.focusedScaleValue
+                  }
                 }
               }
 

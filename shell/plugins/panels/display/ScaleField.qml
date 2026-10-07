@@ -16,6 +16,7 @@ Column {
   property var allOptions: []
   property string value: ""
   property bool hasCursor: false
+  property string cursorValue: ""
   property bool resetVisible: false
   property string resetTooltip: "Reset to loaded profile value"
   property Item popupParent: null
@@ -111,7 +112,7 @@ Column {
         bordered: true
         focusable: true
         active: String(modelData.value) === root.value
-        hasCursor: root.hasCursor && String(modelData.value) === root.value
+        hasCursor: root.hasCursor && String(modelData.value) === (root.cursorValue !== "" ? root.cursorValue : root.value)
         enabled: root.enabled
         foreground: root.foreground
         accent: root.accent

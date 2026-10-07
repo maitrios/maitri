@@ -29,6 +29,17 @@ by Carmine Paolino, MIT (see `LICENSE`).
 4. The layout editor opens with `maitri-launch-or-focus-tui hyprmoncfg` instead
    of the upstream desktop launcher.
 5. Remaining upstream brand strings went through `tools/rebrand.sh --paths`.
+6. A Scale row in the compact view, between Text size and Monitor Management,
+   for the selected display (the one Brightness follows, which starts as the
+   focused display). Picking a scale edits the draft through hyprmoncfgd and
+   previews it, so Keep or Revert decides it like any other layout change. Keep
+   saves it into the active profile. On the keyboard, Text size is row -2 and
+   Scale is row -1: h/l moves the highlight and Enter applies it. The idea comes
+   from the universal scale row in
+   [gdeyoung/omarchy-displayplus](https://github.com/gdeyoung/omarchy-displayplus)
+   (`UniversalScaleControl.qml` at `c7b6425`, MIT), narrowed to one display.
+   `ScaleField` gained `cursorValue` for the keyboard highlight, and
+   `tests/focused-scale.test.js` covers the row.
 
 The vendored tests are updated to match each change. `test/shell.d/display-plugin-test.sh`
 runs them.
@@ -42,6 +53,7 @@ runs them.
 3. For each vendored file, `git merge-file shell/plugins/panels/display/<file> old/<file> new/<file>`.
    Copy in new upstream files and delete removed ones.
 4. Grep for anything that needs the changes above again:
-   `gtk-launch|pkg aur|installCommand|command -v`.
+   `gtk-launch|pkg aur|installCommand|command -v`, and re-check the cursor
+   slots around `compactTextSize` and `compactScaleField`.
 5. Update the tests, bump `version` in `manifest.json`, the tag and commit here,
    then run `test/shell.d/display-plugin-test.sh` and `tools/rebrand.sh --check`.
