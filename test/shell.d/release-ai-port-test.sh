@@ -44,6 +44,10 @@ cat >"$test_tmp/bin/mise" <<'SH'
 #!/bin/bash
 printf 'mise:%s\n' "$*" >>"$TEST_CALLS"
 SH
+cat >"$test_tmp/bin/maitri-cmd-missing" <<'SH'
+#!/bin/bash
+exit 0
+SH
 cat >"$test_tmp/bin/maitri-mise-install" <<'SH'
 #!/bin/bash
 printf 'stub:%s\n' "$*" >>"$TEST_CALLS"
