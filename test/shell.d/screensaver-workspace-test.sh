@@ -44,6 +44,7 @@ printf '#!/bin/bash\nexit 1\n' >"$tmpdir/bin/pgrep"
 printf '#!/bin/bash\nexit 1\n' >"$tmpdir/bin/maitri-toggle-enabled"
 printf '#!/bin/bash\necho DP-1\n' >"$tmpdir/bin/maitri-hyprland-monitor-focused"
 printf '#!/bin/bash\necho foot.desktop\n' >"$tmpdir/bin/xdg-terminal-exec"
+printf '#!/bin/bash\nexit 0\n' >"$tmpdir/bin/ttfx"
 chmod +x "$tmpdir/bin/"*
 
 : >"$tmpdir/calls"
