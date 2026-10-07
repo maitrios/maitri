@@ -318,7 +318,7 @@ return to the packaged default.
 | Default file at `~/.config/foo/` | `config/foo/` |
 | `/etc/` drop-in we own outright | `etc/` |
 | `/etc/` file owned by an upstream package | `default/`, then add to `etc-overrides` in `maitri-settings` PKGBUILD + scriptlet |
-| Package-owned system file (e.g. systemd user service/path in `/usr/lib`) | `default/`, document the mapping in `default/package-defaults.tsv`, then add the `install -Dm644` line in `maitri-settings` PKGBUILD |
+| Package-owned system file (e.g. systemd user service/path in `/usr/lib`) | `default/`, add the mapping to the build-time map above, then add the `install -Dm644` line in `maitri-settings` PKGBUILD |
 | Per-user file that's static but lives outside `~/.config` | `default/`, then add `install -Dm644 ... $pkgdir/etc/skel/...` in `maitri-settings` PKGBUILD |
 | Runtime tweak that needs `$HOME` or live system state | extend `maitri-provision-user`, or add a per-user leaf under `install/user/` and wire into `install/user/all.sh` |
 | One-time root-side setup step | `install/config/*.sh` or `install/hardware/*.sh`, wire into `install/config/all.sh` or `install/hardware/all.sh` |
