@@ -117,7 +117,7 @@
   "style.screensaver.default": {"icon":"","label":"Restore Default","action":"maitri-branding-screensaver reset"},
 
   // Setup
-  "setup.monitors": {"icon":"󰍹","label":"Monitors","action":"maitri-launch-config-editor \"$HOME/.config/hypr/monitors.lua\""},
+  "setup.monitors": {"icon":"󰍹","label":"Monitors","action":"maitri-launch-or-focus-tui hyprmoncfg"},
   "setup.keybindings": {"icon":"","label":"Keybindings","when":"[[ -f ~/.config/hypr/bindings.lua ]]","action":"maitri-launch-config-editor \"$HOME/.config/hypr/bindings.lua\""},
   "setup.input": {"icon":"","label":"Input","when":"[[ -f ~/.config/hypr/input.lua ]]","action":"maitri-launch-config-editor \"$HOME/.config/hypr/input.lua\""},
   "setup.network": {"icon":"󰛳","label":"Network","aliases":["network"]},

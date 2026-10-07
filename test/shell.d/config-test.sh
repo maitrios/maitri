@@ -184,6 +184,12 @@ grep -F 'package.path = home' "$ROOT/default/hypr/bootstrap.lua" >/dev/null
 grep -F '/.local/state/?.lua;' "$ROOT/default/hypr/bootstrap.lua" >/dev/null
 pass "Hyprland user entrypoint keeps package and state path bootstrap in defaults"
 
+hyprmoncfg_include='-- Added by hyprmoncfg: its generated monitor rules load last, so nothing before this can override the applied layout.
+do local path = os.getenv("HOME") .. "/.config/hypr/hyprmoncfg-monitors.lua"; local file = io.open(path, "r"); if file then file:close(); dofile(path) end end'
+[[ $(tail -n 2 "$ROOT/config/hypr/hyprland.lua") == "$hyprmoncfg_include" ]] ||
+  fail "hyprland.lua ends with hyprmoncfg's include, byte for byte, so its generated monitor rules load last"
+pass "hyprland.lua ends with hyprmoncfg's include"
+
 MAITRI_PATH="$ROOT" lua <<'LUA'
 package.loaded["default.hypr.maitri"] = true
 package.loaded["default.hypr.require_optional"] = true

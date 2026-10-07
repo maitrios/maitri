@@ -31,6 +31,12 @@ grep -Fx 'systemctl --user daemon-reload' "$first_run_units" >/dev/null
 grep -F 'maitri-sleep-lock.service' "$first_run_units" >/dev/null
 pass "first-run reloads and enables the sleep lock service"
 
+grep -F 'hyprmoncfgd.service' "$first_run_units" >/dev/null ||
+  fail "first-run leaves hyprmoncfgd off, so nothing applies monitor profiles on hotplug, lid or resume"
+grep -Fx 'hyprmoncfg' "$ROOT/install/maitri-base.packages" >/dev/null ||
+  fail "new installs do not get hyprmoncfg"
+pass "new installs ship hyprmoncfg with its daemon enabled"
+
 [[ -e $ROOT/default/systemd/user/maitri-update-user-notify.path ]] &&
   fail "the retired migration watcher is back; pacman writing the migration directory during maitri update would notify about migrations that update is already applying"
 grep -rlE '^(Path[A-Za-z]+|DirectoryNotEmpty)=.*/usr/share/maitri/migrations' "$ROOT/default/systemd/user" >/dev/null 2>&1 &&

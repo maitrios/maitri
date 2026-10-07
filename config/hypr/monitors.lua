@@ -1,5 +1,7 @@
+-- Fallback rules for displays no hyprmoncfg profile describes. Arrange displays
+-- and save profiles with hyprmoncfg (Setup > Monitors, or the Display panel); its
+-- generated rules load last from hyprland.lua and override anything here.
 -- See https://wiki.hypr.land/Configuring/Basics/Monitors/
--- List current monitors and supported resolutions with: hyprctl monitors all
 
 local maitri_gdk_scale = 2
 local maitri_monitor_scale = "auto"
