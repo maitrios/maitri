@@ -22,12 +22,12 @@ end
 fish_add_path --append "$HOME/.local/share/mise/shims" "$HOME/.local/bin"
 
 if status is-interactive
-    # maitri "Spark" syntax colors
-    set -g fish_color_command 82AAFF
+    # maitri "Amethyst" syntax colors
+    set -g fish_color_command B08CFF
     set -g fish_color_param E6E9F0
     set -g fish_color_quote 7DE38B
     set -g fish_color_redirection C99BFF
     set -g fish_color_error FF6E6E
-    set -g fish_color_autosuggestion 7E879B
-    set -g fish_color_comment 7E879B
+    set -g fish_color_autosuggestion 8C7EA6
+    set -g fish_color_comment 8C7EA6
 end

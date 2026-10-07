@@ -28,18 +28,18 @@ if [[ -f /usr/share/maitri-iso/install-debug ]]; then
   export MAITRI_INSTALL_DEBUG=1
 fi
 
-# Spark palette so the live VT matches the installed look.
-set_spark_colors() {
-  echo -en "\e]P00b0f17"; echo -en "\e]P1ff6e6e"; echo -en "\e]P27de38b"
-  echo -en "\e]P3ffd479"; echo -en "\e]P482aaff"; echo -en "\e]P5c99bff"
-  echo -en "\e]P66fe6d9"; echo -en "\e]P7b8bed0"; echo -en "\e]P82c3548"
+# Amethyst palette so the live VT matches the installed look. Slot 5 carries the accent.
+set_amethyst_colors() {
+  echo -en "\e]P00f0a18"; echo -en "\e]P1ff6e6e"; echo -en "\e]P27de38b"
+  echo -en "\e]P3ffd479"; echo -en "\e]P482aaff"; echo -en "\e]P5b08cff"
+  echo -en "\e]P66fe6d9"; echo -en "\e]P7b8bed0"; echo -en "\e]P83a2e54"
   echo -en "\e]P9ff8b8b"; echo -en "\e]PA9ceba6"; echo -en "\e]PBffe099"
   echo -en "\e]PCa0c0ff"; echo -en "\e]PDdbb6ff"; echo -en "\e]PE97f0e6"
   echo -en "\e]PFffffff"
   echo -en "\033[0m"
   clear
 }
-set_spark_colors
+set_amethyst_colors
 
 mkdir -p /var/log
 touch "$MAITRI_INSTALL_LOG_FILE"

@@ -12,7 +12,7 @@ this page is the human-readable summary.
 - **Editor** → VS Code
 - **Terminal** → foot (Alacritty, kitty and Ghostty are one `maitri install terminal` away)
 - **Launcher** → Vicinae, with the maitri menu as a Vicinae extension
-- **Theme** → Spark (deep blue); six more under `themes/`
+- **Theme** → Amethyst (violet); six more under `themes/`
 
 ## Desktop
 

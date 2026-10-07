@@ -18,7 +18,7 @@ theme_name=$(<"$theme_name_path")
 # which is where a fresh install starts and what the removal should have left.
 if [[ ! -d $MAITRI_PATH/themes/$theme_name && ! -d $HOME/.config/maitri/themes/$theme_name ]]; then
   echo "Theme '$theme_name' no longer exists; applying the default instead"
-  maitri-theme-set "Tokyo Night"
+  maitri-theme-set "Amethyst"
   exit 0
 fi
 

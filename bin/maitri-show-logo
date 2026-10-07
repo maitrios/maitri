@@ -1,9 +1,16 @@
 #!/bin/bash
 
-# maitri:summary=Display the maitri logo in the terminal in Spark blue.
+# maitri:summary=Display the maitri logo in the terminal in the theme's accent color.
+
+accent=$(maitri-theme-color accent 2>/dev/null)
+if [[ $accent =~ ^#([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})$ ]]; then
+  color="\033[38;2;$((16#${BASH_REMATCH[1]}));$((16#${BASH_REMATCH[2]}));$((16#${BASH_REMATCH[3]}))m"
+else
+  color="\033[35m"
+fi
 
 clear
-echo -e "\033[34m"
+echo -e "$color"
 cat <$MAITRI_PATH/logo.txt
 echo -e "\033[0m"
 echo
