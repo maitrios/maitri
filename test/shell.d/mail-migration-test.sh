@@ -17,6 +17,7 @@ mailto="$test_dir/mailto"
 pgrep_count="$test_dir/pgrep-count"
 output="$test_dir/output"
 shell_json="$home/.config/maitri/shell.json"
+bindings="$home/.config/hypr/bindings.lua"
 plugin="$home/.config/maitri/plugins/omamail"
 backups="$home/.local/state/maitri/backups"
 applications="$home/.local/share/applications"
@@ -58,6 +59,11 @@ cat >"$stub_bin/pgrep" <<'SH'
 count=$(( $(cat "$MAITRI_TEST_PGREP_COUNT" 2>/dev/null || echo 0) + 1 ))
 echo "$count" >"$MAITRI_TEST_PGREP_COUNT"
 (( count <= ${MAITRI_TEST_OMAMAIL_RUNNING:-0} ))
+SH
+
+cat >"$stub_bin/hyprctl" <<'SH'
+#!/bin/bash
+printf 'hyprctl %s\n' "$*" >>"$MAITRI_TEST_CALLS"
 SH
 
 chmod +x "$stub_bin"/*
@@ -114,6 +120,40 @@ write_omamail_data() {
   echo "omamail.desktop" >"$mailto"
 }
 
+# The block omamail's "Set as default" wrote, calling the given shell command.
+omamail_bindings_block() {
+  cat <<LUA
+-- >>> omamail default mail client, do not edit by hand
+hl.unbind("SUPER + SHIFT + E")
+hl.unbind("SUPER + SHIFT + ALT + E")
+o.bind("SUPER + SHIFT + E", "Email", "$1 shell summon omamail '{}'")
+o.bind("SUPER + SHIFT + ALT + E", "New email", "$1 shell summon omamail '{\"compose\":true}'")
+-- <<< omamail default mail client
+LUA
+}
+
+mail_bindings_block() {
+  cat <<'LUA'
+-- >>> maitri-mail default mail client, do not edit by hand
+hl.unbind("SUPER + SHIFT + E")
+hl.unbind("SUPER + SHIFT + ALT + E")
+o.bind("SUPER + SHIFT + E", "Email", "maitri-shell shell summon maitri.mail '{}'")
+o.bind("SUPER + SHIFT + ALT + E", "New email", "maitri-shell shell summon maitri.mail '{\"compose\":true}'")
+-- <<< maitri-mail default mail client
+LUA
+}
+
+# Andrew's own bindings around a managed block, written to $1.
+write_bindings() {
+  mkdir -p "$(dirname "$1")"
+  {
+    printf '%s\n' 'o.bind("SUPER + RETURN", "Terminal", "uwsm-app -- xdg-terminal-exec")' ''
+    printf '%s\n' "$2"
+    printf '%s\n' '' '-- my keys' 'o.bind("SUPER + B", "Browser", "maitri-launch-browser")'
+  } >"$1"
+  chmod 0600 "$1"
+}
+
 center_ids() {
   jq -c '[.bar.layout.center[] | .id // .]' "$shell_json"
 }
@@ -158,6 +198,8 @@ reset_home
 write_shell_json "$(andrews_shell_json)"
 write_omamail_plugin
 write_omamail_data
+write_bindings "$bindings" "$(omamail_bindings_block omarchy-shell)"  # rebrand:keep
+write_bindings "$test_dir/expected-bindings" "$(mail_bindings_block)"
 MAITRI_TEST_OMAMAIL_RUNNING=2 run_migration || fail "an omamail setup migrates" "$(cat "$output")"
 
 [[ $(center_ids) == '["maitri.keyboard-layout","maitri.indicators","maitri.weather","maitri.system-update","maitri.clock","maitri.agents","maitri.mail"]' ]] ||
@@ -191,15 +233,81 @@ pass "the omamail checkout moves whole to a dated backup under ~/.local/state/ma
 assert_no_sudo "the omamail migration"
 pass "omamail's launcher goes and mailto points at Mail"
 
-before=$(cat "$shell_json")
+cmp -s "$bindings" "$test_dir/expected-bindings" ||
+  fail "omamail's keybinding block becomes Mail's, and nothing else in bindings.lua changes" \
+    "$(diff "$test_dir/expected-bindings" "$bindings")"
+[[ $(stat -c %a "$bindings") == 600 ]] || fail "the rewrite keeps bindings.lua's mode"
+grep -q "next login" "$output" || fail "the migration says when Hyprland picks up the keys" "$(cat "$output")"
+! grep -q '^hyprctl' "$calls" || fail "the migration leaves Hyprland to reload at the next login"
+pass "omamail's keybinding block becomes Mail's between its markers, the rest of bindings.lua byte for byte"
+
+cp "$shell_json" "$test_dir/shell-before"
+cp "$bindings" "$test_dir/bindings-before"
 rm -f "$calls"
 run_migration || fail "the migration re-runs cleanly" "$(cat "$output")"
-[[ $(cat "$shell_json") == "$before" ]] || fail "a re-run leaves shell.json byte for byte"
+cmp -s "$shell_json" "$test_dir/shell-before" || fail "a re-run leaves shell.json byte for byte"
+cmp -s "$bindings" "$test_dir/bindings-before" || fail "a re-run leaves bindings.lua byte for byte"
+! grep -q "keybindings\|SUPER+SHIFT+E" "$output" || fail "a re-run has nothing to say about the keys" "$(cat "$output")"
 ! grep -q '^xdg-mime' "$calls" || fail "a re-run leaves the mailto handler alone"
 retired=("$backups"/omamail-plugin-*)
 (( ${#retired[@]} == 1 )) || fail "a re-run retires nothing more"
 [[ -f $home/.config/maitri-mail/accounts.json ]] || fail "a re-run keeps the moved data"
 pass "a re-run changes nothing"
+
+# --- omamail's keybinding block -------------------------------------------
+
+reset_home
+write_shell_json "$(andrews_shell_json)"
+write_omamail_plugin
+write_bindings "$home/dotfiles/bindings.lua" "$(omamail_bindings_block maitri-shell)"
+truncate -s -1 "$home/dotfiles/bindings.lua"
+mkdir -p "$(dirname "$bindings")"
+ln -s "$home/dotfiles/bindings.lua" "$bindings"
+write_bindings "$test_dir/expected-bindings" "$(mail_bindings_block)"
+truncate -s -1 "$test_dir/expected-bindings"
+run_migration || fail "a linked bindings.lua migrates" "$(cat "$output")"
+[[ -L $bindings ]] || fail "a linked bindings.lua stays a link"
+cmp -s "$home/dotfiles/bindings.lua" "$test_dir/expected-bindings" ||
+  fail "a block calling maitri-shell is rewritten too, where the link points, without adding a final newline" \
+    "$(diff "$test_dir/expected-bindings" "$home/dotfiles/bindings.lua")"
+pass "a block already calling maitri-shell is rewritten through a link, final newline or not"
+
+reset_home
+write_shell_json "$(andrews_shell_json)"
+write_omamail_plugin
+write_bindings "$bindings" "-- no mail client here"
+cp "$bindings" "$test_dir/bindings-before"
+run_migration || fail "bindings.lua without the block migrates" "$(cat "$output")"
+cmp -s "$bindings" "$test_dir/bindings-before" || fail "bindings.lua without omamail's block is left byte for byte"
+! grep -q "keybindings\|SUPER+SHIFT+E" "$output" || fail "no block means nothing to say about the keys" "$(cat "$output")"
+pass "bindings.lua without omamail's block is left alone"
+
+reset_home
+write_shell_json "$(andrews_shell_json)"
+write_omamail_plugin
+write_bindings "$bindings" "$(omamail_bindings_block omarchy-shell | sed 's/"SUPER + SHIFT + E", "Email"/"SUPER + E", "Email"/')"  # rebrand:keep
+cp "$bindings" "$test_dir/bindings-before"
+run_migration || fail "an edited keybinding block migrates" "$(cat "$output")"
+cmp -s "$bindings" "$test_dir/bindings-before" || fail "a hand-edited block is left byte for byte"
+grep -q "Leaving the omamail keybindings in $bindings alone: the block has been edited" "$output" ||
+  fail "the migration says how to bind Mail by hand" "$(cat "$output")"
+[[ ! -e $plugin ]] || fail "an edited keybinding block does not hold up the rest of the move"
+pass "a hand-edited keybinding block is left alone with a hint, and the rest still moves"
+
+mail_repo=${MAITRI_MAIL_PATH:-$ROOT/../maitri-mail}
+if [[ -f $mail_repo/scripts/default-mail.sh ]]; then
+  fork_block=$(
+    eval "$(grep -E '^BLOCK_(BEGIN|END)=' "$mail_repo/scripts/default-mail.sh")"
+    eval "$(sed -n '/^bindings_block() {$/,/^}$/p' "$mail_repo/scripts/default-mail.sh")"
+    bindings_block
+  )
+  [[ $fork_block == "$(mail_bindings_block)" ]] ||
+    fail "the migration writes the block maitri-mail's default-mail.sh writes" \
+      "$(diff <(printf '%s\n' "$fork_block") <(mail_bindings_block))"
+  pass "the migration writes the block maitri-mail's default-mail.sh writes"
+else
+  pass "no maitri-mail checkout (set MAITRI_MAIL_PATH); skipping the default-mail.sh cross-check"
+fi
 
 # --- shell.json that is not plain JSON ------------------------------------
 

@@ -93,6 +93,83 @@ move_omamail_data() {
   done
 }
 
+# Mail's own managed block, exactly as maitri-mail's scripts/default-mail.sh
+# writes it, so Mail keeps recognizing it as its own and can remove it again.
+mapfile -t mail_bindings_block <<'LUA'
+-- >>> maitri-mail default mail client, do not edit by hand
+hl.unbind("SUPER + SHIFT + E")
+hl.unbind("SUPER + SHIFT + ALT + E")
+o.bind("SUPER + SHIFT + E", "Email", "maitri-shell shell summon maitri.mail '{}'")
+o.bind("SUPER + SHIFT + ALT + E", "New email", "maitri-shell shell summon maitri.mail '{\"compose\":true}'")
+-- <<< maitri-mail default mail client
+LUA
+
+# omamail's "Set as default" wrote a managed block that summons omamail. It
+# becomes Mail's block, between its markers only. A line in it that Mail would
+# not write once renamed means someone edited the block, so it is left alone.
+rewrite_omamail_bindings() {
+  local file="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/bindings.lua"
+  local old_begin="-- >>> omamail default mail client, do not edit by hand"
+  local old_end="-- <<< omamail default mail client"
+  local summon_mail="maitri-shell shell summon maitri.mail "
+  local line renamed body known in_block=0 out="" tmp
+
+  if [[ -L $file ]]; then
+    file=$(readlink -f "$file")
+  fi
+  [[ -f $file ]] && grep -qxF -- "$old_begin" "$file" || return 0
+
+  local leave="Leaving the omamail keybindings in $file alone"
+  local redo="Delete that block, then choose Settings > Default mail client > Set as default in Mail to bind SUPER+SHIFT+E to it."
+  if grep -qxF -- "${mail_bindings_block[0]}" "$file"; then
+    echo "$leave: Mail's own block is there as well. $redo"
+    return 0
+  fi
+
+  while IFS= read -r line || [[ -n $line ]]; do
+    if (( in_block )) && [[ $line == "$old_end" ]]; then
+      out+=${mail_bindings_block[-1]}$'\n'
+      in_block=0
+    elif (( in_block )); then
+      renamed=${line/omarchy-shell shell summon omamail /$summon_mail}  # rebrand:keep
+      renamed=${renamed/maitri-shell shell summon omamail /$summon_mail}
+      known=0
+      for body in "${mail_bindings_block[@]:1:${#mail_bindings_block[@]}-2}"; do
+        if [[ $renamed == "$body" ]]; then
+          known=1
+        fi
+      done
+      if (( ! known )); then
+        echo "$leave: the block has been edited. $redo"
+        return 0
+      fi
+      out+=$renamed$'\n'
+    elif [[ $line == "$old_begin" ]]; then
+      out+=${mail_bindings_block[0]}$'\n'
+      in_block=1
+    elif [[ $line == "$old_end" ]]; then
+      echo "$leave: the block has been edited. $redo"
+      return 0
+    else
+      out+=$line$'\n'
+    fi
+  done <"$file"
+  if (( in_block )); then
+    echo "$leave: the block has been edited. $redo"
+    return 0
+  fi
+  if [[ $(tail -c1 "$file") ]]; then
+    out=${out%$'\n'}
+  fi
+
+  tmp=$(mktemp "$file.XXXXXX")
+  printf '%s' "$out" >"$tmp"
+  chmod --reference="$file" "$tmp"
+  mv "$tmp" "$file"
+  # Nothing else here reloads Hyprland, and the update does not either.
+  echo "SUPER+SHIFT+E and SUPER+SHIFT+ALT+E in $file now open Mail. Hyprland picks them up at your next login."
+}
+
 # Not `maitri-plugin-remove omamail`: it deletes a git checkout outright, and it
 # switches the plugin off through the running shell, which writes back the
 # shell.json it holds in memory. That copy can predate the rename above, and
@@ -146,10 +223,13 @@ fi
 # The bar entry goes first so the running shell stops omamail, and the data moves
 # before the plugin directory: the shell rescans when that directory changes, and
 # a rescan can start Mail, which would create empty data directories in the way.
+# The plugin directory goes last because, once the bar entry is renamed, it is
+# what marks an omamail setup for a retry after a failed run.
 if (( omamail_setup )); then
   adopt_omamail_settings
   wait_for_omamail_to_stop
   move_omamail_data
+  rewrite_omamail_bindings
   retire_omamail_plugin
 fi
 
