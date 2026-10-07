@@ -518,7 +518,10 @@ def add_glyph(font_path, codepoint, name, contours):
     short = offs[-1] <= 0x1FFFE and all(x % 2 == 0 for x in offs)
 
     hhea = bytearray(d[t['hhea'][0]:t['hhea'][0] + t['hhea'][1]])
-    struct.pack_into('>H', hhea, 34, ng)
+    long_metrics = ng
+    while long_metrics > 1 and adv[long_metrics - 1] == adv[long_metrics - 2]:
+        long_metrics -= 1
+    struct.pack_into('>H', hhea, 34, long_metrics)
 
     maxp = bytearray(d[t['maxp'][0]:t['maxp'][0] + t['maxp'][1]])
     struct.pack_into('>H', maxp, 4, ng)
@@ -539,7 +542,8 @@ def add_glyph(font_path, codepoint, name, contours):
     tables['glyf'] = b''.join(glyphs)
     tables['loca'] = (struct.pack('>%dH' % len(offs), *[x // 2 for x in offs]) if short
                       else struct.pack('>%dI' % len(offs), *offs))
-    tables['hmtx'] = b''.join(struct.pack('>Hh', adv[i], lsb[i]) for i in range(ng))
+    tables['hmtx'] = (b''.join(struct.pack('>Hh', adv[i], lsb[i]) for i in range(long_metrics))
+                      + b''.join(struct.pack('>h', lsb[i]) for i in range(long_metrics, ng)))
     tables['hhea'] = bytes(hhea)
     tables['maxp'] = bytes(maxp)
     tables['cmap'] = build_cmap(cmap)
