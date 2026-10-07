@@ -1,0 +1,277 @@
+#!/bin/bash
+
+set -euo pipefail
+
+source "$(dirname "$0")/base-test.sh"
+
+require_command jq
+
+migration="$ROOT/migrations/1791368110.sh"
+test_dir=$(mktemp -d)
+trap 'rm -rf "$test_dir"' EXIT
+
+home="$test_dir/home"
+stub_bin="$test_dir/bin"
+calls="$test_dir/calls"
+mailto="$test_dir/mailto"
+pgrep_count="$test_dir/pgrep-count"
+output="$test_dir/output"
+shell_json="$home/.config/maitri/shell.json"
+plugin="$home/.config/maitri/plugins/omamail"
+backups="$home/.local/state/maitri/backups"
+applications="$home/.local/share/applications"
+mkdir -p "$stub_bin"
+
+cat >"$stub_bin/sudo" <<'SH'
+#!/bin/bash
+printf 'sudo %s\n' "$*" >>"$MAITRI_TEST_CALLS"
+exit 1
+SH
+
+cat >"$stub_bin/maitri-pkg-add" <<'SH'
+#!/bin/bash
+printf 'pkg-add %s\n' "$*" >>"$MAITRI_TEST_CALLS"
+exit "${MAITRI_TEST_PKG_STATUS:-0}"
+SH
+
+cat >"$stub_bin/maitri-shell" <<'SH'
+#!/bin/bash
+printf 'maitri-shell %s\n' "$*" >>"$MAITRI_TEST_CALLS"
+SH
+
+cat >"$stub_bin/xdg-mime" <<'SH'
+#!/bin/bash
+case "$1 $2" in
+  "query default") cat "$MAITRI_TEST_MAILTO" 2>/dev/null ;;
+  "default "*)
+    printf 'xdg-mime %s\n' "$*" >>"$MAITRI_TEST_CALLS"
+    printf '%s\n' "$2" >"$MAITRI_TEST_MAILTO"
+    ;;
+esac
+SH
+
+# Answers "running" for the first MAITRI_TEST_OMAMAIL_RUNNING polls. Never the
+# host's pgrep: the machine running this suite may well have a real omamail up.
+cat >"$stub_bin/pgrep" <<'SH'
+#!/bin/bash
+[[ $* == "-u $UID -x omamail" ]] || exit 2
+count=$(( $(cat "$MAITRI_TEST_PGREP_COUNT" 2>/dev/null || echo 0) + 1 ))
+echo "$count" >"$MAITRI_TEST_PGREP_COUNT"
+(( count <= ${MAITRI_TEST_OMAMAIL_RUNNING:-0} ))
+SH
+
+chmod +x "$stub_bin"/*
+
+reset_home() {
+  rm -rf "$home" "$calls" "$mailto" "$pgrep_count"
+  mkdir -p "$home"
+}
+
+run_migration() {
+  HOME="$home" MAITRI_PATH="$ROOT" PATH="$stub_bin:$ROOT/bin:$PATH" \
+    XDG_CONFIG_HOME="$home/.config" XDG_CACHE_HOME="$home/.cache" \
+    XDG_STATE_HOME="$home/.local/state" XDG_DATA_HOME="$home/.local/share" \
+    MAITRI_TEST_CALLS="$calls" MAITRI_TEST_MAILTO="$mailto" MAITRI_TEST_PGREP_COUNT="$pgrep_count" \
+    MAITRI_OMAMAIL_STOP_ATTEMPTS=5 "$@" bash -euo pipefail "$migration" >"$output" 2>&1
+}
+
+write_shell_json() {
+  mkdir -p "$(dirname "$shell_json")"
+  printf '%s\n' "$1" >"$shell_json"
+  chmod 0600 "$shell_json"
+}
+
+# The stock bar from before Mail joined it.
+stock_shell_json() {
+  jq '.bar.layout.center |= map(select(.id != "maitri.mail"))' "$ROOT/config/maitri/shell.json"
+}
+
+# Andrew's setup: omamail last in the center section, carrying its settings.
+andrews_shell_json() {
+  stock_shell_json | jq '.bar.layout.center = [
+    {id: "maitri.keyboard-layout"}, {id: "maitri.indicators"}, {id: "maitri.weather"},
+    {id: "maitri.system-update"}, {id: "maitri.clock", format: "dddd HH:mm"}, {id: "maitri.agents"},
+    {id: "omamail", notifyNewMail: "Off", unifiedMailboxes: true}
+  ]'
+}
+
+write_omamail_plugin() {
+  mkdir -p "$plugin/.git"
+  echo "ref: refs/heads/main" >"$plugin/.git/HEAD"
+  printf '{"schemaVersion": 1, "id": "omamail", "name": "Omamail"}\n' >"$plugin/manifest.json"
+}
+
+write_omamail_data() {
+  mkdir -p "$home/.config/omamail" "$home/.cache/omamail" "$home/.local/state/omamail/drafts" "$applications"
+  echo '{"accounts": ["me@example.com"]}' >"$home/.config/omamail/accounts.json"
+  echo "cached mail" >"$home/.cache/omamail/mail.db"
+  echo "draft" >"$home/.local/state/omamail/drafts/1.eml"
+  printf '[Desktop Entry]\nExec=omamail\n' >"$applications/omamail.desktop"
+  echo "omamail.desktop" >"$mailto"
+}
+
+center_ids() {
+  jq -c '[.bar.layout.center[] | .id // .]' "$shell_json"
+}
+
+assert_no_sudo() {
+  ! grep -q '^sudo' "$calls" 2>/dev/null || fail "$1 never calls sudo itself" "$(cat "$calls")"
+}
+
+# --- A machine that never had omamail -------------------------------------
+
+reset_home
+run_migration || fail "a machine without shell.json migrates" "$(cat "$output")"
+grep -qx 'pkg-add maitri-mail' "$calls" || fail "the migration installs maitri-mail" "$(cat "$calls")"
+[[ ! -e $shell_json ]] || fail "a machine on the default bar keeps no shell.json of its own"
+! grep -q '^xdg-mime' "$calls" || fail "a machine without omamail keeps its mailto handler"
+[[ ! -e $backups ]] || fail "a machine without omamail retires nothing"
+assert_no_sudo "the migration"
+pass "a machine on the default bar gets the package and nothing else"
+
+reset_home
+write_shell_json "$(stock_shell_json)"
+expected=$(jq -c '.bar.layout.center += [{id: "maitri.mail"}]' "$shell_json")
+run_migration || fail "a stock bar migrates" "$(cat "$output")"
+[[ $(jq -c . "$shell_json") == "$expected" ]] ||
+  fail "a stock bar gains Mail at the end of its center section and nothing else" "$(cat "$shell_json")"
+[[ $(stat -c %a "$shell_json") == 600 ]] || fail "the migration keeps shell.json's mode"
+pass "a stock bar gains Mail at the end of its center section, keeping the file's mode"
+
+reset_home
+mkdir -p "$home/dotfiles" "$(dirname "$shell_json")"
+stock_shell_json >"$home/dotfiles/shell.json"
+ln -s "$home/dotfiles/shell.json" "$shell_json"
+run_migration || fail "a linked shell.json migrates" "$(cat "$output")"
+[[ -L $shell_json ]] || fail "a linked shell.json stays a link"
+jq -e '.bar.layout.center[-1].id == "maitri.mail"' "$home/dotfiles/shell.json" >/dev/null ||
+  fail "a linked shell.json is edited where it lives"
+pass "a shell.json linked in from dotfiles is edited in place and stays linked"
+
+# --- Andrew's omamail setup ------------------------------------------------
+
+reset_home
+write_shell_json "$(andrews_shell_json)"
+write_omamail_plugin
+write_omamail_data
+MAITRI_TEST_OMAMAIL_RUNNING=2 run_migration || fail "an omamail setup migrates" "$(cat "$output")"
+
+[[ $(center_ids) == '["maitri.keyboard-layout","maitri.indicators","maitri.weather","maitri.system-update","maitri.clock","maitri.agents","maitri.mail"]' ]] ||
+  fail "omamail's bar entry becomes Mail's in the same place" "$(center_ids)"
+[[ $(jq -c '.bar.layout.center[-1]' "$shell_json") == '{"id":"maitri.mail","notifyNewMail":"Off","unifiedMailboxes":true}' ]] ||
+  fail "Mail's bar entry keeps omamail's settings" "$(jq -c '.bar.layout.center[-1]' "$shell_json")"
+! grep -q omamail "$shell_json" || fail "no omamail entry is left in shell.json"
+[[ $(stat -c %a "$shell_json") == 600 ]] || fail "the rename keeps shell.json's mode"
+pass "omamail's bar entry becomes Mail's in place, settings and file mode kept"
+
+grep -qx 'maitri-shell -q shell reloadConfig' "$calls" || fail "the migration asks the shell to reload the renamed config"
+(( $(cat "$pgrep_count") == 3 )) || fail "the migration waits for omamail's backend to stop" "polled $(cat "$pgrep_count") times"
+pass "the migration has the shell reload, then waits for omamail's backend to stop"
+
+[[ $(cat "$home/.config/maitri-mail/accounts.json") == '{"accounts": ["me@example.com"]}' &&
+  $(cat "$home/.cache/maitri-mail/mail.db") == "cached mail" &&
+  $(cat "$home/.local/state/maitri-mail/drafts/1.eml") == "draft" ]] ||
+  fail "omamail's config, cache and state move to the maitri-mail names"
+[[ ! -e $home/.config/omamail && ! -e $home/.cache/omamail && ! -e $home/.local/state/omamail ]] ||
+  fail "no omamail data directory is left behind"
+pass "omamail's config, cache and state move to the maitri-mail names"
+
+[[ ! -e $plugin ]] || fail "the omamail plugin is retired"
+retired=("$backups"/omamail-plugin-*)
+(( ${#retired[@]} == 1 )) && [[ -f ${retired[0]}/.git/HEAD && -f ${retired[0]}/manifest.json ]] ||
+  fail "the omamail checkout is kept whole in a dated backup" "$(ls -la "$backups" 2>&1)"
+pass "the omamail checkout moves whole to a dated backup under ~/.local/state/maitri"
+
+[[ ! -e $applications/omamail.desktop ]] || fail "omamail's launcher is removed"
+[[ $(cat "$mailto") == "maitri-mail.desktop" ]] || fail "mailto moves from omamail to Mail" "$(cat "$mailto")"
+assert_no_sudo "the omamail migration"
+pass "omamail's launcher goes and mailto points at Mail"
+
+before=$(cat "$shell_json")
+rm -f "$calls"
+run_migration || fail "the migration re-runs cleanly" "$(cat "$output")"
+[[ $(cat "$shell_json") == "$before" ]] || fail "a re-run leaves shell.json byte for byte"
+! grep -q '^xdg-mime' "$calls" || fail "a re-run leaves the mailto handler alone"
+retired=("$backups"/omamail-plugin-*)
+(( ${#retired[@]} == 1 )) || fail "a re-run retires nothing more"
+[[ -f $home/.config/maitri-mail/accounts.json ]] || fail "a re-run keeps the moved data"
+pass "a re-run changes nothing"
+
+# --- shell.json that is not plain JSON ------------------------------------
+
+reset_home
+mkdir -p "$(dirname "$shell_json")"
+printf '// my bar\n%s\n' "$(andrews_shell_json)" >"$shell_json"
+write_omamail_plugin
+write_omamail_data
+before=$(cat "$shell_json")
+run_migration || fail "a commented shell.json migrates" "$(cat "$output")"
+[[ $(cat "$shell_json") == "$before" ]] || fail "a shell.json with comments is left alone"
+grep -q '"maitri.mail"' "$output" || fail "the migration says how to keep Mail on the bar by hand" "$(cat "$output")"
+[[ -f $home/.config/maitri-mail/accounts.json && ! -e $plugin ]] ||
+  fail "the rest of the omamail move still happens"
+pass "a shell.json with comments is left alone with a hint, and the rest still moves"
+
+# --- Existing maitri-mail data --------------------------------------------
+
+reset_home
+write_shell_json "$(andrews_shell_json)"
+write_omamail_plugin
+write_omamail_data
+mkdir -p "$home/.config/maitri-mail"
+echo '{"accounts": ["new@example.com"]}' >"$home/.config/maitri-mail/accounts.json"
+run_migration || fail "a machine with maitri-mail data migrates" "$(cat "$output")"
+[[ $(cat "$home/.config/maitri-mail/accounts.json") == '{"accounts": ["new@example.com"]}' ]] ||
+  fail "existing maitri-mail config is not overwritten"
+[[ $(cat "$home/.config/omamail/accounts.json") == '{"accounts": ["me@example.com"]}' ]] ||
+  fail "omamail config stays put when maitri-mail config exists"
+grep -q "Leaving $home/.config/omamail" "$output" || fail "the migration says which omamail data it left" "$(cat "$output")"
+[[ -f $home/.cache/maitri-mail/mail.db && ! -e $home/.cache/omamail ]] ||
+  fail "omamail data without a maitri-mail counterpart still moves"
+pass "existing maitri-mail data is never clobbered; the rest still moves"
+
+# --- Mail already on the bar ----------------------------------------------
+
+reset_home
+write_shell_json "$(stock_shell_json | jq '.bar.layout.right += [{id: "maitri.mail", refreshIntervalSec: 300}]')"
+before=$(cat "$shell_json")
+run_migration || fail "a bar that has Mail migrates" "$(cat "$output")"
+[[ $(cat "$shell_json") == "$before" ]] || fail "a bar that has Mail is left as it is"
+pass "a bar that already has Mail is left as it is"
+
+reset_home
+write_shell_json "$(andrews_shell_json | jq '.bar.layout.right += [{id: "maitri.mail", refreshIntervalSec: 300, notifyNewMail: "On"}]')"
+write_omamail_plugin
+run_migration || fail "a bar with both omamail and Mail migrates" "$(cat "$output")"
+[[ $(jq -cS '[.bar.layout[][] | select((.id // .) == "maitri.mail")]' "$shell_json") == \
+  '[{"id":"maitri.mail","notifyNewMail":"On","refreshIntervalSec":300,"unifiedMailboxes":true}]' ]] ||
+  fail "omamail folds into the Mail entry already on the bar" "$(jq -c '.bar.layout' "$shell_json")"
+! grep -q omamail "$shell_json" || fail "no omamail entry is left beside Mail"
+pass "omamail folds into a Mail entry already on the bar; Mail's own settings win"
+
+# --- Failures that leave the migration pending ----------------------------
+
+reset_home
+write_shell_json "$(andrews_shell_json)"
+write_omamail_plugin
+write_omamail_data
+before=$(cat "$shell_json")
+if MAITRI_TEST_PKG_STATUS=1 run_migration; then
+  fail "a failed package install fails the migration"
+fi
+[[ $(cat "$shell_json") == "$before" && -d $plugin && -d $home/.config/omamail && $(cat "$mailto") == "omamail.desktop" ]] ||
+  fail "a failed package install changes nothing else"
+pass "a failed package install fails the migration, leaving it pending and everything in place"
+
+if MAITRI_TEST_OMAMAIL_RUNNING=100 run_migration; then
+  fail "an omamail that will not stop fails the migration"
+fi
+[[ -d $home/.config/omamail && -d $plugin ]] || fail "an omamail that will not stop keeps its data and plugin"
+grep -q "pkill -x omamail" "$output" || fail "the migration says how to stop omamail" "$(cat "$output")"
+rm -f "$pgrep_count"
+run_migration || fail "the pending migration finishes once omamail stops" "$(cat "$output")"
+[[ -f $home/.config/maitri-mail/accounts.json && ! -e $plugin ]] ||
+  fail "the retry finishes the move"
+[[ $(jq -c '.bar.layout.center[-1]' "$shell_json") == '{"id":"maitri.mail","notifyNewMail":"Off","unifiedMailboxes":true}' ]] ||
+  fail "the retry keeps the renamed entry"
+pass "an omamail that will not stop leaves the migration pending, and the retry finishes it"
