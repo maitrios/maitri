@@ -361,6 +361,29 @@ backup=$(find "$home/.local/state/maitri/backups" -maxdepth 1 -name 'maitri-mail
   fail "the empty Mail directories are kept in a backup" "$(find "$home/.local/state/maitri" | sort)"
 pass "omamail data takes over directories Mail created before a retry"
 
+# --- omamail's downloaded backend -------------------------------------------
+
+reset_home
+write_shell_json "$(andrews_shell_json)"
+write_omamail_plugin
+write_omamail_data
+mkdir -p "$home/.local/share/omamail/bin" "$home/.local/bin"
+echo "backend" >"$home/.local/share/omamail/bin/omamail"
+ln -s "$home/.local/share/omamail/bin/omamail" "$home/.local/bin/omamail"
+ln -s /usr/bin/true "$home/.local/bin/other"
+run_migration || fail "a machine with omamail's backend migrates" "$(cat "$output")"
+[[ ! -e $home/.local/share/omamail && ! -L $home/.local/bin/omamail ]] ||
+  fail "omamail's downloaded backend and its link are removed"
+[[ -L $home/.local/bin/other ]] || fail "unrelated links in ~/.local/bin are left alone"
+pass "omamail's downloaded backend and its link are removed"
+
+reset_home
+mkdir -p "$home/.local/bin"
+ln -s /opt/omamail/bin/omamail "$home/.local/bin/omamail"
+run_migration || fail "a machine with a foreign omamail link migrates" "$(cat "$output")"
+[[ -L $home/.local/bin/omamail ]] || fail "an omamail link that points elsewhere is left alone"
+pass "an omamail link that points elsewhere is left alone"
+
 # --- Mail already on the bar ----------------------------------------------
 
 reset_home

@@ -196,6 +196,20 @@ retire_omamail_plugin() {
   echo "Moved the omamail plugin to $backup"
 }
 
+# omamail's own downloaded backend. Mail runs the packaged one, and a leftover
+# omamail command would recreate the old data directories.
+retire_omamail_runtime() {
+  local runtime="${XDG_DATA_HOME:-$HOME/.local/share}/omamail" link="$HOME/.local/bin/omamail"
+  if [[ -L $link ]]; then
+    case $(readlink -f "$link") in
+      "$runtime"/*) rm -f "$link" ;;
+    esac
+  fi
+  [[ -d $runtime ]] || return 0
+  rm -rf "$runtime"
+  echo "Removed omamail's downloaded backend from $runtime"
+}
+
 # Runs for everyone, so a retry still finishes it after the steps that mark an
 # omamail setup have already run.
 retire_omamail_launcher() {
@@ -246,6 +260,7 @@ if (( omamail_setup )); then
   retire_omamail_plugin
 fi
 
+retire_omamail_runtime
 
 retire_omamail_launcher
 
