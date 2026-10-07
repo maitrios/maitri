@@ -92,6 +92,12 @@ DELETE_LIST=(
   'test/shell.d/omarchy-kernel-migration-test.sh'
   'test/shell.d/kernel-headers-migration-test.sh'
   'test/shell.d/limine-defaults-test.sh'
+  # hyprmoncfgd owns monitor config and the vendored maitri.display panel replaces the
+  # stock Display panel; see AGENTS.md.
+  'shell/plugins/panels/monitor'
+  'bin/omarchy-monitor-state'
+  'test/shell.d/monitor-test.sh'
+  'test/shell.d/monitor-state-test.sh'
 )
 
 # Stock upstream themes are not shipped; only maitri's own live in themes/.

@@ -96,7 +96,7 @@ o.bind("SUPER + CTRL + ALT + W", "Toggle weather", "maitri-notification-weather"
 o.bind("SUPER + SHIFT + CTRL + A", "Agent", "maitri-agent --pick")
 o.bind("SUPER + CTRL + A", "Audio", "maitri-shell shell toggle maitri.audio")
 o.bind("SUPER + CTRL + B", "Bluetooth", "maitri-shell shell toggle maitri.bluetooth")
-o.bind("SUPER + CTRL + D", "Display", "maitri-shell shell toggle maitri.monitor")
+o.bind("SUPER + CTRL + D", "Display", "maitri-shell shell toggle maitri.display")
 o.bind("SUPER + CTRL + ALT + D", "Calendar", "maitri-shell shell toggle maitri.clock")
 o.bind("SUPER + CTRL + W", "Network", "maitri-shell shell toggle maitri.network")
 o.bind("SUPER + CTRL + P", "Power", "maitri-shell shell toggle maitri.power")

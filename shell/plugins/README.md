@@ -24,7 +24,6 @@ User-installed plugins live alongside these conceptually but on disk under
 | Bluetooth     | `maitri.bluetooth`       | `bar-widget`            | `panels/bluetooth/Panel.qml`          |
 | Clock         | `maitri.clock`           | `bar-widget`            | `panels/clock/BarWidget.qml`          |
 | Display       | `maitri.display`         | `bar-widget`, `service` | `panels/display/BarWidget.qml`, `panels/display/PreviewGuard.qml` |
-| Monitor       | `maitri.monitor`         | `bar-widget`            | `panels/monitor/Panel.qml`            |
 | Network       | `maitri.network`         | `bar-widget`            | `panels/network/Panel.qml`            |
 | Power         | `maitri.power`           | `bar-widget`            | `panels/power/Panel.qml`              |
 | Tailscale     | `maitri.tailscale`       | `bar-widget`            | `panels/tailscale/Panel.qml`          |

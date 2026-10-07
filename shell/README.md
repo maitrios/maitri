@@ -29,7 +29,7 @@ shell/
     panels/
       audio/
       bluetooth/
-      monitor/
+      display/
       network/
       power/
       weather/

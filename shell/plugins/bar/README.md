@@ -70,7 +70,7 @@ Example `shell.json` (bar subtree only shown):
 | `maitri.agents` | AI coding agent limits with pace, today, last week, and all-time model breakdown | left = panel · right = launch agent · middle = next subscription |
 | `maitri.power` | Battery/AC icon + popup with battery stats, power profiles, and system info | left = popup · right = toggle percentage |
 | `maitri.bluetooth` | Bluetooth icon + popup with device list, connect/disconnect, battery | left = popup · right = toggle radio |
-| `maitri.monitor` | Brightness and laptop display controls | left = popup |
+| `maitri.display` | Monitor layouts and profiles (hyprmoncfg), brightness, text size and scale | left = popup |
 
 The `maitri.indicators` widget loads individual bar indicators from `indicators/`. Omit `items` (or set it to an empty array) to show all indicators in the default order, or set `items` to a subset such as `["Dnd", "Reminder", "NightLight"]`. Set `alwaysShow` to `true` to keep inactive indicators visible instead of revealing them only on hover. Multiple `maitri.indicators` instances are allowed, so different sections can show different subsets.
 

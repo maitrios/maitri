@@ -12,7 +12,7 @@ ShellRoot {
   property var panelBarIds: [
     "maitri.audio",
     "maitri.bluetooth",
-    "maitri.monitor",
+    "maitri.display",
     "maitri.network",
     "maitri.power",
     "maitri.weather"

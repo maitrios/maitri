@@ -55,7 +55,7 @@ pass "shipped config puts the agents widget in the bar"
 write_config "$without_widget"
 run_migration
 
-[[ $(ids right) == '["maitri.tray","maitri.agents","maitri.bluetooth","maitri.network","maitri.audio","maitri.monitor","maitri.power"]' ]] ||
+[[ $(ids right) == '["maitri.tray","maitri.agents","maitri.bluetooth","maitri.network","maitri.audio","maitri.display","maitri.power"]' ]] ||
   fail "migration inserts the agents widget after the tray" "$(ids right)"
 pass "migration inserts the agents widget after the tray"
 
