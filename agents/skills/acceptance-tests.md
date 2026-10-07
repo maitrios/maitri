@@ -15,10 +15,8 @@ configuration.
 
 ## Running the suite
 
-There is currently no automated VM runner. Comments in `test/acceptance` and
-`test/acceptance.d/security-test.sh` mention a `maitri-iso-test` harness, but
-it isn't in this repo, so the loop is manual, using the ISO tools under
-`iso/bin/` (see [`iso/README.md`](../../iso/README.md)):
+There is currently no automated VM runner, so the loop is manual, using the
+ISO tools under `iso/bin/` (see [`iso/README.md`](../../iso/README.md)):
 
 1. Build an ISO. Changes to package manifests, installation, finalization, or
    shipped defaults need one built from your local checkouts:
