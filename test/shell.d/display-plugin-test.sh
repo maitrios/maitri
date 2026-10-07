@@ -13,7 +13,7 @@ output=$(node --test "$PLUGIN"/tests/*.test.js 2>&1) || fail "maitri.display nod
 pass "maitri.display node tests pass"
 
 if [[ -x $QMLTESTRUNNER ]]; then
-  output=$(cd "$PLUGIN/tests/qml" && QT_QUICK_BACKEND=software "$QMLTESTRUNNER" -platform offscreen -input . 2>&1) ||
+  output=$(cd "$PLUGIN/tests/qml" && QT_QPA_PLATFORMTHEME= QT_QUICK_BACKEND=software "$QMLTESTRUNNER" -platform offscreen -input . 2>&1) ||
     fail "maitri.display QML tests pass" "$output"
   pass "maitri.display QML tests pass"
 else
