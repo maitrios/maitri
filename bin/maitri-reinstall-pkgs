@@ -11,8 +11,8 @@ set -e
 maitri-refresh-pacman
 
 # Downgrade any packages to the stable setup
-sudo env MAITRI_UPDATE_PACMAN=1 pacman -Suu --noconfirm
+maitri-update-pacman -Suu --noconfirm
 
 # Ensure all packages are installed
 mapfile -t packages < <(grep -v '^#' "$MAITRI_PATH/install/maitri-base.packages" | grep -v '^$')
-sudo env MAITRI_UPDATE_PACMAN=1 pacman -Syu --noconfirm --needed "${packages[@]}"
+maitri-update-pacman -Syu --noconfirm --needed "${packages[@]}"

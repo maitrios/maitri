@@ -68,6 +68,10 @@ case "$channel" in
     ;;
 esac
 
+# A failure past this point leaves the channel switch half-applied, so say how
+# to pick it back up rather than dying silently under set -e.
+trap 'echo -e "\nThe channel switch did not complete. Review the error above, then rerun: maitri-channel-set '"$channel"'" >&2' ERR
+
 if [[ -z $dev_checkout && $MAITRI_PATH != "/usr/share/maitri" ]]; then
   leaving_dev=1
 fi
@@ -81,7 +85,7 @@ fi
 
 maitri-refresh-pacman "$pacman_channel"
 # --ask 4 accepts maitri <-> maitri-dev replacement prompts without file overwrites.
-sudo env MAITRI_UPDATE_PACMAN=1 pacman -S --needed --noconfirm --ask 4 "${packages[@]}"
+maitri-update-pacman -S --needed --noconfirm --ask 4 "${packages[@]}"
 
 if [[ -z $dev_checkout ]]; then
   maitri-dev-unlink --no-reboot
