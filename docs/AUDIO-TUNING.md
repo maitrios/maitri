@@ -77,18 +77,22 @@ Two hard requirements:
 ## Building one
 
 Measuring a laptop and fitting a filter-chain to it is a separate job with its own
-tools, in [maitri-audio-tuner](https://github.com/omacom-io/omarchy-audio-tuner).
-It is not installed by default — almost nobody authoring a tuning, and it needs
-python, ffmpeg and mpv.
+tools, in Omarchy's [audio tuner](https://github.com/omacom-io/omarchy-audio-tuner). <!-- rebrand:keep -->
+maitri doesn't package it, since almost nobody is authoring a tuning. Run it from a
+checkout instead: install what it needs, clone it, and start `./omarchy-audio-tuner` <!-- rebrand:keep -->
+from inside the clone.
 
 ```bash
-maitri pkg add maitri-audio-tuner
+maitri pkg add python ffmpeg mpv lsp-plugins-lv2
+git clone https://github.com/omacom-io/omarchy-audio-tuner
 ```
 
 Its README is the walkthrough, and covers both cases: copying a reference that
 already sounds right (how the XPS 14 tuning was made, no microphone needed), and
 designing from scratch, which needs a *calibrated* measurement mic and a target
-curve that measurement alone cannot give you.
+curve that measurement alone cannot give you. It's written for Omarchy, so read <!-- rebrand:keep -->
+its `omarchy` commands as their `maitri` equivalents (`maitri audio tuning on`, <!-- rebrand:keep -->
+`maitri pkg add`). The tuning it produces goes in `default/audio/tunings/` as above.
 
 ## What a tuning must report
 
