@@ -35,6 +35,9 @@
         },
         {
           "id": "maitri.system-update"
+        },
+        {
+          "id": "maitri.mail"
         }
       ],
       "right": [
