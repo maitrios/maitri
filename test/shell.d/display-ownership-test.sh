@@ -4,7 +4,7 @@ set -euo pipefail
 
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/base-test.sh"
 
-writers=$(grep -rnE 'hyprctl (keyword|-[a-z]+ keyword) monitor|hyprctl eval .*hl\.monitor\(|\["hyprctl", "(keyword|eval)"' \
+writers=$(grep -rnE --exclude='*.md' 'hyprctl (keyword|-[a-z]+ keyword) monitor|hyprctl eval .*hl\.monitor\(|\["hyprctl", "(keyword|eval)"' \
   "$ROOT/bin" "$ROOT/default" "$ROOT/shell" 2>/dev/null || true)
 [[ -z $writers ]] || fail "nothing but hyprmoncfgd writes monitor config" "$writers"
 pass "nothing but hyprmoncfgd writes monitor config"
