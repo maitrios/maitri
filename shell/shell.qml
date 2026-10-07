@@ -29,6 +29,9 @@ ShellRoot {
   property string maitriPath: Quickshell.env("MAITRI_PATH")
   readonly property string shellPath: maitriPath + "/shell"
   readonly property string firstPartyPluginsDir: shellPath + "/plugins"
+  // Fixed rather than under MAITRI_PATH: packages install here whether or not
+  // `maitri dev link` points MAITRI_PATH at a checkout.
+  readonly property string packagedPluginsDir: "/usr/share/maitri-plugins"
   readonly property string defaultsPath: maitriPath + "/config/maitri/shell.json"
   readonly property string userConfigPath: home + "/.config/maitri/shell.json"
 
@@ -151,9 +154,11 @@ ShellRoot {
       "maitriPath=" + shell.maitriPath,
       "shellDir=" + Quickshell.shellDir,
       "firstPartyPluginsDir=" + shell.firstPartyPluginsDir,
+      "packagedPluginsDir=" + shell.packagedPluginsDir,
       "defaultsPath=" + shell.defaultsPath,
       "userConfigPath=" + shell.userConfigPath)
     pluginRegistry.firstPartyDir = shell.firstPartyPluginsDir
+    pluginRegistry.packagedDir = shell.packagedPluginsDir
     pluginRegistry.shellConfigProvider = function() { return shell.shellConfig }
     pluginRegistry.shellConfigMutator = function(mutate) { shell.mutateShellConfig(mutate) }
     // PluginRegistry.ensureUserDir() runs in its own Component.onCompleted and
