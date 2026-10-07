@@ -1,5 +1,5 @@
 # Install Panther Lake kernel for Dell XPS Panther Lake systems
-# The linux-ptl kernel includes audio driver patches not yet in mainline.
+# The linux-ptl kernel carries i915 Panel Replay and eDP adaptive-sync patches not yet in mainline.
 
 if maitri-hw-match "XPS" && maitri-hw-intel-ptl; then
   echo "Detected Dell XPS Panther Lake, installing PTL kernel..."
