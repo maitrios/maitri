@@ -1,0 +1,18 @@
+name: Question
+description: Not sure something is a bug, or how something in maitri works? Ask here
+labels: [question]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: What's your question?
+      description: Include what you tried and what you expected, if it's about something not working the way you thought
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: maitri version
+      description: Run `maitri version` and paste the output
+      placeholder: maitri 0.4.3
