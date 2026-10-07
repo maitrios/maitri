@@ -24,7 +24,7 @@ Tunings apply automatically: `install/hardware/speaker-tuning.sh` installs the
 LV2 dependency and `install/user/first-run/audio-tuning.sh` applies the tuning,
 both gated on the match. Machines without a matching tuning are untouched.
 
-Switching it on happens at first-run, not at finalize-user time, because finalize-user
+Switching it on happens at first-run, not in `maitri-provision-user`, because that
 also runs in the ISO chroot where there is no audio server: the sink a tuning has
 to target does not exist there, so nothing could be written — and nothing would
 retry, since the finalizer marks all shipped migrations complete on a fresh

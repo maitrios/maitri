@@ -7,7 +7,7 @@ commands and reusable setup leaves:
 
 - `bin/maitri-apply-system` runs root-owned system setup during ISO finalization.
 - `bin/maitri-apply-hardware` runs idempotent hardware-specific setup and is called by `maitri-apply-system`.
-- `bin/maitri-finalize-user` runs the per-user runtime finalization (skill symlinks, xdg-user-dirs, mime defaults, `install/user/all.sh`). Shipped user defaults are seeded by `/etc/skel` from `maitri-settings`, not by this command. `bin/maitri-reinstall-configs` is the explicit destructive resync of those defaults into an existing user's `$HOME`.
+- `bin/maitri-provision-user` runs the per-user runtime finalization (skill symlinks, xdg-user-dirs, mime defaults, `install/user/all.sh`). Shipped user defaults are seeded by `/etc/skel` from `maitri-settings`, not by this command. `bin/maitri-reinstall-configs` is the explicit destructive resync of those defaults into an existing user's `$HOME`.
 - leaf scripts under `install/` are sourced by `run_logged $MAITRI_INSTALL/path/to/script.sh` and intentionally do not have shebangs.
 - avoid `exit` in sourced setup scripts unless intentionally aborting setup.
 - use `$MAITRI_INSTALL` and `$MAITRI_PATH` instead of hard-coded maitri paths.

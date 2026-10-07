@@ -37,7 +37,7 @@ Three layers populate `$HOME`:
    Arch's `useradd -m` copies that tree into a new user's `$HOME` at user
    creation. This is the only mechanism that touches a brand-new user's home
    for these files.
-2. **Finalize** — `maitri-finalize-user` runs once per user and handles the
+2. **Finalize** — `maitri-provision-user` runs once per user and handles the
    things `/etc/skel` can't do because they need `$HOME` expansion, the live
    `$MAITRI_PATH`, or runtime detection of system state.
 3. **Resync** — `maitri-reinstall-configs` is the explicit, destructive
@@ -187,7 +187,7 @@ yet and silently runs the packaged copy of one it has. The drop-in is validated
 with `visudo -c` before install and removed by `maitri-dev-unlink`; unlike
 `/etc/maitri.conf`, it takes effect without a reboot.
 
-## Runtime finalization (`maitri-finalize-user`)
+## Runtime finalization (`maitri-provision-user`)
 
 Runs once per user. It does **not** copy `~/.config/**`, `~/.bashrc`,
 `flags.lua`, or the nautilus extensions — `/etc/skel` already seeded those.
@@ -209,7 +209,7 @@ It only does the things `/etc/skel` can't:
 Idempotency marker: `~/.local/state/maitri/done/finalize-user`, managed
 by `maitri-done`.
 
-The ISO calls it as `maitri-finalize-user --force --first-install` in the
+The ISO calls it as `maitri-provision-user --force --first-install` in the
 target chroot as the install user, after `maitri-apply-system` has finished
 the root-side work.
 
@@ -323,7 +323,7 @@ return to the packaged default.
 | `/etc/` file owned by an upstream package | `default/`, then add to `etc-overrides` in `maitri-settings` PKGBUILD + scriptlet |
 | Package-owned system file (e.g. systemd user service/path in `/usr/lib`) | `default/`, document the mapping in `default/package-defaults.tsv`, then add the `install -Dm644` line in `maitri-settings` PKGBUILD |
 | Per-user file that's static but lives outside `~/.config` | `default/`, then add `install -Dm644 ... $pkgdir/etc/skel/...` in `maitri-settings` PKGBUILD |
-| Runtime tweak that needs `$HOME` or live system state | extend `maitri-finalize-user`, or add a per-user leaf under `install/user/` and wire into `install/user/all.sh` |
+| Runtime tweak that needs `$HOME` or live system state | extend `maitri-provision-user`, or add a per-user leaf under `install/user/` and wire into `install/user/all.sh` |
 | One-time root-side setup step | `install/config/*.sh` or `install/hardware/*.sh`, wire into `install/config/all.sh` or `install/hardware/all.sh` |
 | One-time fix for existing installs | `migrations/<unix-timestamp>.sh` |
 | Package-owned path something else may already write | Prefer a path nothing else writes, such as a vendor drop-in under `/usr/lib`. Otherwise the `--overwrite` entry in `bin/maitri-update-system-pkgs` has to ship a release before the file |
