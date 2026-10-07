@@ -2,7 +2,7 @@
 
 The private-use glyphs in `maitri.ttf` are:
 
-- `U+E900` — maitri
+- `U+E900` — maitri, from `assets/brand/heart-glyph.svg`
 - `U+E901` — Pi, from <https://pi.dev/logo-auto.svg>
 - `U+E902` — OpenCode, from <https://opencode.ai/favicon-96x96-v3.png>
 - `U+E903` — omp, from <https://omp.sh/favicon.svg>
