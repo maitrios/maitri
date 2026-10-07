@@ -49,8 +49,7 @@ Item {
   // user picks a new background mid-session.
   function fileUrl(path) {
     if (!path) return ""
-    var encoded = String(path).split("/").map(encodeURIComponent).join("/")
-    return "file://" + encoded + "?v=" + backgroundVersion
+    return Util.fileUrl(path) + "?v=" + backgroundVersion
   }
 
   function forcePasswordFocus() {
@@ -94,10 +93,14 @@ Item {
     Image {
       id: wallpaper
       anchors.fill: parent
-      source: root.loadBackground ? root.fileUrl(root.backgroundPath) : ""
+      // Decode only once sized, at the lock's own size: an unsized first
+      // request decoded the file at its native resolution, then again once
+      // sized. That size is what the lock service keeps decoded ahead of the
+      // lock, so the first frame has the wallpaper.
+      source: root.loadBackground && width > 0 ? root.fileUrl(root.backgroundPath) : ""
       fillMode: Image.PreserveAspectCrop
       asynchronous: true
-      cache: false
+      cache: true
       sourceSize.width: width
       sourceSize.height: height
     }
