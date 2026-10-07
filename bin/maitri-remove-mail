@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# maitri:summary=Remove Mail and take it off the bar. Your mailboxes and mail stay on disk.
+# maitri:requires-sudo=true
+
+set -euo pipefail
+
+# Removal goes ahead without a running shell. The entry left in shell.json then
+# names a widget nothing provides, which the bar draws as nothing.
+maitri-plugin-disable maitri.mail || true
+maitri-pkg-drop maitri-mail
+maitri-shell -q shell rescanPlugins
+
+# Mail rewrites this mailto handler on every start, pointing into the package
+# that is now gone. Reinstalling writes it again.
+rm -f "${XDG_DATA_HOME:-$HOME/.local/share}/applications/maitri-mail.desktop"
+
+echo ""
+echo "Mail has been removed. Your accounts, cached mail and drafts are still in:"
+echo "  ~/.config/maitri-mail"
+echo "  ~/.cache/maitri-mail"
+echo "  ~/.local/state/maitri-mail"
