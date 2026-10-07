@@ -11,7 +11,8 @@
     }
   },
   "display": {
-    "disableLinewrap": true
+    "disableLinewrap": true,
+    "color": { "keys": "magenta" }
   },
   "modules": [
     "break",
@@ -22,41 +23,34 @@
     },
     {
       "type": "host",
-      "key": " PC",
-      "keyColor": "magenta"
+      "key": " PC"
     },
     {
       "type": "cpu",
       "key": "│ ├",
-      "showPeCoreCount": true,
-      "keyColor": "magenta"
+      "showPeCoreCount": true
     },
     {
       "type": "gpu",
       "key": "│ ├",
       "detectionMethod": "pci",
-      "format": "{name}",
-      "keyColor": "magenta"
+      "format": "{name}"
     },
     {
       "type": "display",
-      "key": "│ ├󱄄",
-      "keyColor": "magenta"
+      "key": "│ ├󱄄"
     },
     {
       "type": "disk",
-      "key": "│ ├󰋊",
-      "keyColor": "magenta"
+      "key": "│ ├󰋊"
     },
     {
       "type": "memory",
-      "key": "│ ├",
-      "keyColor": "magenta"
+      "key": "│ ├"
     },
     {
       "type": "swap",
-      "key": "└ └󰓡 ",
-      "keyColor": "magenta"
+      "key": "└ └󰓡 "
     },
     {
       "type": "custom",
@@ -70,61 +64,50 @@
     {
       "type": "command",
       "key": "\ue900 OS",
-      "keyColor": "magenta",
       "text": "version=$(maitri-version) && echo \"maitri $version\""
     },
     {
       "type": "command",
       "key": "│ ├󰘬",
-      "keyColor": "magenta",
       "text": "maitri-version-branch"
     },
     {
       "type": "command",
       "key": "│ ├󰔫",
-      "keyColor": "magenta",
       "text": "channel=$(maitri-version-channel); echo \"$channel\""
     },
     {
       "type": "kernel",
-      "key": "│ ├",
-      "keyColor": "magenta"
+      "key": "│ ├"
     },
     {
       "type": "wm",
-      "key": "│ ├",
-      "keyColor": "magenta"
+      "key": "│ ├"
     },
     {
       "type": "de",
-      "key": " DE",
-      "keyColor": "magenta"
+      "key": " DE"
     },
     {
       "type": "terminal",
-      "key": "│ ├",
-      "keyColor": "magenta"
+      "key": "│ ├"
     },
     {
       "type": "packages",
-      "key": "│ ├󰏖",
-      "keyColor": "magenta"
+      "key": "│ ├󰏖"
     },
     {
       "type": "wmtheme",
-      "key": "│ ├󰉼",
-      "keyColor": "magenta"
+      "key": "│ ├󰉼"
     },
     {
       "type": "command",
       "key": "│ ├󰸌",
-      "keyColor": "magenta",
       "text": "theme=$(maitri-theme-current); echo -e \"$theme \\e[38m●\\e[37m●\\e[36m●\\e[35m●\\e[34m●\\e[33m●\\e[32m●\\e[31m●\""
     },
     {
       "type": "terminalfont",
-      "key": "└ └",
-      "keyColor": "magenta"
+      "key": "└ └"
     },
     {
       "type": "custom",
@@ -138,18 +121,15 @@
     {
       "type": "command",
       "key": "󱦟 OS Age",
-      "keyColor": "magenta",
       "text": "echo $(( ($(date +%s) - $(stat -c %W /)) / 86400 )) days"
     },
     {
       "type": "uptime",
-      "key": "󱫐 Uptime",
-      "keyColor": "magenta"
+      "key": "󱫐 Uptime"
     },
     {
       "type": "command",
       "key": " Update",
-      "keyColor": "magenta",
       "text": "updated=$(maitri-version-pkgs); echo \"$updated\""
     },
     {
