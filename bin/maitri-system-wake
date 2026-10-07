@@ -7,4 +7,3 @@
 
 maitri-brightness-display on
 maitri-brightness-keyboard restore
-maitri-hyprland-monitor-clamshell >/dev/null 2>&1 || true

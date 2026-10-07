@@ -340,15 +340,14 @@ assert(
   ),
   'menu search never restarts a volatile provider'
 )
-assertEqual(
-  defaultById['trigger.hardware.laptop-display'].when,
-  'maitri-hw-laptop',
-  'menu only shows Laptop Display on laptops'
+assert(
+  !defaultById['trigger.hardware.laptop-display'] && !defaultById['trigger.hardware.mirror-display'],
+  'the laptop and mirror display toggles are gone; hyprmoncfg profiles own display layout'
 )
 assertEqual(
-  defaultById['trigger.hardware.mirror-display'].when,
-  'maitri-hw-laptop',
-  'menu only shows Mirror Display on laptops'
+  defaultById['setup.monitors'].action,
+  'maitri-launch-or-focus-tui hyprmoncfg',
+  'Setup > Monitors opens hyprmoncfg'
 )
 assertEqual(
   defaultById['trigger.capture.screenrecord.webcam'].when,

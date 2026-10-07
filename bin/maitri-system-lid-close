@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# maitri:summary=Lock and reconcile displays when the laptop lid closes
+# maitri:summary=Lock the session when the laptop lid closes
 # maitri:group=system
 # maitri:hidden=true
 
@@ -16,5 +16,3 @@
 if maitri-hw-laptop-closed && ! maitri-hw-external-monitors; then
   maitri-system-lock >/dev/null 2>&1 || true
 fi
-
-maitri-hyprland-monitor-clamshell

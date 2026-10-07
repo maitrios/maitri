@@ -98,6 +98,22 @@ DELETE_LIST=(
   'bin/omarchy-monitor-state'
   'test/shell.d/monitor-test.sh'
   'test/shell.d/monitor-state-test.sh'
+  'bin/omarchy-hyprland-monitor-watch'
+  'bin/omarchy-hyprland-monitor-clamshell'
+  'bin/omarchy-hyprland-monitor-modeless'
+  'bin/omarchy-hyprland-monitor-scaling'
+  'bin/omarchy-hyprland-monitor-internal'
+  'bin/omarchy-hyprland-monitor-internal-mirror'
+  'bin/omarchy-hyprland-monitor-external-active'
+  'bin/omarchy-hyprland-monitor-laptop'
+  'bin/omarchy-hw-clamshell'
+  'bin/omarchy-hw-recover-internal-monitor'
+  'default/systemd/user/omarchy-recover-internal-monitor.service'
+  'test/shell.d/monitor-clamshell-scale-test.sh'
+  'test/shell.d/monitor-modeless-test.sh'
+  'test/shell.d/monitor-output-name-test.sh'
+  'test/shell.d/monitor-recovery-test.sh'
+  'test/shell.d/monitor-scaling-test.sh'
 )
 
 # Stock upstream themes are not shipped; only maitri's own live in themes/.

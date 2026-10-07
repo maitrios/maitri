@@ -190,6 +190,12 @@ number_claims=$(cut -f1 <<<"$panels_output" | grep -cE '^SUPER \+ CTRL \+ code:1
   fail "only the bar panel hotkeys bind SUPER + CTRL + a number" "$number_claims"
 pass "bar panel hotkeys bind SUPER + CTRL + a number without a collision"
 
+grep -Fqx "SUPER + CTRL + D"$'\t'"Display" <<<"$panels_output" ||
+  fail "SUPER + CTRL + D opens the Display panel"
+! grep -qE "Monitor scaling|Toggle laptop display" <<<"$panels_output" ||
+  fail "no default binding changes monitor config behind hyprmoncfgd's back"
+pass "the only display binding opens the Display panel"
+
 migration=$(grep -rl 'Move stock Hyprland user overrides into package defaults' "$ROOT/migrations" | head -n 1 || true)
 [[ -n $migration ]] || fail "Hyprland default config migration exists"
 

@@ -29,10 +29,7 @@ o.bind("SUPER + SHIFT + ALT + comma", "Open notification history", "maitri-shell
 
 o.bind_toggle("SUPER + CTRL + I", "Toggle locking on idle", "idle")
 o.bind_toggle("SUPER + CTRL + N", "Toggle nightlight", "nightlight")
-o.bind("SUPER + CTRL + Delete", "Toggle laptop display", "maitri-hyprland-monitor-internal toggle")
-o.bind("SUPER + CTRL + ALT + Delete", "Toggle laptop display mirroring", "maitri-hyprland-monitor-internal-mirror toggle")
 o.bind("switch:on:Lid Switch", nil, "maitri-system-lid-close", { locked = true })
-o.bind("switch:off:Lid Switch", nil, "maitri-hyprland-monitor-clamshell", { locked = true })
 
 o.bind("PRINT", "Screenshot", "maitri-capture-screenshot")
 o.bind("ALT + PRINT", "Screenrecording", "maitri-capture-screenrecording --stop-recording || maitri-menu toggle trigger.capture.screenrecord")

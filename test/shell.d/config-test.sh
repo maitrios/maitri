@@ -136,7 +136,6 @@ package_defaults = [
   ("etc/fastfetch/config.jsonc", "/etc/fastfetch/config.jsonc", "fastfetch/config.jsonc"),
   ("default/systemd/user/bt-agent.service", "/usr/lib/systemd/user/bt-agent.service", "systemd/user/bt-agent.service"),
   ("default/systemd/user/maitri-sleep-lock.service", "/usr/lib/systemd/user/maitri-sleep-lock.service", "systemd/user/maitri-sleep-lock.service"),
-  ("default/systemd/user/maitri-recover-internal-monitor.service", "/usr/lib/systemd/user/maitri-recover-internal-monitor.service", "systemd/user/maitri-recover-internal-monitor.service"),
   ("default/systemd/user/maitri-migrate-notify.service", "/usr/lib/systemd/user/maitri-migrate-notify.service", "systemd/user/maitri-migrate-notify.service"),
   ("default/systemd/user/maitri-tailscale-receive.service", "/usr/lib/systemd/user/maitri-tailscale-receive.service", "systemd/user/maitri-tailscale-receive.service"),
   ("default/systemd/user/maitri-fcitx5.service", "/usr/lib/systemd/user/maitri-fcitx5.service", "systemd/user/maitri-fcitx5.service"),

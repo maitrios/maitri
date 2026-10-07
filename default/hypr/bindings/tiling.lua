@@ -90,6 +90,3 @@ o.bind("SUPER + ALT + mouse_up", "Previous window in group", hl.dsp.group.prev()
 for index = 1, 5 do
   o.bind("SUPER + ALT + code:" .. tostring(index + 9), "Switch to group window " .. index, hl.dsp.group.active({ index = index }))
 end
-
-o.bind("SUPER + SLASH", "Monitor scaling up", "maitri-hyprland-monitor-scaling up")
-o.bind("SUPER + ALT + SLASH", "Monitor scaling down", "maitri-hyprland-monitor-scaling down")

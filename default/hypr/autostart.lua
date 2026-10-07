@@ -6,7 +6,6 @@ hl.on("hyprland.start", function()
   hl.exec_cmd("maitri-launch-shell")
   hl.exec_cmd("maitri-provision-first-run")
   hl.exec_cmd("maitri-powerprofiles-init")
-  hl.exec_cmd(o.launch("maitri-hyprland-monitor-watch"))
   hl.exec_cmd(o.launch("udiskie --automount --no-notify --no-tray"))
 
   -- Run post-boot hooks after startup config has loaded.

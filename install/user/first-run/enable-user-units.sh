@@ -15,7 +15,6 @@ systemctl --user daemon-reload
 systemctl --user enable --now \
   bt-agent.service \
   hyprmoncfgd.service \
-  maitri-recover-internal-monitor.service \
   maitri-sleep-lock.service \
   maitri-migrate-notify.service \
   maitri-fcitx5.service \

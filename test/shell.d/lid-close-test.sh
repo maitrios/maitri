@@ -27,12 +27,10 @@ SH
 #!/bin/bash
 exit $docked
 SH
-  for command in maitri-system-lock maitri-hyprland-monitor-clamshell; do
-    cat >"$mock_bin/$command" <<SH
+  cat >"$mock_bin/maitri-system-lock" <<SH
 #!/bin/bash
-echo $command >>"\$CALL_LOG"
+echo maitri-system-lock >>"\$CALL_LOG"
 SH
-  done
   chmod +x "$mock_bin"/*
 }
 
@@ -47,38 +45,31 @@ run_lid_close() {
 setup_scenario undocked 0 1
 run_lid_close
 
-[[ ${calls[0]} == "maitri-system-lock" ]] ||
-  fail "undocked lid close locks before anything else" "calls: ${calls[*]}"
-pass "undocked lid close locks before anything else"
-
-[[ ${calls[1]} == "maitri-hyprland-monitor-clamshell" ]] ||
-  fail "undocked lid close still reconciles displays" "calls: ${calls[*]}"
-pass "undocked lid close still reconciles displays"
+[[ ${calls[*]} == "maitri-system-lock" ]] ||
+  fail "undocked lid close locks the session and does nothing else" "calls: ${calls[*]}"
+pass "undocked lid close locks the session and does nothing else"
 
 # A docked lid close is clamshell mode: logind leaves the machine awake and the
 # session stays in use on the external display, so locking it would be wrong.
+# hyprmoncfgd turns the laptop panel off.
 setup_scenario docked 0 0
 run_lid_close
 
-[[ ${calls[*]} != *maitri-system-lock* ]] ||
-  fail "docked lid close does not lock the session" "calls: ${calls[*]}"
-pass "docked lid close does not lock the session"
-
-[[ ${calls[0]} == "maitri-hyprland-monitor-clamshell" ]] ||
-  fail "docked lid close reconciles displays" "calls: ${calls[*]}"
-pass "docked lid close reconciles displays"
+(( ${#calls[@]} == 0 )) ||
+  fail "docked lid close leaves the session and displays alone" "calls: ${calls[*]}"
+pass "docked lid close leaves the session and displays alone"
 
 # Hyprland can replay a switch binding when the lid is already open, and an
 # open lid must never lock the machine the user is sitting at.
 setup_scenario open 1 1
 run_lid_close
 
-[[ ${calls[*]} != *maitri-system-lock* ]] ||
+(( ${#calls[@]} == 0 )) ||
   fail "an open lid never locks the session" "calls: ${calls[*]}"
 pass "an open lid never locks the session"
 
-# The lid handler runs from a Hyprland binding, so a lock that hangs or fails
-# must not stop the display reconciliation behind it.
+# The lid handler runs from a Hyprland binding, so a failing lock must not make
+# the handler itself fail.
 setup_scenario failing_lock 0 1
 cat >"$mock_bin/maitri-system-lock" <<'SH'
 #!/bin/bash
@@ -86,8 +77,16 @@ echo maitri-system-lock >>"$CALL_LOG"
 exit 1
 SH
 chmod +x "$mock_bin/maitri-system-lock"
-run_lid_close
+run_lid_close || fail "a failing lock does not fail the lid handler"
+pass "a failing lock does not fail the lid handler"
 
-[[ ${calls[1]} == "maitri-hyprland-monitor-clamshell" ]] ||
-  fail "a failing lock still reconciles displays" "calls: ${calls[*]}"
-pass "a failing lock still reconciles displays"
+grep -F '/proc/acpi/button/lid/*/state' "$ROOT/bin/maitri-hw-laptop-closed" >/dev/null ||
+  fail "the lid helper reads the ACPI lid state"
+pass "the lid helper reads the ACPI lid state"
+
+utilities="$ROOT/default/hypr/bindings/utilities.lua"
+grep -F 'switch:on:Lid Switch", nil, "maitri-system-lid-close"' "$utilities" >/dev/null ||
+  fail "closing the lid runs the lid handler"
+! grep -F 'switch:off:Lid Switch' "$utilities" >/dev/null ||
+  fail "opening the lid is left to hyprmoncfgd"
+pass "closing the lid locks, and hyprmoncfgd handles the displays"
