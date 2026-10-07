@@ -54,7 +54,7 @@ attempts() {
 # The guard exits the shell it runs in, so run it in a child and report back what
 # it did: the skip line, or the core limit it left behind for Quickshell.
 run_guard() {
-  env "$@" PATH="$stub_bin:$PATH" bash -c '
+  MAITRI_TEST_LIVE_SESSION=1 env "$@" PATH="$stub_bin:$PATH" bash -c '
     source "$1/base-test.sh"
     ulimit -c unlimited 2>/dev/null || true
     require_compositor "sample runtime test"
@@ -111,3 +111,12 @@ stub_hyprctl 0
 output=$(run_guard WAYLAND_DISPLAY=wayland-1 XDG_RUNTIME_DIR="$runtime_dir" HYPRLAND_INSTANCE_SIGNATURE=test)
 [[ $output == "launched with core limit 0" ]] || fail "guard runs with core dumps disabled" "$output"
 pass "guard runs with core dumps disabled"
+
+# A reachable compositor is not enough on its own: these tests run in the user's
+# real session, so they wait for an explicit opt-in.
+stub_hyprctl 0
+output=$(run_guard MAITRI_TEST_LIVE_SESSION=0 WAYLAND_DISPLAY=wayland-1 XDG_RUNTIME_DIR="$runtime_dir" HYPRLAND_INSTANCE_SIGNATURE=test)
+[[ $output == "ok - live-session test skipped; set MAITRI_TEST_LIVE_SESSION=1 to run sample runtime test" ]] ||
+  fail "guard skips a reachable compositor without the live-session opt-in" "$output"
+[[ $(attempts) == 0 ]] || fail "guard does not probe the compositor without the opt-in" "asked $(attempts) times"
+pass "guard skips a reachable compositor without the live-session opt-in"

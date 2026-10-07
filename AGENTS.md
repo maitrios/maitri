@@ -101,6 +101,10 @@ Run focused automated tests for the area you changed. Current test entry points:
 
 New maitri shell tests should live in `test/shell.d/*-test.sh` so `./test/shell` picks them up automatically. Source `test/shell.d/base-test.sh` for shared root-path discovery, assertions, and Node test helpers.
 
+Tests that need a compositor call `require_compositor` and start real Quickshell instances in the
+running session, so they skip unless `MAITRI_TEST_LIVE_SESSION=1` is set. Only set it while you are at
+an unlocked desktop: an instance started under a locked session can take over the lock and crash it.
+
 The graphical acceptance suite runs in a disposable VM, not in the active
 development session; see [`agents/skills/acceptance-tests.md`](agents/skills/acceptance-tests.md).
 
