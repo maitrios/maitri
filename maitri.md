@@ -9,7 +9,9 @@ It is a rebranded fork of [Omarchy](https://github.com/basecamp/omarchy) that tr
 |---|---|
 | [maitrios/maitri](https://github.com/maitrios/maitri) | The desktop: `bin/` commands, `install/` setup, `default/` and `config/` defaults, `etc/` drop-ins, `shell/` (Quickshell), `themes/`, `migrations/`, the ISO builder under `iso/` |
 | [maitrios/maitri-pkgs](https://github.com/maitrios/maitri-pkgs) | PKGBUILDs and the CI that builds and signs the `[maitri]` pacman repository, including the `maitri` and `maitri-settings` packages built from this repo |
-| [maitrios/maitri-vicinae](https://github.com/maitrios/maitri-vicinae) | The Vicinae extension that renders the maitri menu, keybindings and pickers |
+| [maitrios/maitri-vicinae](https://github.com/maitrios/maitri-vicinae) | The Vicinae extension that renders the maitri menu, keybindings and pickers; packaged as `maitri-vicinae-extension` in the base package set |
+| [maitrios/maitri-fish](https://github.com/maitrios/maitri-fish) | The fish configuration behind the login shell: functions, completions, the pure prompt and fzf.fish; packaged as `maitri-fish` in the base package set |
+| [maitrios/maitri-trackpoint](https://github.com/maitrios/maitri-trackpoint) | An optional ThinkPad TrackPoint bar widget (sensitivity slider, programmable middle button). Not installed by default; add it with `maitri plugin add https://github.com/maitrios/maitri-trackpoint.git --enable` |
 | [maitrios/maitri-mail](https://github.com/maitrios/maitri-mail) | Mail, a rebranded fork of [omamail](https://github.com/huacnlee/omamail), packaged as `maitri-mail`: the backend at `/usr/bin/maitri-mail` and the `maitri.mail` shell plugin under `/usr/share/maitri-plugins/mail/` |
 
 ## How a maitri install is wired
