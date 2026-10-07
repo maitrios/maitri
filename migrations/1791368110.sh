@@ -213,7 +213,15 @@ retire_omamail_runtime() {
 # Runs for everyone, so a retry still finishes it after the steps that mark an
 # omamail setup have already run.
 retire_omamail_launcher() {
-  rm -f "${XDG_DATA_HOME:-$HOME/.local/share}/applications/omamail.desktop"
+  local applications="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+  if [[ -f $applications/omamail.desktop ]]; then
+    rm -f "$applications/omamail.desktop"
+    # The mime cache still lists it, and xdg-mime falls back to that cache until
+    # Mail writes its own desktop file on first load.
+    if maitri-cmd-present update-desktop-database; then
+      update-desktop-database "$applications" || true
+    fi
+  fi
   if [[ $(xdg-mime query default x-scheme-handler/mailto 2>/dev/null) == "omamail.desktop" ]]; then
     xdg-mime default maitri-mail.desktop x-scheme-handler/mailto
   fi

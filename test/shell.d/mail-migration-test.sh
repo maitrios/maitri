@@ -66,6 +66,11 @@ cat >"$stub_bin/hyprctl" <<'SH'
 printf 'hyprctl %s\n' "$*" >>"$MAITRI_TEST_CALLS"
 SH
 
+cat >"$stub_bin/update-desktop-database" <<'SH'
+#!/bin/bash
+printf 'update-desktop-database %s\n' "$*" >>"$MAITRI_TEST_CALLS"
+SH
+
 chmod +x "$stub_bin"/*
 
 reset_home() {
@@ -169,6 +174,7 @@ run_migration || fail "a machine without shell.json migrates" "$(cat "$output")"
 grep -qx 'pkg-add maitri-mail' "$calls" || fail "the migration installs maitri-mail" "$(cat "$calls")"
 [[ ! -e $shell_json ]] || fail "a machine on the default bar keeps no shell.json of its own"
 ! grep -q '^xdg-mime' "$calls" || fail "a machine without omamail keeps its mailto handler"
+! grep -q '^update-desktop-database' "$calls" || fail "a machine without omamail keeps its mime cache"
 [[ ! -e $backups ]] || fail "a machine without omamail retires nothing"
 assert_no_sudo "the migration"
 pass "a machine on the default bar gets the package and nothing else"
@@ -229,6 +235,8 @@ retired=("$backups"/omamail-plugin-*)
 pass "the omamail checkout moves whole to a dated backup under ~/.local/state/maitri"
 
 [[ ! -e $applications/omamail.desktop ]] || fail "omamail's launcher is removed"
+grep -qx "update-desktop-database $applications" "$calls" ||
+  fail "the mime cache forgets omamail's launcher" "$(cat "$calls")"
 [[ $(cat "$mailto") == "maitri-mail.desktop" ]] || fail "mailto moves from omamail to Mail" "$(cat "$mailto")"
 assert_no_sudo "the omamail migration"
 pass "omamail's launcher goes and mailto points at Mail"
