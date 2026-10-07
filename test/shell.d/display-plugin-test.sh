@@ -17,5 +17,5 @@ if [[ -x $QMLTESTRUNNER ]]; then
     fail "maitri.display QML tests pass" "$output"
   pass "maitri.display QML tests pass"
 else
-  pass "qmltestrunner not installed; skipping maitri.display QML tests"
+  skip "qmltestrunner not installed; skipping maitri.display QML tests"
 fi

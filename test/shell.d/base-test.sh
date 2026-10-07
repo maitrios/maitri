@@ -72,7 +72,7 @@ require_compositor() {
   # started while the session was locked took the lock for an orphan and
   # crashed the lock screen, so they only run when asked for.
   if [[ ${MAITRI_TEST_LIVE_SESSION:-0} != 1 ]]; then
-    pass "live-session test skipped; set MAITRI_TEST_LIVE_SESSION=1 to run $description"
+    skip "live-session test skipped; set MAITRI_TEST_LIVE_SESSION=1 to run $description"
     exit 0
   fi
 

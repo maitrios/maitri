@@ -116,7 +116,7 @@ pass "guard runs with core dumps disabled"
 # real session, so they wait for an explicit opt-in.
 stub_hyprctl 0
 output=$(run_guard MAITRI_TEST_LIVE_SESSION=0 WAYLAND_DISPLAY=wayland-1 XDG_RUNTIME_DIR="$runtime_dir" HYPRLAND_INSTANCE_SIGNATURE=test)
-[[ $output == "ok - live-session test skipped; set MAITRI_TEST_LIVE_SESSION=1 to run sample runtime test" ]] ||
+[[ $output == "ok - live-session test skipped; set MAITRI_TEST_LIVE_SESSION=1 to run sample runtime test # SKIP" ]] ||
   fail "guard skips a reachable compositor without the live-session opt-in" "$output"
 [[ $(attempts) == 0 ]] || fail "guard does not probe the compositor without the opt-in" "asked $(attempts) times"
 pass "guard skips a reachable compositor without the live-session opt-in"
