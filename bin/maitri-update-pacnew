@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# maitri:summary=Review configuration files a package update left as .pacnew or .pacsave
+# maitri:requires-sudo=true
+
+set -e
+
+mapfile -t pending < <(pacdiff --output --nocolor 2>/dev/null | grep -v "^$" || true)
+(( ${#pending[@]} )) || exit 0
+
+echo -e "\e[32m\nConfiguration files to review\e[0m"
+printf '  %s\n' "${pending[@]}"
+echo
+
+if [[ ${MAITRI_UPDATE_UNATTENDED:-} == 1 || ! -t 0 || ! -t 1 ]]; then
+  echo "${#pending[@]} file(s) need a look. Run maitri-update-pacnew in a terminal to merge or remove them."
+  echo
+  exit 0
+fi
+
+if ! gum confirm --default=false "Review ${#pending[@]} configuration file(s) now?"; then
+  echo "Leaving them for later. Run maitri-update-pacnew to review them."
+  echo
+  exit 0
+fi
+
+pacdiff --sudo
+echo

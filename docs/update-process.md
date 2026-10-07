@@ -252,6 +252,7 @@ scripts.
 | `maitri-update-aur-pkgs` | Updates AUR packages with `yay -Sua` if foreign packages exist and AUR is reachable. | **Question.** maitri is package-backed now, but users may still install AUR packages. Keep for now. |
 | `maitri-update-mise` | Runs `mise up` for mise-managed tools. | **Keep.** Mise-managed tools are intentionally part of the blessed update path. |
 | `maitri-update-orphan-pkgs` | Lists orphans and prompts before removal; noninteractive mode never removes. | **Keep for now.** Safe because it is prompt-only. |
+| `maitri-update-pacnew` | Lists `.pacnew`/`.pacsave` files from `pacdiff --output` and offers `pacdiff --sudo`; unattended or noninteractive runs only report. | **Keep.** Prompt-only, like the orphan step. |
 | `maitri-update-analyze-logs` | Scans `/tmp/maitri-update.log` for known failure patterns, currently initramfs generation. | **Keep/expand.** Useful safety net; should grow only for high-signal checks. |
 | `maitri-update-restart` | Prompts for reboot after kernel/Hyprland updates, restarts components with `restart-*-required` markers, and always restarts the shell. | **Keep.** Important final step; may eventually include service-restart checks. |
 | `maitri-update-firmware` | Manual firmware update command using fwupd. Not part of the normal update pipeline. | **Keep separate.** Firmware is not a routine system update step. |
@@ -292,6 +293,7 @@ scripts.
      maintenance flows. Keep an eye on what should be allowed versus redirected
      to `maitri update`.
 
-2. **Pacnew/pacsave handling is still missing**
-   - Package-backed maitri should warn about or help process `.pacnew` and
-     `.pacsave` files after updates.
+2. **Pacnew/pacsave handling**
+   - `maitri-update-pacnew` runs after the package steps. It lists what
+     `pacdiff --output` finds and offers to merge through `pacdiff --sudo`;
+     without a terminal or under `maitri update -y` it only reports.
