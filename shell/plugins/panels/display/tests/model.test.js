@@ -1015,7 +1015,7 @@ test("the inspectors use standards-based colour terms and per-field profile rese
     "WCG CAPABILITY",
     "HDR CAPABILITY",
     "ICC DEVICE PROFILE"
-  ]) assert.match(qml, new RegExp(label.replace(/[()²/]/g, "\\$&")))
+  ]) assert.match(qml, new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
 
   assert.doesNotMatch(qml, /bpc =|EOTF =|PQ =|WCG =|A reset button appears/)
   assert.match(qml, /tooltipText: "Bits per color component\."/)

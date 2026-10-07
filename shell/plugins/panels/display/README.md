@@ -41,7 +41,8 @@ by Carmine Paolino, MIT (see `LICENSE`).
    `ScaleField` gained `cursorValue` for the keyboard highlight, and
    `tests/focused-scale.test.js` covers the row.
 
-The vendored tests are updated to match each change. `test/shell.d/display-plugin-test.sh`
+The vendored tests are updated to match each change, and the label assertions in
+`tests/model.test.js` use a complete regex escape. `test/shell.d/display-plugin-test.sh`
 runs them.
 
 ## Syncing a new upstream release
