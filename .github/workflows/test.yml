@@ -1,0 +1,45 @@
+name: Test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - name: Install test dependencies
+        run: |
+          pacman -Syu --noconfirm --needed \
+            git jq python lua nodejs imagemagick librsvg fontconfig \
+            fish zsh plocate util-linux sudo pciutils glib2 which diffutils \
+            ripgrep gum openssh
+
+      - name: Check out maitri
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      # Several suites refuse to run as root, the way the installed commands do.
+      - name: Prepare an unprivileged test user
+        run: |
+          useradd -m tester
+          chown -R tester:tester "$GITHUB_WORKSPACE"
+          runuser -u tester -- env HOME=/home/tester git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          runuser -u tester -- git clone --depth 1 https://github.com/maitrios/maitri-pkgs.git /tmp/maitri-pkgs
+
+      - name: Brand check
+        run: runuser -u tester -- env HOME=/home/tester tools/rebrand.sh --check
+
+      - name: CLI tests
+        run: runuser -u tester -- env HOME=/home/tester ./test/cli
+
+      - name: Shell tests
+        run: runuser -u tester -- env HOME=/home/tester MAITRI_PKGS_PATH=/tmp/maitri-pkgs ./test/shell
