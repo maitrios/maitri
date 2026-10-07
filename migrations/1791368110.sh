@@ -82,12 +82,25 @@ wait_for_omamail_to_stop() {
 }
 
 move_omamail_data() {
-  local base
-  for base in "${XDG_CONFIG_HOME:-$HOME/.config}" "${XDG_CACHE_HOME:-$HOME/.cache}" "${XDG_STATE_HOME:-$HOME/.local/state}"; do
+  local config="${XDG_CONFIG_HOME:-$HOME/.config}" base adopt=0 backups
+  # Mail starts whenever its package is installed, so a retry after a reboot can
+  # find the directories it created with no accounts. Those give way to the
+  # omamail data instead of stranding it.
+  if [[ -f $config/omamail/accounts.json && -d $config/maitri-mail && ! -e $config/maitri-mail/accounts.json ]]; then
+    adopt=1
+    backups="${XDG_STATE_HOME:-$HOME/.local/state}/maitri/backups/maitri-mail-before-omamail-$(date -u +%Y%m%d%H%M%S)"
+  fi
+
+  for base in "$config" "${XDG_CACHE_HOME:-$HOME/.cache}" "${XDG_STATE_HOME:-$HOME/.local/state}"; do
     [[ -e $base/omamail || -L $base/omamail ]] || continue
     if [[ -e $base/maitri-mail || -L $base/maitri-mail ]]; then
-      echo "Leaving $base/omamail where it is: $base/maitri-mail already exists."
-      continue
+      if (( ! adopt )); then
+        echo "Leaving $base/omamail where it is: $base/maitri-mail already exists."
+        continue
+      fi
+      mkdir -p "$backups"
+      mv -T "$base/maitri-mail" "$backups/${base##*/}"
+      echo "Moved the empty $base/maitri-mail to $backups"
     fi
     mv -T "$base/omamail" "$base/maitri-mail"
   done
@@ -232,6 +245,7 @@ if (( omamail_setup )); then
   rewrite_omamail_bindings
   retire_omamail_plugin
 fi
+
 
 retire_omamail_launcher
 

@@ -342,6 +342,25 @@ grep -q "Leaving $home/.config/omamail" "$output" || fail "the migration says wh
   fail "omamail data without a maitri-mail counterpart still moves"
 pass "existing maitri-mail data is never clobbered; the rest still moves"
 
+# --- Mail started on empty directories before a retry ----------------------
+
+reset_home
+write_shell_json "$(andrews_shell_json)"
+write_omamail_plugin
+write_omamail_data
+mkdir -p "$home/.config/maitri-mail" "$home/.cache/maitri-mail"
+echo '{"width": 900}' >"$home/.config/maitri-mail/window.json"
+echo "empty" >"$home/.cache/maitri-mail/mail.db"
+run_migration || fail "a machine where Mail already started migrates" "$(cat "$output")"
+[[ $(cat "$home/.config/maitri-mail/accounts.json") == '{"accounts": ["me@example.com"]}' &&
+  $(cat "$home/.cache/maitri-mail/mail.db") == "cached mail" &&
+  ! -e $home/.config/omamail && ! -e $home/.cache/omamail ]] ||
+  fail "omamail data replaces directories Mail created without accounts" "$(find "$home" -path '*mail*' | sort)"
+backup=$(find "$home/.local/state/maitri/backups" -maxdepth 1 -name 'maitri-mail-before-omamail-*' | head -1)
+[[ -n $backup && $(cat "$backup/.config/window.json") == '{"width": 900}' && $(cat "$backup/.cache/mail.db") == "empty" ]] ||
+  fail "the empty Mail directories are kept in a backup" "$(find "$home/.local/state/maitri" | sort)"
+pass "omamail data takes over directories Mail created before a retry"
+
 # --- Mail already on the bar ----------------------------------------------
 
 reset_home
