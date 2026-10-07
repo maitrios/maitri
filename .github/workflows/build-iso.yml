@@ -33,6 +33,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 150
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     steps:
       - name: Resolve build ref and channel
         id: ref
@@ -125,6 +129,12 @@ jobs:
           echo "name=$name" >> "$GITHUB_OUTPUT"
           ls -lh release/
 
+      - name: Attest ISO build provenance
+        if: steps.ref.outputs.publish == 'true'
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: release/${{ steps.iso.outputs.name }}
+
       # The offline ISO is several GB, above GitHub's 2 GiB release-asset cap, so
       # it is published to Docker Hub as an OCI artifact (via ORAS) and linked
       # from the release notes; the small .sha256 sidecar attaches to the release.
@@ -161,7 +171,7 @@ jobs:
             printf '## 📀 Download\n\n'
             printf 'The installer ISO (offline-capable) is published as an OCI artifact on Docker Hub.\n'
             printf 'Pull it with [ORAS](https://oras.land):\n\n'
-            printf '```sh\noras pull %s:%s\nsha256sum -c %s.sha256\n```\n\n' "$repo" "$tag" "$name"
+            printf '```sh\noras pull %s:%s\nsha256sum -c %s.sha256\ngh attestation verify %s -R %s\n```\n\n' "$repo" "$tag" "$name" "$name" "${{ github.repository }}"
             printf '`sha256: %s`\n' "$sha"
           } > release-notes.md
           gh release edit "${{ steps.ref.outputs.ref }}" -R "${{ github.repository }}" --notes-file release-notes.md
