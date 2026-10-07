@@ -1,3 +1,11 @@
+function addedExternalScreens(previous, names) {
+  var before = Array.isArray(previous) ? previous : []
+  return (Array.isArray(names) ? names : []).filter(function(name) {
+    var value = String(name || "")
+    return value !== "" && !/^(eDP|LVDS|DSI)-/.test(value) && before.indexOf(value) < 0
+  })
+}
+
 function parseEnvelope(raw) {
   try {
     var value = JSON.parse(String(raw || ""))
@@ -1721,6 +1729,7 @@ if (typeof module !== "undefined") {
     chipTravel: chipTravel,
     workspaceOwners: workspaceOwners,
     chipMoves: chipMoves,
-    compactPanelLayout: compactPanelLayout
+    compactPanelLayout: compactPanelLayout,
+    addedExternalScreens: addedExternalScreens
   }
 }
