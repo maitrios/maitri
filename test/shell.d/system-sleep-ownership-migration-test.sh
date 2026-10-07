@@ -491,8 +491,11 @@ EXTRA_FAKE_ROOT_DIRS="$admin_dir" \
 cmp -s "$mock_maitri/default/systemd/system-sleep/keyboard-backlight" \
   "$sleep_dir/keyboard-backlight" ||
   fail "migration does not replace an unsafe symlink with trusted hook content"
-symlink_backup=$(find "$quarantine" -path '*/keyboard-backlight.*/original' -type l -print -quit)
-[[ -n $symlink_backup && $(readlink "$symlink_backup") == "$user_keyboard" ]] ||
+symlink_backup=""
+while IFS= read -r candidate; do
+  [[ $(readlink "$candidate") == "$user_keyboard" ]] && symlink_backup=$candidate
+done < <(find "$quarantine" -path '*/keyboard-backlight.*/original' -type l)
+[[ -n $symlink_backup ]] ||
   fail "migration discards an unsafe custom symlink instead of preserving it"
 pass "migration quarantines unsafe symlinks outside the active systemd directory"
 
