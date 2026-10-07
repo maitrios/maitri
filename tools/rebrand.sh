@@ -114,6 +114,8 @@ DELETE_LIST=(
   'test/shell.d/monitor-output-name-test.sh'
   'test/shell.d/monitor-recovery-test.sh'
   'test/shell.d/monitor-scaling-test.sh'
+  # A compatibility wrapper for an Omarchy-era unit name maitri installs never had.
+  'bin/omarchy-update-user-notify'
 )
 
 # Stock upstream themes are not shipped; only maitri's own live in themes/.

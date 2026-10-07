@@ -189,12 +189,6 @@ Fallbacks:
 - `maitri-provision-first-run` enables `maitri-migrate-notify.service`, which also
   covers users created after install: their per-user migration markers are
   missing, so their first login prompts them to run every shipped migration.
-- The package ships `maitri-update-user-notify.service` as a symlink onto
-  `maitri-migrate-notify.service`. Users set up before the rename hold an
-  absolute `graphical-session.target.wants` symlink to the old path, and the
-  migration that repoints it only runs for users who run an update — the
-  opposite of who the notifier is for. The alias can be dropped once installs
-  have run migration `1785095882`.
 - The notifier is ordered after `graphical-session.target`, so an action that
   launches through `uwsm-app` cannot block the target that gates UWSM's app
   daemon.
@@ -254,7 +248,6 @@ scripts.
 | `maitri-migrate` | Public migration command. Waits for pacman, then runs all pending migrations for the current user. Supports `--pending`. | **Keep.** This replaces the discarded `maitri-update-user-finalize` name and no longer needs `--force`. |
 | `maitri-update-pacman-guard` | ALPM pre-transaction guard that aborts direct `pacman -Syu` style upgrades unless maitri set `MAITRI_UPDATE_PACMAN=1` or the user explicitly set `MAITRI_ALLOW_DIRECT_PACMAN=1`. | **Keep internal/hidden.** This is what nudges users back to `maitri update`. |
 | `maitri-migrate-notify` | Internal login-time notification helper. Uses `maitri-migrate --pending` and shows a notification only when this user has pending migrations. | **Keep internal/hidden.** Clear name now that the public command is `maitri-migrate`. |
-| `maitri-update-user-notify` | Hidden compatibility wrapper for `maitri-migrate-notify`. | **Temporary.** Keep only for old callers. |
 | `maitri-update-available` | Update checker for shell widget and post-update refresh. | **Keep.** Could eventually be renamed `maitri-update-check`, but current name matches widget semantics. |
 | `maitri-update-aur-pkgs` | Updates AUR packages with `yay -Sua` if foreign packages exist and AUR is reachable. | **Question.** maitri is package-backed now, but users may still install AUR packages. Keep for now. |
 | `maitri-update-mise` | Runs `mise up` for mise-managed tools. | **Keep.** Mise-managed tools are intentionally part of the blessed update path. |
@@ -275,7 +268,6 @@ scripts.
 2. **Migration notification naming**
    - The real helper is `maitri-migrate-notify`, started by
      `maitri-migrate-notify.service`.
-   - `maitri-update-user-notify` remains only as a hidden compatibility wrapper.
 
 3. **Update pipeline ownership**
    - `maitri-update` owns the full update pipeline now.
