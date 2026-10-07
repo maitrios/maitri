@@ -18,9 +18,8 @@ Two Arch packages are built from this one repo (PKGBUILDs live in
   plymouth theme, sddm theme, branding, plus the limine/snapper configs
   (mkinitcpio hooks, limine-entry-tool drop-ins, snapper template, the
   `default/limine/` and `default/snapper/` trees, and the boot/snapshot
-  story end-to-end). Also ships the three debug binaries
-  (`maitri-debug`, `maitri-debug-idle`, `maitri-upload-log`) needed by
-  the live ISO env.
+  story end-to-end). Also ships the two debug binaries
+  (`maitri-debug`, `maitri-debug-idle`) needed by the live ISO env.
 
 Two other packages live in `maitri-pkgs/` but stand alone:
 `maitri-keyring` (GPG keys for pacman) and `maitri-nvim` (the Neovim
@@ -61,8 +60,7 @@ maitri/                            built into          installed at
 bin/maitri-*                  ──►  maitri             /usr/bin/maitri-*
                                                         (and symlinks in /usr/share/maitri/bin/)
 bin/maitri-debug,
-bin/maitri-debug-idle,
-bin/maitri-upload-log         ──►  maitri-settings    /usr/bin/  (needed before maitri is installed)
+bin/maitri-debug-idle         ──►  maitri-settings    /usr/bin/  (needed before maitri is installed)
 
 default/libalpm/hooks/*.hook
                                 ──►  maitri             /usr/share/libalpm/hooks/*.hook

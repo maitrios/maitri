@@ -87,8 +87,8 @@ gh issue create --repo maitrios/maitri --title "..." --body "..."
 
 Include what happened, what was expected, steps to reproduce, system details from
 `maitri version`, and diagnostics from `maitri debug --no-sudo --print` (which
-also writes `/tmp/maitri-debug.log`; the interactive `maitri debug` can upload
-it and print a shareable URL worth including).
+also writes `/tmp/maitri-debug.log`). Nothing uploads that log: quote the parts
+that matter in the body, or give the user the path to attach it in the web form.
 
 `gh` cannot attach media. If a screenshot would help, save one and give the user
 the path to drag into the web form.
