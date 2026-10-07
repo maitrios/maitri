@@ -34,6 +34,9 @@ PROTECTED_TOKENS=(
   'Heinemeier'
   # The upstream release we track, named in migrations and comments as "Omarchy 4".
   'Omarchy 4'
+  # Upstream of the vendored maitri.display panel, and the fork its scale row comes from.
+  'crmne/omarchy-hyprmoncfg'
+  'gdeyoung/omarchy-displayplus'
 )
 
 # Files whose contents are never rewritten.

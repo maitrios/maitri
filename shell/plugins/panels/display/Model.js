@@ -1,0 +1,1726 @@
+function parseEnvelope(raw) {
+  try {
+    var value = JSON.parse(String(raw || ""))
+    if (!value || typeof value !== "object") return null
+    if (value.protocol_version !== 1) return null
+    if (value.type !== "response" && value.type !== "event") return null
+    return value
+  } catch (e) {
+    return null
+  }
+}
+
+// A status subscription observes other clients too. Only an abandoned preview
+// may be adopted; a live TUI must retain its own confirmation and keyboard.
+function canConfirmPreview(pending, transactionId) {
+  var id = pending ? String(pending.transaction_id || "") : ""
+  return id !== "" && (id === transactionId || pending.reclaimable === true)
+}
+
+function mirrorTarget(monitor) {
+  return String((monitor || {}).mirror_of || "").trim()
+}
+
+// Focus changes do not alter the editable layout. Everything else in the
+// daemon's monitor summary can change which displays and settings it shows.
+function monitorStateSignature(monitors) {
+  var list = monitors instanceof Array ? monitors : []
+  var state = list.map(function(monitor) {
+    var item = clone(monitor) || {}
+    delete item.focused
+    return item
+  })
+  state.sort(function(a, b) {
+    return String(a.name || "").localeCompare(String(b.name || ""))
+  })
+  return JSON.stringify(state)
+}
+
+// Older daemons omit the hardware snapshot hash. Keep their existing status
+// signature protection while comparing identities when both peers provide it.
+function monitorSnapshotsMatch(first, second) {
+  var a = String((first || {}).monitor_set_hash || "")
+  var b = String((second || {}).monitor_set_hash || "")
+  return a === "" || b === "" || a === b
+}
+
+// A monitor only earns a rectangle when it drives its own image. One that is
+// off has no place on the canvas, and one that mirrors another shares its
+// source's position, so drawing it would stack two cards on the same spot.
+function drawsOwnImage(monitor) {
+  return !!monitor
+    && monitor.enabled !== false
+    && mirrorTarget(monitor) === ""
+    && Number(monitor.logical_width || 0) > 0
+    && Number(monitor.logical_height || 0) > 0
+}
+
+// hiddenDisplays names what the canvas leaves out, so a display never vanishes
+// without a trace. Mirrors: the TUI canvas strip.
+function hiddenDisplays(monitors) {
+  var summaries = monitors instanceof Array ? monitors : []
+  var off = []
+  var mirrored = []
+  var noSignal = []
+  var notes = displayNotes(summaries)
+
+  for (var i = 0; i < summaries.length; i++) {
+    var monitor = summaries[i] || {}
+    var name = String(monitor.name || "Display")
+    if (monitor.enabled === false) {
+      off.push(name)
+    } else if (mirrorTarget(monitor) !== "") {
+      mirrored.push(name + " → " + mirrorTarget(monitor))
+    } else if (notes[String(monitor.key || "")] === noUsableSignal) {
+      noSignal.push(name)
+    }
+  }
+
+  var parts = []
+  if (noSignal.length > 0) parts.push(noUsableSignal + ": " + noSignal.join(", "))
+  if (off.length > 0) parts.push("Off: " + off.join(", "))
+  if (mirrored.length > 0) parts.push("Mirrored: " + mirrored.join(", "))
+  return parts.join("   ")
+}
+
+// displayNotes turns the daemon's per-display health into short notes, keyed
+// by output key, for states a card cannot show by itself: a display that is on
+// but has no mode, and one the daemon runs below its saved settings. Older
+// daemons send no health, so a zero-size mode stands in for no_signal there.
+// Mirrors: the TUI card note.
+var noUsableSignal = "No usable signal"
+
+function displayNotes(monitors) {
+  var notes = {}
+  var summaries = monitors instanceof Array ? monitors : []
+  for (var i = 0; i < summaries.length; i++) {
+    var monitor = summaries[i] || {}
+    var key = String(monitor.key || "")
+    if (key === "" || monitor.enabled === false || mirrorTarget(monitor) !== "") continue
+    var modeless = monitor.health !== undefined
+      ? monitor.health === "no_signal"
+      : !(Number(monitor.width || 0) > 0 && Number(monitor.height || 0) > 0)
+    if (modeless) {
+      notes[key] = noUsableSignal
+    } else if (monitor.fallback && String(monitor.fallback.running || "") !== "") {
+      notes[key] = "Running " + String(monitor.fallback.running)
+    }
+  }
+  return notes
+}
+
+function layoutDisplays(monitors, screens) {
+  var summaries = monitors instanceof Array ? monitors : []
+  var enriched = summaries.filter(drawsOwnImage).map(function(monitor) {
+    return {
+      name: String(monitor.name || "Display"),
+      description: String(monitor.description || ""),
+      make: String(monitor.make || ""),
+      model: String(monitor.model || ""),
+      mode: String(monitor.mode || ""),
+      scale: Number(monitor.scale || 1),
+      internal: monitor.internal === true,
+      focused: monitor.focused === true,
+      x: Number(monitor.x || 0),
+      y: Number(monitor.y || 0),
+      width: Number(monitor.logical_width),
+      height: Number(monitor.logical_height)
+    }
+  })
+  return enriched.length > 0 ? enriched : (screens || [])
+}
+
+function displayModelLabel(display, compact) {
+  var monitor = display || {}
+  var makeModel = compact === true
+    ? String(monitor.model || "").trim()
+    : (String(monitor.make || "") + " " + String(monitor.model || "")).trim()
+  var label = makeModel || String(monitor.description || "").trim() || "Unknown display"
+  return monitor.internal === true ? "Internal · " + label : label
+}
+
+function displayDetailLabel(display) {
+  var monitor = display || {}
+  var mode = String(monitor.mode || "").trim()
+  var parts = []
+  if (mode !== "") parts.push(formatDisplayMode(mode))
+  var scale = Number(monitor.scale || 1)
+  if (!isFinite(scale) || scale <= 0) scale = 1
+  parts.push(String(Math.round(scale * 100) / 100) + "x")
+  return parts.join("  ")
+}
+
+function displayScaleLayoutLabel(display) {
+  var monitor = display || {}
+  var scale = Number(monitor.scale || 1)
+  if (!isFinite(scale) || scale <= 0) scale = 1
+  var logicalWidth = Math.max(1, Math.round(Number(monitor.width || 1)))
+  var logicalHeight = Math.max(1, Math.round(Number(monitor.height || 1)))
+  return formatScale(scale) + "x = " + logicalWidth + "x" + logicalHeight
+}
+
+function layoutBounds(displays) {
+  var list = displays || []
+  if (list.length === 0) return { x: 0, y: 0, width: 1, height: 1 }
+
+  var minX = Infinity
+  var minY = Infinity
+  var maxX = -Infinity
+  var maxY = -Infinity
+  for (var i = 0; i < list.length; i++) {
+    var display = list[i] || {}
+    var x = Number(display.x || 0)
+    var y = Number(display.y || 0)
+    var width = Math.max(1, Number(display.width || 1))
+    var height = Math.max(1, Number(display.height || 1))
+    minX = Math.min(minX, x)
+    minY = Math.min(minY, y)
+    maxX = Math.max(maxX, x + width)
+    maxY = Math.max(maxY, y + height)
+  }
+
+  return {
+    x: minX,
+    y: minY,
+    width: Math.max(1, maxX - minX),
+    height: Math.max(1, maxY - minY)
+  }
+}
+
+function layoutRect(display, bounds, canvasWidth, canvasHeight, padding) {
+  var item = display || {}
+  var area = bounds || layoutBounds([])
+  var inset = Math.max(0, Number(padding || 0))
+  var usableWidth = Math.max(1, Number(canvasWidth || 1) - inset * 2)
+  var usableHeight = Math.max(1, Number(canvasHeight || 1) - inset * 2)
+  var scale = Math.min(usableWidth / area.width, usableHeight / area.height)
+  var contentWidth = area.width * scale
+  var contentHeight = area.height * scale
+  var offsetX = inset + (usableWidth - contentWidth) / 2
+  var offsetY = inset + (usableHeight - contentHeight) / 2
+
+  return {
+    x: offsetX + (Number(item.x || 0) - area.x) * scale,
+    y: offsetY + (Number(item.y || 0) - area.y) * scale,
+    width: Math.max(1, Number(item.width || 1) * scale),
+    height: Math.max(1, Number(item.height || 1) * scale)
+  }
+}
+
+function clone(value) {
+  try {
+    return JSON.parse(JSON.stringify(value))
+  } catch (e) {
+    return null
+  }
+}
+
+function validEditorDocument(value) {
+  return !!value && typeof value === "object"
+    && value.profile && typeof value.profile === "object"
+    && value.profile.outputs instanceof Array
+    && value.displays instanceof Array
+}
+
+function editorMetadata(editorDisplays, key) {
+  var displays = editorDisplays instanceof Array ? editorDisplays : []
+  for (var i = 0; i < displays.length; i++) {
+    if (String((displays[i] || {}).key || "") === String(key || "")) return displays[i]
+  }
+  return {}
+}
+
+function outputLogicalSize(output) {
+  var item = output || {}
+  var scale = Number(item.scale || 1)
+  if (!isFinite(scale) || scale <= 0) scale = 1
+  var width = Math.max(1, Math.round(Number(item.width || 1) / scale))
+  var height = Math.max(1, Math.round(Number(item.height || 1) / scale))
+  if (Math.abs(Number(item.transform || 0)) % 2 === 1) {
+    var swap = width
+    width = height
+    height = swap
+  }
+  return { width: width, height: height }
+}
+
+function outputMode(output) {
+  var item = output || {}
+  var mode = String(item.mode || "").trim()
+  if (mode !== "") return mode
+  var width = Number(item.width || 0)
+  var height = Number(item.height || 0)
+  var refresh = Number(item.refresh || 0)
+  if (width <= 0 || height <= 0) return "preferred"
+  return width + "x" + height + (refresh > 0 ? "@" + refresh.toFixed(2) + "Hz" : "")
+}
+
+function profileLayoutDisplays(profile, editorDisplays, notes) {
+  var outputs = profile && profile.outputs instanceof Array ? profile.outputs : []
+  var health = notes || {}
+  var result = []
+  for (var i = 0; i < outputs.length; i++) {
+    var output = outputs[i] || {}
+    if (output.enabled === false || mirrorTarget(output) !== "") continue
+    // A display that is on but shows nothing gets a named row, not a card.
+    if (health[String(output.key || "")] === noUsableSignal) continue
+    var logical = outputLogicalSize(output)
+    var metadata = editorMetadata(editorDisplays, output.key)
+    var connected = Object.keys(metadata).length > 0
+    result.push({
+      key: String(output.key || ""),
+      name: String(output.name || "Display"),
+      description: String(output.description || ""),
+      make: String(output.make || ""),
+      model: String(output.model || ""),
+      serial: String(output.serial || ""),
+      mode: outputMode(output),
+      scale: Number(output.scale || 1),
+      internal: /^(eDP|LVDS|DSI)-/i.test(String(output.name || "")),
+      focused: metadata.focused === true,
+      connected: connected,
+      x: Number(output.x || 0),
+      y: Number(output.y || 0),
+      width: logical.width,
+      height: logical.height
+    })
+  }
+  return result
+}
+
+function nonSpatialDisplays(profile, editorDisplays, markDisconnected, notes) {
+  var outputs = profile && profile.outputs instanceof Array ? profile.outputs : []
+  var health = notes || {}
+  var result = []
+  for (var i = 0; i < outputs.length; i++) {
+    var output = outputs[i] || {}
+    var mirror = mirrorTarget(output)
+    var modeless = health[String(output.key || "")] === noUsableSignal
+    if (output.enabled !== false && mirror === "" && !modeless) continue
+    var connected = Object.keys(editorMetadata(editorDisplays, output.key)).length > 0
+    var state = markDisconnected && !connected ? "Not connected"
+      : (output.enabled === false ? "Off"
+        : (mirror !== "" ? "Mirrors " + outputName(profile, mirror) : noUsableSignal))
+    result.push({ key: String(output.key || ""), name: String(output.name || "Display"), state: state })
+  }
+  return result
+}
+
+function monitorHardwareInfo(output, metadata) {
+  var item = output || {}, meta = metadata || {}
+  var modes = meta.available_modes instanceof Array ? meta.available_modes : []
+  var bestWidth = 0, bestHeight = 0
+  for (var i = 0; i < modes.length; i++) {
+    var match = String(modes[i]).match(/^(\d+)x(\d+)(?:@|$)/)
+    if (!match) continue
+    var w = Number(match[1]), h = Number(match[2])
+    if (w * h > bestWidth * bestHeight) { bestWidth = w; bestHeight = h }
+  }
+  var width = Number(meta.physical_width || 0), height = Number(meta.physical_height || 0)
+  var validSize = isFinite(width) && isFinite(height) && width > 0 && height > 0
+  var diagonal = validSize ? Math.sqrt(width * width + height * height) / 25.4 : 0
+  return {
+    basic: [
+      { label: "Connector", value: String(item.name || "Not reported") },
+      { label: "Model", value: displayModelLabel(item, false) },
+      { label: "Max resolution", value: bestWidth > 0 ? bestWidth + "x" + bestHeight : "Not reported" }
+    ],
+    details: [
+      { label: "Panel size", value: validSize ? Math.round(diagonal) + '" (' + width + "x" + height + "mm)" : "Not reported" },
+      { label: "Type", value: displayType(meta, item) },
+      { label: "Serial", value: String(item.serial || "").trim() || "Not reported" }
+    ]
+  }
+}
+
+function formatDisplayMode(mode) {
+  mode = String(mode || "")
+  var match = mode.match(/^(\d+)x(\d+)(?:@([\d.]+)(?:Hz)?)?$/i)
+  if (match) {
+    mode = match[1] + "x" + match[2]
+      + (match[3] ? "@" + Number(Number(match[3]).toFixed(1)) + "Hz" : "")
+  }
+  return mode
+}
+
+// Shared presentation for draft canvas cards and fresh live Identify snapshots.
+function displaySummary(output, metadata, plan) {
+  var item = output || {}, info = monitorHardwareInfo(item, metadata)
+  var mode = formatDisplayMode(outputMode(item))
+  var scale = Number(item.scale || 1)
+  if (!isFinite(scale) || scale <= 0) scale = 1
+  var workspaces = workspaceText(plan, item.key)
+  var panelSize = info.details[0].value
+  var sizeSuffix = panelSize === "Not reported" ? "" : " " + panelSize.split(" ")[0]
+  return {
+    connector: String(item.name || "Display"),
+    model: info.basic[1].value + sizeSuffix,
+    mode: mode,
+    placement: "Scale " + Number(scale.toFixed(2)) + "x  Position "
+      + Number(item.x || 0) + "," + Number(item.y || 0),
+    workspaces: workspaces
+  }
+}
+
+function identifyTargets(editor, screens, selectedKey) {
+  var doc = editor || {}, profile = doc.profile || {}, outputs = profile.outputs || []
+  var result = []
+  for (var i = 0; i < outputs.length; i++) {
+    var out = outputs[i], meta = editorMetadata(doc.displays, out.key)
+    if (selectedKey && out.key !== selectedKey) continue
+    if (Object.keys(meta).length === 0 || out.enabled === false || mirrorTarget(out) !== ""
+        || meta.dpms !== true || Number(out.width) <= 0 || Number(out.height) <= 0) continue
+    for (var j = 0; j < screens.length; j++) {
+      var screen = screens[j]
+      if (String(screen.name) !== String(out.name)) continue
+      if (out.serial && screen.serialNumber && String(out.serial) !== String(screen.serialNumber)) continue
+      result.push({ screen: screen, summary: displaySummary(out, meta, doc.workspace_plan) })
+      break
+    }
+  }
+  return result
+}
+
+function hiddenProfileDisplays(profile) {
+  var outputs = profile && profile.outputs instanceof Array ? profile.outputs : []
+  var off = []
+  var mirrored = []
+  for (var i = 0; i < outputs.length; i++) {
+    var output = outputs[i] || {}
+    var name = String(output.name || "Display")
+    if (output.enabled === false) off.push(name)
+    else if (mirrorTarget(output) !== "") mirrored.push(name + " → " + outputName(profile, mirrorTarget(output)))
+  }
+  var parts = []
+  if (off.length) parts.push("Off: " + off.join(", "))
+  if (mirrored.length) parts.push("Mirrored: " + mirrored.join(", "))
+  return parts.join("   ")
+}
+
+function outputByKey(profile, key) {
+  var outputs = profile && profile.outputs instanceof Array ? profile.outputs : []
+  for (var i = 0; i < outputs.length; i++) {
+    if (String((outputs[i] || {}).key || "") === String(key || "")) return outputs[i]
+  }
+  return null
+}
+
+function wrapIndex(index, length) {
+  var count = Math.max(0, Number(length || 0))
+  if (count === 0) return 0
+  var value = Number(index || 0) % count
+  return value < 0 ? value + count : value
+}
+
+function adjacentOutputKey(profile, selectedKey, delta) {
+  var outputs = profile && profile.outputs instanceof Array ? profile.outputs : []
+  if (outputs.length === 0) return ""
+  var current = 0
+  for (var i = 0; i < outputs.length; i++) {
+    if (String((outputs[i] || {}).key || "") === String(selectedKey || "")) {
+      current = i
+      break
+    }
+  }
+  return String((outputs[wrapIndex(current + Number(delta || 0), outputs.length)] || {}).key || "")
+}
+
+function adjacentProfileName(profiles, selectedName, delta) {
+  var items = profiles instanceof Array ? profiles : []
+  if (items.length === 0) return ""
+  var current = 0
+  for (var i = 0; i < items.length; i++) {
+    if (String((items[i] || {}).name || "") === String(selectedName || "")) {
+      current = i
+      break
+    }
+  }
+  return String((items[wrapIndex(current + Number(delta || 0), items.length)] || {}).name || "")
+}
+
+// Pill rows follow maitri's ButtonGroup: arrows stop at the first and last
+// choice instead of wrapping. Dropdown fields keep cycleOptionValue.
+function stepOptionValue(options, currentValue, delta) {
+  var items = options instanceof Array ? options : []
+  if (items.length === 0) return String(currentValue || "")
+  var current = -1
+  for (var i = 0; i < items.length; i++) {
+    var value = items[i] && typeof items[i] === "object" ? items[i].value : items[i]
+    if (String(value) === String(currentValue || "")) {
+      current = i
+      break
+    }
+  }
+  if (current < 0) return String(currentValue || "")
+  var next = Math.max(0, Math.min(items.length - 1, current + Number(delta || 0)))
+  var selected = items[next]
+  return String(selected && typeof selected === "object" ? selected.value : selected)
+}
+
+function cycleOptionValue(options, currentValue, delta) {
+  var items = options instanceof Array ? options : []
+  if (items.length === 0) return String(currentValue || "")
+  var current = 0
+  for (var i = 0; i < items.length; i++) {
+    var value = items[i] && typeof items[i] === "object" ? items[i].value : items[i]
+    if (String(value) === String(currentValue || "")) {
+      current = i
+      break
+    }
+  }
+  var selected = items[wrapIndex(current + Number(delta || 0), items.length)]
+  return String(selected && typeof selected === "object" ? selected.value : selected)
+}
+
+// Match the TUI's Alt+arrow placement: use the nearest enabled, non-mirrored
+// output as the anchor, put the selected output flush beside it, and center it
+// on the other axis.
+// The display a selected output snaps beside: the nearest other enabled,
+// unmirrored display by centre distance. Shared by keyboard snapping, the
+// inspector's placement buttons and their caption, so all three agree.
+function nearestSnapAnchor(profile, selectedKey) {
+  var outputs = profile && profile.outputs instanceof Array ? profile.outputs : []
+  var selectedIndex = -1
+  for (var i = 0; i < outputs.length; i++) {
+    if (String((outputs[i] || {}).key || "") === String(selectedKey || "")) {
+      selectedIndex = i
+      break
+    }
+  }
+  if (selectedIndex < 0) return null
+
+  var selected = outputs[selectedIndex] || {}
+  if (selected.enabled === false || mirrorTarget(selected) !== "") return null
+  var selectedSize = outputLogicalSize(selected)
+  var selectedCenterX = Number(selected.x || 0) * 2 + selectedSize.width
+  var selectedCenterY = Number(selected.y || 0) * 2 + selectedSize.height
+  var anchor = null
+  var nearestDistance = Infinity
+
+  for (var j = 0; j < outputs.length; j++) {
+    var candidate = outputs[j] || {}
+    if (j === selectedIndex || candidate.enabled === false || mirrorTarget(candidate) !== "") continue
+    var candidateSize = outputLogicalSize(candidate)
+    var dx = selectedCenterX - (Number(candidate.x || 0) * 2 + candidateSize.width)
+    var dy = selectedCenterY - (Number(candidate.y || 0) * 2 + candidateSize.height)
+    var distance = dx * dx + dy * dy
+    if (distance < nearestDistance) {
+      nearestDistance = distance
+      anchor = { output: candidate, size: candidateSize }
+    }
+  }
+  return anchor ? { output: anchor.output, size: anchor.size, selectedSize: selectedSize } : null
+}
+
+function snapAnchorName(profile, selectedKey) {
+  var anchor = nearestSnapAnchor(profile, selectedKey)
+  return anchor ? String(anchor.output.name || "") : ""
+}
+
+function snapOutputPosition(profile, selectedKey, direction) {
+  var anchor = nearestSnapAnchor(profile, selectedKey)
+  if (!anchor) return null
+  var selectedSize = anchor.selectedSize
+
+  var anchorX = Number(anchor.output.x || 0)
+  var anchorY = Number(anchor.output.y || 0)
+  if (direction === "left") {
+    return {
+      x: anchorX - selectedSize.width,
+      y: anchorY + Math.trunc((anchor.size.height - selectedSize.height) / 2)
+    }
+  }
+  if (direction === "right") {
+    return {
+      x: anchorX + anchor.size.width,
+      y: anchorY + Math.trunc((anchor.size.height - selectedSize.height) / 2)
+    }
+  }
+  if (direction === "up") {
+    return {
+      x: anchorX + Math.trunc((anchor.size.width - selectedSize.width) / 2),
+      y: anchorY - selectedSize.height
+    }
+  }
+  if (direction === "down") {
+    return {
+      x: anchorX + Math.trunc((anchor.size.width - selectedSize.width) / 2),
+      y: anchorY + anchor.size.height
+    }
+  }
+  return null
+}
+
+function outputName(profile, key) {
+  var output = outputByKey(profile, key)
+  return output ? String(output.name || key || "Display") : String(key || "Display")
+}
+
+function outputDisplayLabel(profile, key) {
+  var output = outputByKey(profile, key)
+  if (!output) return String(key || "Display")
+  var makeModel = (String(output.make || "") + " " + String(output.model || "")).trim()
+  return makeModel || String(output.description || "").trim() || String(output.name || key || "Display")
+}
+
+// Profile JSON uses explicit neutral values for some Hyprland defaults and
+// zero as hyprmoncfg's "do not emit an EDID override" sentinel. Keeping those
+// values here gives every front-end field the same reset semantics.
+var outputFieldDefaults = {
+  enabled: true,
+  mode: "preferred",
+  scale: 1,
+  vrr: 0,
+  transform: 0,
+  x: 0,
+  y: 0,
+  mirror_of: "",
+  bitdepth: 8,
+  cm: "",
+  sdr_brightness: 0,
+  sdr_saturation: 0,
+  sdr_min_luminance: 0,
+  sdr_max_luminance: 0,
+  sdr_eotf: "",
+  min_luminance: 0,
+  max_luminance: 0,
+  max_avg_luminance: 0,
+  supports_wide_color: 0,
+  supports_hdr: 0,
+  icc: ""
+}
+
+function outputFieldValue(profile, key, field) {
+  var edit = outputFieldResetEdit(profile, key, field)
+  if (!edit) return undefined
+  var value = edit[field]
+  if (field === "cm") return value || "srgb"
+  if (field === "sdr_eotf") return value || "default"
+  if (field === "sdr_brightness" || field === "sdr_saturation") return value || 1
+  return value
+}
+
+function outputFieldChanged(profile, defaults, key, field) {
+  if (!outputByKey(defaults, key)) return false
+  return outputFieldValue(profile, key, field) !== outputFieldValue(defaults, key, field)
+}
+
+function outputFieldResetEdit(defaults, key, field) {
+  if (!Object.prototype.hasOwnProperty.call(outputFieldDefaults, field)) return null
+  var output = outputByKey(defaults, key)
+  if (!output) return null
+  var fallback = outputFieldDefaults[field]
+  var value = output[field] === undefined || output[field] === null ? fallback : output[field]
+  if (field === "mode") value = outputMode(output)
+  else if (typeof fallback === "boolean") value = value !== false
+  else if (typeof fallback === "number") value = isFinite(Number(value)) ? Number(value) : fallback
+  else value = String(value)
+  // The editor accepts explicit signal depths, not the wire format's zero.
+  if (field === "bitdepth" && value === 0) value = 8
+  var edit = {}
+  edit[field] = value
+  return edit
+}
+
+function clampBrightness(value) {
+  var number = Number(value)
+  if (!isFinite(number)) return 1
+  return Math.max(1, Math.min(100, Math.round(number)))
+}
+
+// Brightness is live hardware state, not profile state. Resolve the selected
+// profile output back to a connector only while that output is connected and
+// enabled, then give the panel a friendly label that cannot be mistaken for a
+// global brightness control.
+function brightnessTarget(profile, key, editorDisplays) {
+  var output = outputByKey(profile, key)
+  var metadata = editorMetadata(editorDisplays, key)
+  if (!output || output.enabled === false || Object.keys(metadata).length === 0) {
+    return { connector: "", label: "" }
+  }
+
+  var connector = String(output.name || "").trim()
+  if (connector === "") return { connector: "", label: "" }
+  var makeModel = (String(output.make || "") + " " + String(output.model || "")).trim()
+  var label = makeModel || String(output.description || "").trim() || connector
+  return { connector: connector, label: label }
+}
+
+function initialOutputKey(profile, editorDisplays) {
+  var displays = editorDisplays instanceof Array ? editorDisplays : []
+  for (var i = 0; i < displays.length; i++) {
+    if (displays[i] && displays[i].focused) return String(displays[i].key || "")
+  }
+  var outputs = profile && profile.outputs instanceof Array ? profile.outputs : []
+  for (var j = 0; j < outputs.length; j++) {
+    if (outputs[j] && outputs[j].enabled !== false) return String(outputs[j].key || "")
+  }
+  return outputs.length ? String((outputs[0] || {}).key || "") : ""
+}
+
+function modeOptions(editorDisplays, key) {
+  var metadata = editorMetadata(editorDisplays, key)
+  var modes = metadata.available_modes instanceof Array ? metadata.available_modes : []
+  return modes.map(function(mode) {
+    var value = String(mode || "")
+    return { value: value, label: formatDisplayMode(value) }
+  })
+}
+
+function formatScale(value) {
+  var number = Number(value)
+  if (!isFinite(number) || number <= 0) number = 1
+  return String(Math.round(number * 100000) / 100000)
+}
+
+// Compact scale labels: at most two decimals, trailing zeros trimmed
+// ("1.33", "1.07", "2"). When two scales in the same list would share a
+// label, both keep their exact form so no two choices read alike. The value
+// stored and applied is always the exact scale; only the label is compact.
+function compactScaleLabels(values) {
+  var exact = [], compact = [], counts = {}
+  for (var i = 0; i < values.length; i++) {
+    exact.push(formatScale(values[i]))
+    var c = String(Math.round(Number(values[i]) * 100) / 100)
+    compact.push(c)
+    counts[c] = (counts[c] || 0) + 1
+  }
+  var labels = {}
+  for (var j = 0; j < values.length; j++)
+    labels[exact[j]] = (counts[compact[j]] > 1 ? exact[j] : compact[j]) + "x"
+  return labels
+}
+
+// Every sharp scale hyprmoncfg reports for the display (editor_state
+// scale_options), plus the current scale if it is not one of them; exact
+// values in ascending order, compact labels.
+function scaleOptions(editorDisplays, key, current) {
+  var metadata = editorMetadata(editorDisplays, key)
+  var values = metadata.scale_options instanceof Array ? metadata.scale_options.slice() : []
+  var normalizedCurrent = formatScale(current)
+  var found = false
+  for (var i = 0; i < values.length; i++) {
+    if (formatScale(values[i]) === normalizedCurrent) found = true
+  }
+  if (!found) values.push(Number(current || 1))
+  values.sort(function(a, b) { return Number(a) - Number(b) })
+  var labels = compactScaleLabels(values)
+  return values.map(function(value) {
+    var formatted = formatScale(value)
+    return { value: formatted, label: labels[formatted] }
+  })
+}
+
+// maitri's Display panel presets plus 1.5; 4 joins only on 5K-class modes
+// where hyprmoncfg reports it as sharp.
+var scalePresetValues = [1, 1.25, 1.5, 1.6, 2, 3]
+
+// The preset pills, mapped the way maitri's availableScales/cleanScale map
+// them: each preset becomes the smallest sharp scale at or above it (from the
+// backend's list), presets landing on the same sharp scale collapse to the one
+// closest to it, and preset order is kept. The current scale, if it is not
+// one of the pills, is added in value order as its own pill.
+function scalePresets(editorDisplays, key, current, modeWidth) {
+  var metadata = editorMetadata(editorDisplays, key)
+  var sharp = (metadata.scale_options instanceof Array ? metadata.scale_options : [])
+    .map(Number).filter(function(v) { return isFinite(v) && v > 0 })
+    .sort(function(a, b) { return a - b })
+  var presets = scalePresetValues.slice()
+  var hasFour = sharp.some(function(v) { return formatScale(v) === "4" })
+  if (hasFour && Number(modeWidth || 0) >= 5120) presets.push(4)
+
+  var byEffective = {}
+  for (var i = 0; i < presets.length; i++) {
+    var effective = null
+    for (var j = 0; j < sharp.length; j++) {
+      if (sharp[j] >= presets[i] - 1e-9) { effective = sharp[j]; break }
+    }
+    if (effective === null) continue
+    var keyText = formatScale(effective)
+    var distance = Math.abs(presets[i] - effective)
+    if (!byEffective[keyText] || distance < byEffective[keyText].distance)
+      byEffective[keyText] = { value: keyText, index: i, distance: distance }
+  }
+  var pills = Object.keys(byEffective).map(function(k) { return byEffective[k] })
+    .sort(function(a, b) { return a.index - b.index })
+    .map(function(c) { return c.value })
+
+  var currentText = formatScale(current)
+  if (pills.indexOf(currentText) < 0) {
+    var at = 0
+    while (at < pills.length && Number(pills[at]) < Number(currentText)) at++
+    pills.splice(at, 0, currentText)
+  }
+  var labels = compactScaleLabels(scaleOptions(editorDisplays, key, current).map(function(o) { return o.value }))
+  return pills.map(function(value) { return { value: value, label: labels[value] || value + "x" } })
+}
+
+function mirrorOptions(profile, selectedKey) {
+  var options = [{ value: "", label: "None" }]
+  var outputs = profile && profile.outputs instanceof Array ? profile.outputs : []
+  for (var i = 0; i < outputs.length; i++) {
+    var output = outputs[i] || {}
+    if (String(output.key || "") === String(selectedKey || "") || output.enabled === false) continue
+    options.push({ value: String(output.key || ""), label: String(output.name || "Display") })
+  }
+  return options
+}
+
+function outputOptions(profile) {
+  var outputs = profile && profile.outputs instanceof Array ? profile.outputs : []
+  return outputs.map(function(output) {
+    var item = output || {}
+    return {
+      value: String(item.key || ""),
+      label: String(item.name || "Display") + (item.enabled === false ? " · off" : "")
+    }
+  })
+}
+
+function profileOptions(document) {
+  var profiles = document && document.profiles instanceof Array ? document.profiles : []
+  var options = []
+  for (var i = 0; i < profiles.length; i++) {
+    var profile = profiles[i] || {}
+    if (Number(profile.connected_enabled_outputs || 0) <= 0) continue
+    var suffix = profile.active ? " · active" : (profile.recommended ? " · best match" : "")
+    options.push({ value: String(profile.name || ""), label: String(profile.name || "Profile") + suffix })
+  }
+  return options
+}
+
+function savedProfileByName(editorDocument, name) {
+  var profiles = editorDocument && editorDocument.profiles instanceof Array ? editorDocument.profiles : []
+  for (var i = 0; i < profiles.length; i++) {
+    if (String((profiles[i] || {}).name || "") === String(name || "")) return profiles[i]
+  }
+  return null
+}
+
+function profileSummaryByName(document, name) {
+  var profiles = document && document.profiles instanceof Array ? document.profiles : []
+  for (var i = 0; i < profiles.length; i++) {
+    if (String((profiles[i] || {}).name || "") === String(name || "")) return profiles[i]
+  }
+  return null
+}
+
+// The daemon owns display matching. This helper only picks the exact match it
+// already identified so the panel can decide whether the current hardware set
+// needs its own profile.
+function exactDisplayProfile(document) {
+  var profiles = document && document.profiles instanceof Array ? document.profiles : []
+  var active = null
+  var first = null
+  for (var i = 0; i < profiles.length; i++) {
+    var item = profiles[i] || {}
+    if (item.exact_display_match !== true) continue
+    if (item.recommended === true) return item
+    if (item.active === true) active = item
+    if (!first) first = item
+  }
+  return active || first
+}
+
+function profileWorkspacePlan(editorDocument, name) {
+  var plans = editorDocument && editorDocument.profile_workspace_plans
+  if (!plans || typeof plans !== "object") return []
+  var plan = plans[String(name || "")]
+  return plan instanceof Array ? plan : []
+}
+
+function displayType(metadata, output) {
+  var live = metadata || {}
+  var saved = output || {}
+  return live.internal === true || /^(eDP|LVDS|DSI)-/i.test(String(saved.name || ""))
+    ? "Internal display"
+    : "External display"
+}
+
+function onOff(value) {
+  return value === true ? "on" : "off"
+}
+
+function profileWorkspaceSummary(profile) {
+  var settings = (profile || {}).workspaces || {}
+  if (!settings.enabled) return "Disabled"
+  var strategy = String(settings.strategy || "manual")
+  var maximum = Number(settings.max_workspaces || 0)
+  return strategy.charAt(0).toUpperCase() + strategy.slice(1)
+    + (maximum > 0 ? " · " + maximum + " workspaces" : "")
+}
+
+// Prefer a proven live match. If identical saved layouts make it ambiguous,
+// fall back to the daemon's confirmed choice, never a preview or stale name.
+function currentProfileName(document) {
+  var value = document || {}
+  var daemon = value.daemon || {}
+  if (daemon.unmanaged || daemon.running === false || daemon.preview) return ""
+  var active = String(((value.active_profile || {}).name) || "").trim()
+  if (active !== "") return active
+  var override = String(daemon.profile_override || "").trim()
+  return profileSummaryByName(value, override) ? override : ""
+}
+
+function profileIsCurrent(summary, document) {
+  var name = String(((summary || {}).name) || "").trim()
+  return name !== "" && name === currentProfileName(document)
+}
+
+function profileMatchLabel(summary, current) {
+  var item = summary || {}
+  var label = (current === undefined ? item.active : current) ? "Active"
+    : (item.recommended ? "Recommended"
+      : (Number(item.match_score || 0) > 0 ? "Partial match" : "No match"))
+  return Number(item.match_score || 0) > 0 ? label + " · score " + Number(item.match_score) : label
+}
+
+function matchReasonLabel(kind) {
+  switch (String(kind || "")) {
+    case "connected": return "connected"
+    case "connected_kept_off": return "connected, kept off"
+    case "not_connected": return "not connected"
+    case "not_connected_kept_off": return "not connected, kept off"
+    case "connected_unknown": return "connected, not in profile"
+    case "lid_closed_kept_off": return "built-in, kept off with the lid closed"
+    case "lid_closed_on": return "built-in, turned off by the closed lid"
+    default: return ""
+  }
+}
+
+// automaticSelectionNote explains the "Automatically use the best profile"
+// toggle. Turning it off pins the saved profile on screen. When none matches,
+// it previews the recommended profile instead, and says so; with nothing to
+// pin, it says why the toggle is unavailable. Mirrors panel #20.
+function automaticSelectionNote(automatic, pending, activeProfile, recommendedProfile) {
+  if (pending) return "Updating profile selection mode…"
+  if (automatic && String(activeProfile || "") === "") {
+    var recommended = String(recommendedProfile || "")
+    if (recommended !== "") return "Turning this off previews " + recommended + " and keeps it if you confirm"
+    return "Save a profile for these displays to turn this off"
+  }
+  return "Matches your connected displays to your saved profiles"
+}
+
+// automaticSelectionCanToggle reports whether the toggle has something to do.
+function automaticSelectionCanToggle(automatic, activeProfile, recommendedProfile) {
+  return !automatic || String(activeProfile || "") !== "" || String(recommendedProfile || "") !== ""
+}
+
+function profileMatchReasonRows(summary) {
+  var item = summary || {}
+  var reasons = item.match_reasons instanceof Array ? item.match_reasons : []
+  return reasons.map(function(reason) {
+    var count = Number((reason || {}).count || 0)
+    var points = Number((reason || {}).points || 0)
+    var score = Number(item.match_score || 0)
+    var arithmetic = score > 0 ? (points > 0 ? "+" : "") + points + "   " : ""
+    return {
+      value: arithmetic + count + (count === 1 ? " display " : " displays ") + matchReasonLabel(reason.kind),
+      positive: points > 0
+    }
+  })
+}
+
+function profileHiddenDisplayRows(profile) {
+  var p = profile || {}
+  var outputs = p.outputs instanceof Array ? p.outputs : []
+  var rows = []
+  var keptOff = []
+  var mirrors = []
+  for (var i = 0; i < outputs.length; i++) {
+    var output = outputs[i] || {}
+    if (output.enabled === false) keptOff.push(outputDisplayLabel(p, output.key))
+    else if (mirrorTarget(output) !== "") {
+      mirrors.push(outputDisplayLabel(p, output.key) + " → " + outputDisplayLabel(p, mirrorTarget(output)))
+    }
+  }
+  for (var off = 0; off < keptOff.length; off++)
+    rows.push({ label: off === 0 ? "Kept off" : "", value: keptOff[off] })
+  for (var mirror = 0; mirror < mirrors.length; mirror++)
+    rows.push({ label: mirror === 0 ? "Mirrors" : "", value: mirrors[mirror] })
+  return rows
+}
+
+function profileUpdatedLabel(value) {
+  var date = new Date(String(value || ""))
+  if (!isFinite(date.getTime())) return "—"
+  function pad(number) { return Number(number) < 10 ? "0" + Number(number) : String(number) }
+  return date.getFullYear() + "-" + pad(date.getMonth() + 1) + "-" + pad(date.getDate())
+    + " " + pad(date.getHours()) + ":" + pad(date.getMinutes())
+}
+
+function workspaceRuleNumber(value) {
+  var text = String(value || "").trim()
+  return /^[1-9][0-9]*$/.test(text) ? Number(text) : 0
+}
+
+function sortedManualWorkspaceRules(rules) {
+  var items = rules instanceof Array ? clone(rules) || [] : []
+  items.sort(function(left, right) {
+    var leftNumber = workspaceRuleNumber((left || {}).workspace)
+    var rightNumber = workspaceRuleNumber((right || {}).workspace)
+    if (leftNumber > 0 && rightNumber > 0) return leftNumber - rightNumber
+    if (leftNumber > 0) return -1
+    if (rightNumber > 0) return 1
+    var leftName = String((left || {}).workspace || "")
+    var rightName = String((right || {}).workspace || "")
+    return leftName < rightName ? -1 : (leftName > rightName ? 1 : 0)
+  })
+  return items
+}
+
+function manualWorkspaceTargetKeys(profile) {
+  var settings = (profile || {}).workspaces || {}
+  var order = settings.monitor_order instanceof Array ? settings.monitor_order : []
+  var outputs = profile && profile.outputs instanceof Array ? profile.outputs : []
+  var keys = []
+  var seen = ({})
+
+  function add(key) {
+    var value = String(key || "")
+    var output = outputByKey(profile, value)
+    if (value === "" || seen["key:" + value] || !output
+        || output.enabled === false || mirrorTarget(output) !== "") return
+    keys.push(value)
+    seen["key:" + value] = true
+  }
+
+  for (var i = 0; i < order.length; i++) add(order[i])
+  for (var j = 0; j < outputs.length; j++) add((outputs[j] || {}).key)
+  return keys
+}
+
+function normalizeManualWorkspaceDefaults(rules) {
+  var items = sortedManualWorkspaceRules(rules)
+  var seen = ({})
+  for (var i = 0; i < items.length; i++) {
+    var rule = items[i] || {}
+    var target = String(rule.output_key || rule.output_name || "")
+    rule.default = false
+    rule.persistent = !!rule.persistent
+    if (target !== "" && !seen["key:" + target]) {
+      rule.default = true
+      rule.persistent = true
+      seen["key:" + target] = true
+    }
+    items[i] = rule
+  }
+  return items
+}
+
+function manualWorkspaceRulesFromPlan(plan, profile) {
+  var rows = plan instanceof Array ? plan : []
+  var persistAll = !!((profile || {}).workspaces || {}).persist_all
+  var rules = []
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i] || {}
+    var key = String(row.output_key || "")
+    var workspaces = row.workspaces instanceof Array ? row.workspaces : []
+    for (var j = 0; j < workspaces.length; j++) {
+      rules.push({
+        workspace: String(workspaces[j] || ""),
+        output_key: key,
+        output_name: outputName(profile, key),
+        persistent: persistAll
+      })
+    }
+  }
+  if (rules.length > 0) return normalizeManualWorkspaceDefaults(rules)
+
+  // A disabled planner has no daemon plan to materialize. Recreate the plan
+  // from its saved generated settings so switching to manual still starts
+  // from what the user configured rather than an empty list.
+  var settings = (profile || {}).workspaces || {}
+  var keys = manualWorkspaceTargetKeys(profile)
+  var maximum = Math.max(1, Math.floor(Number(settings.max_workspaces || 9)))
+  var groupSize = Math.max(1, Number(settings.group_size || 3))
+  var interleave = String(settings.strategy || "") === "interleave"
+  for (var workspace = 1; workspace <= maximum && keys.length > 0; workspace++) {
+    var targetIndex = interleave
+      ? (workspace - 1) % keys.length
+      : Math.floor((workspace - 1) / groupSize) % keys.length
+    var target = keys[targetIndex]
+    rules.push({
+      workspace: String(workspace),
+      output_key: target,
+      output_name: outputName(profile, target),
+      persistent: persistAll
+    })
+  }
+  return normalizeManualWorkspaceDefaults(rules)
+}
+
+function manualWorkspaceRows(profile) {
+  var settings = (profile || {}).workspaces || {}
+  var rules = sortedManualWorkspaceRules(settings.rules)
+  return rules.map(function(rule) {
+    var item = rule || {}
+    var key = String(item.output_key || "")
+    var label = key !== "" ? outputDisplayLabel(profile, key) : String(item.output_name || "Display")
+    return {
+      workspace: String(item.workspace || "?"),
+      output_key: key,
+      display_name: label
+    }
+  })
+}
+
+function manualWorkspaceCount(settings) {
+  var value = settings || {}
+  var rules = value.rules instanceof Array ? value.rules : []
+  var maximum = 0
+  for (var i = 0; i < rules.length; i++) {
+    maximum = Math.max(maximum, workspaceRuleNumber((rules[i] || {}).workspace))
+  }
+  return maximum > 0 ? maximum : Math.max(1, Number(value.max_workspaces || 9))
+}
+
+function resizeManualWorkspaceRules(rules, profile, maximum) {
+  var limit = Math.max(1, Math.floor(Number(maximum || 1)))
+  var current = sortedManualWorkspaceRules(rules)
+  var numbered = ({})
+  var named = []
+  for (var i = 0; i < current.length; i++) {
+    var number = workspaceRuleNumber((current[i] || {}).workspace)
+    if (number > 0 && number <= limit) numbered[String(number)] = current[i]
+    else if (number === 0) named.push(current[i])
+  }
+
+  var keys = manualWorkspaceTargetKeys(profile)
+  var resized = []
+  for (var workspace = 1; workspace <= limit; workspace++) {
+    var rule = numbered[String(workspace)] || { workspace: String(workspace) }
+    if (!rule.output_key && keys.length > 0) {
+      rule.output_key = keys[0]
+      rule.output_name = outputName(profile, keys[0])
+    }
+    resized.push(rule)
+  }
+  return normalizeManualWorkspaceDefaults(resized.concat(named))
+}
+
+function cycleManualWorkspaceRule(rules, profile, rowIndex, delta) {
+  var items = sortedManualWorkspaceRules(rules)
+  var index = Number(rowIndex || 0)
+  var keys = manualWorkspaceTargetKeys(profile)
+  if (index < 0 || index >= items.length || keys.length === 0) return items
+
+  var rule = items[index] || {}
+  var current = keys.indexOf(String(rule.output_key || ""))
+  if (current < 0) current = Number(delta || 0) < 0 ? 0 : -1
+  var target = keys[wrapIndex(current + Number(delta || 0), keys.length)]
+  rule.output_key = target
+  rule.output_name = outputName(profile, target)
+  items[index] = rule
+  return normalizeManualWorkspaceDefaults(items)
+}
+
+// Off is a presentation of `enabled: false`, not a stored strategy: the saved
+// strategy and plan stay intact so choosing a strategy again restores them.
+function workspaceStrategyOptions() {
+  return [
+    { value: "off", label: "Off" },
+    { value: "manual", label: "Manual" },
+    { value: "sequential", label: "Sequential" },
+    { value: "interleave", label: "Interleaved" }
+  ]
+}
+
+function workspaceOffMessage() {
+  return "Off: hyprmoncfg writes no workspace rules."
+}
+
+function workspaceStrategyChoice(settings) {
+  var workspaces = settings || {}
+  if (!workspaces.enabled) return "off"
+  return String(workspaces.strategy || "manual")
+}
+
+function workspaceStrategyChanges(settings, choice) {
+  var next = String(choice || "manual")
+  if (next === "off") return { enabled: false }
+  var changes = { strategy: next }
+  if (!(settings || {}).enabled) changes.enabled = true
+  return changes
+}
+
+function workspacePlanRows(plan, profile) {
+  var rows = plan instanceof Array ? plan : []
+  return rows.map(function(row) {
+    var item = row || {}
+    var workspaces = item.workspaces instanceof Array ? item.workspaces.join(", ") : ""
+    return {
+      key: String(item.output_key || ""),
+      name: profile ? outputDisplayLabel(profile, item.output_key) : String(item.output_name || "Display"),
+      workspaces: workspaces || "—"
+    }
+  })
+}
+
+function enabledOutputCount(profile) {
+  var outputs = profile && profile.outputs instanceof Array ? profile.outputs : []
+  var count = 0
+  for (var i = 0; i < outputs.length; i++) if (outputs[i] && outputs[i].enabled !== false) count++
+  return count
+}
+
+function layoutMetrics(bounds, canvasWidth, canvasHeight, padding) {
+  var area = bounds || layoutBounds([])
+  var inset = Math.max(0, Number(padding || 0))
+  var usableWidth = Math.max(1, Number(canvasWidth || 1) - inset * 2)
+  var usableHeight = Math.max(1, Number(canvasHeight || 1) - inset * 2)
+  return { scale: Math.min(usableWidth / area.width, usableHeight / area.height) }
+}
+
+function workspaceText(plan, outputKey) {
+  var rows = plan instanceof Array ? plan : []
+  for (var i = 0; i < rows.length; i++) {
+    if (String((rows[i] || {}).output_key || "") === String(outputKey || "")) {
+      var workspaces = rows[i].workspaces instanceof Array ? rows[i].workspaces : []
+      return workspaces.join(", ")
+    }
+  }
+  return ""
+}
+
+function namedProfile(profile, name) {
+  var copy = clone(profile) || { outputs: [] }
+  copy.name = String(name || "").trim()
+  return copy
+}
+
+// releaseVersion pulls the plain version out of `hyprmoncfg version` output,
+// which also carries a commit and a build date.
+function releaseVersion(output) {
+  var match = String(output || "").match(/v?(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)/)
+  return match ? match[1] : ""
+}
+
+// daemonNeedsRestart reports an upgraded package whose daemon is still the
+// previous binary. Installing runs as root and cannot restart a user service,
+// so the old daemon keeps serving profiles until someone restarts it.
+function daemonNeedsRestart(installedOutput, daemonVersion) {
+  var installed = releaseVersion(installedOutput)
+  var running = releaseVersion(daemonVersion)
+  return installed !== "" && running !== "" && installed !== running
+}
+
+function versionAtLeast(output, minimum) {
+  var text = String(output || "")
+  if (/\bdev\b/.test(text)) return true
+
+  function parts(value) {
+    var match = String(value || "").match(/v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?/)
+    return match ? {
+      core: [Number(match[1]), Number(match[2]), Number(match[3])],
+      pre: match[4] ? match[4].split(".") : []
+    } : null
+  }
+
+  var current = parts(text)
+  var wanted = parts(minimum)
+  if (!current || !wanted) return false
+  for (var i = 0; i < 3; i++) {
+    if (current.core[i] > wanted.core[i]) return true
+    if (current.core[i] < wanted.core[i]) return false
+  }
+  if (current.pre.length === 0) return true
+  if (wanted.pre.length === 0) return false
+  var count = Math.max(current.pre.length, wanted.pre.length)
+  for (var j = 0; j < count; j++) {
+    if (j >= current.pre.length) return false
+    if (j >= wanted.pre.length) return true
+    var a = current.pre[j]
+    var b = wanted.pre[j]
+    if (a === b) continue
+    var aNumeric = /^\d+$/.test(a)
+    var bNumeric = /^\d+$/.test(b)
+    if (aNumeric && bNumeric) return Number(a) > Number(b)
+    if (aNumeric !== bNumeric) return !aNumeric
+    return a > b
+  }
+  return true
+}
+
+// ---------------------------------------------------------------------------
+// Content-sized panel. Pure geometry so it can be tested without Qt. All
+// design constants are in 12px-font "design pixels" and multiplied by `unit`
+// (Style.spaceReal(1)), so themes that scale spacing scale the panel too.
+
+var panelSizing = {
+  // Layout stage: preferred height, clamps, and the canvas's own padding
+  // (DisplayCanvas margin plus stage padding, per side).
+  stage: { preferredHeight: 320, minWidth: 520, maxWidth: 780, minHeight: 260, maxHeight: 520, padding: 22 },
+  // Stage beside a fixed side column on Workspaces and Profiles.
+  sideStage: { minHeight: 200, maxHeight: 380, padding: 22 },
+  // Compact canvas: the panel is 430 wide, so only height adapts.
+  compactStage: { minHeight: 150, maxHeight: 260, padding: 22 },
+  offRowHeight: 32,
+  inspectorWidth: 340,
+  sideColumnWidth: 360,
+  columnGap: 25,
+  sectionGap: 10,
+  bodyMinHeight: 220,
+  minWidth: 905,
+  // Rows visible before a list scrolls.
+  profileRowHeight: 58,
+  profileRowSpacing: 6,
+  profileRowsVisible: 6,
+  workspaceRowHeight: 42,
+  workspaceRowSpacing: 6,
+  workspaceRowsVisible: 8
+}
+
+function clampNumber(value, low, high) {
+  return Math.max(low, Math.min(high, value))
+}
+
+function arrangementAspect(bounds) {
+  var width = Number((bounds || {}).width || 0)
+  var height = Number((bounds || {}).height || 0)
+  if (!(width > 0) || !(height > 0)) return 16 / 9
+  return clampNumber(width / height, 0.25, 8)
+}
+
+// Size of a stage that shows the arrangement at its own aspect: start from
+// the preferred height, clamp the width, derive the height from the width,
+// clamp it, and for tall arrangements derive the width back from the
+// clamped height. An Off/mirrored/disconnected row adds a fixed strip.
+// The Layout page's inspector column and gap, independent of any measured
+// height, so the stage width never feeds back into the panel's own sizing.
+function layoutInspectorSpan(unit) {
+  var u = unit > 0 ? unit : 1
+  return Math.round(panelSizing.inspectorWidth * u) + Math.round(panelSizing.columnGap * u)
+}
+
+function stageSize(bounds, unit, options) {
+  var u = Number(unit || 1)
+  var o = Object.assign({}, panelSizing.stage, options || {})
+  var aspect = arrangementAspect(bounds)
+  var pad = o.padding * 2
+  var width = clampNumber((o.preferredHeight - pad) * aspect + pad, o.minWidth, o.maxWidth)
+  var height = clampNumber((width - pad) / aspect + pad, o.minHeight, o.maxHeight)
+  if (height >= o.maxHeight)
+    width = clampNumber((height - pad) * aspect + pad, o.minWidth, o.maxWidth)
+  var extra = o.offRow ? panelSizing.offRowHeight : 0
+  return { width: Math.round(width * u), height: Math.round((height + extra) * u), aspect: aspect }
+}
+
+// Height of a stage whose width is already decided by its column.
+function stageHeightForWidth(bounds, width, unit, options) {
+  var u = Number(unit || 1)
+  var o = Object.assign({}, panelSizing.sideStage, options || {})
+  var aspect = arrangementAspect(bounds)
+  var pad = o.padding * 2
+  var designWidth = Math.max(pad + 1, Number(width || 0) / u)
+  var height = clampNumber((designWidth - pad) / aspect + pad, o.minHeight, o.maxHeight)
+  var extra = o.offRow ? panelSizing.offRowHeight : 0
+  return Math.round((height + extra) * u)
+}
+
+function compactStageHeight(bounds, width, unit, offRow) {
+  return stageHeightForWidth(bounds, width, unit,
+    Object.assign({}, panelSizing.compactStage, { offRow: offRow === true }))
+}
+
+function visibleRowsHeight(count, rowHeight, spacing, visible, unit) {
+  var rows = Math.max(1, Math.min(Math.max(0, Math.floor(Number(count) || 0)), visible))
+  return Math.round((rows * rowHeight + (rows - 1) * spacing) * Number(unit || 1))
+}
+
+// Expanded panel content size. The width is the Layout page's natural width
+// (stage + gap + fixed inspector) and is shared by every page, so switching
+// pages never moves the tabs or header. Heights are per page:
+//   layout      max(stage + hardware facts, Display controls)
+//   workspaces  max(settings + visible rows, stage + plan)
+//   profiles    max(list header + visible rows, stage + details)
+// plus the fixed chrome (header, gaps, footer). Both axes are clamped to the
+// available screen area; the stage and lists absorb any shortfall and scroll.
+function expandedPanelLayout(input) {
+  var i = input || {}
+  var u = Number(i.unit || 1)
+  var s = panelSizing
+  var inspectorWidth = Math.round(s.inspectorWidth * u)
+  var sideWidth = Math.round(s.sideColumnWidth * u)
+  var gap = Math.round(s.columnGap * u)
+  var sectionGap = Math.round(s.sectionGap * u)
+  var availableWidth = Number(i.availableWidth || 0) > 0 ? Number(i.availableWidth) : Infinity
+  var availableHeight = Number(i.availableHeight || 0) > 0 ? Number(i.availableHeight) : Infinity
+
+  var stage = stageSize(i.bounds, u, { offRow: i.offRow === true })
+  var naturalWidth = Math.max(Math.round(s.minWidth * u), stage.width + gap + inspectorWidth)
+  var width = Math.min(naturalWidth, availableWidth)
+  var layoutStageWidth = Math.max(Math.round(200 * u), width - gap - inspectorWidth)
+  var sideStageWidth = Math.max(Math.round(200 * u), width - gap - sideWidth)
+
+  var page = String(i.page || "layout")
+  var body
+  if (page === "profiles") {
+    var profileStage = stageHeightForWidth(i.profileBounds || i.bounds, sideStageWidth, u,
+      { offRow: i.profileOffRow === true })
+    var list = Number(i.profileListHeaderHeight || 0)
+      + visibleRowsHeight(i.profileCount, s.profileRowHeight, s.profileRowSpacing, s.profileRowsVisible, u)
+    body = Math.max(list, profileStage + sectionGap + Number(i.profileDetailsHeight || 0))
+  } else if (page === "workspaces") {
+    var workspaceStage = stageHeightForWidth(i.bounds, sideStageWidth, u, { offRow: i.offRow === true })
+    var settings = Number(i.workspaceSettingsHeight || 0)
+      + (Number(i.workspaceRowCount || 0) > 0
+        ? visibleRowsHeight(i.workspaceRowCount, s.workspaceRowHeight, s.workspaceRowSpacing, s.workspaceRowsVisible, u)
+        : 0)
+    body = Math.max(settings, workspaceStage + sectionGap + Number(i.workspacePlanHeight || 0))
+  } else {
+    // The selected display's hardware facts sit under the stage; the
+    // inspector column holds only the editable Display controls (Color
+    // scrolls inside it rather than resizing the panel).
+    var hardware = Number(i.hardwareHeight || 0)
+    body = Math.max(stage.height + (hardware > 0 ? sectionGap + hardware : 0), Number(i.inspectorHeight || 0))
+  }
+  body = Math.max(Math.round(s.bodyMinHeight * u), Math.round(body))
+  var chrome = Number(i.chromeHeight || 0)
+  var height = Math.min(chrome + body, availableHeight)
+  return {
+    width: Math.round(width),
+    height: Math.round(height),
+    bodyHeight: Math.round(height - chrome),
+    layoutStageWidth: Math.round(layoutStageWidth),
+    inspectorWidth: inspectorWidth,
+    sideWidth: sideWidth,
+    columnGap: gap,
+    clamped: height < chrome + body || width < naturalWidth
+  }
+}
+
+// Resize policy. A new size is applied at once when the panel is closed, the
+// view mode just changed, or nothing moves under the pointer: a top bar keeps
+// the card's top edge fixed, so a height-only change leaves the header, tabs
+// and every row above the change where they were. Width changes recenter the
+// card on its bar icon, and other bar positions move the card's top edge, so
+// those wait until the pointer leaves the panel. Nothing resizes mid-drag.
+function panelResizeAllowed(state) {
+  var s = state || {}
+  if (s.dragging === true) return false
+  if (s.open !== true || s.modeChanged === true) return true
+  if (s.pointerInside !== true) return true
+  return String(s.barPosition || "top") === "top" && s.widthChanged !== true
+}
+
+// Rotation and flip are one Hyprland transform (0-3 rotate, 4-7 flipped and
+// rotate). The inspector edits them separately; values outside 0-7 are left
+// untouched so an unknown transform survives readback.
+var rotationOptions = [
+  { value: "0", label: "Normal" },
+  { value: "1", label: "90°" },
+  { value: "2", label: "180°" },
+  { value: "3", label: "270°" }
+]
+
+function transformKnown(transform) {
+  var t = Number(transform)
+  return isFinite(t) && Math.floor(t) === t && t >= 0 && t <= 7
+}
+
+function transformRotation(transform) {
+  return transformKnown(transform) ? Number(transform) % 4 : -1
+}
+
+function transformFlipped(transform) {
+  return transformKnown(transform) && Number(transform) >= 4
+}
+
+function transformWith(transform, rotation, flipped) {
+  if (!transformKnown(transform)) return Number(transform)
+  var r = rotation === undefined || rotation === null ? transformRotation(transform) : Number(rotation)
+  var f = flipped === undefined || flipped === null ? transformFlipped(transform) : flipped === true
+  if (!(r >= 0 && r <= 3)) return Number(transform)
+  return r + (f ? 4 : 0)
+}
+
+// Directions for "Place beside nearest", identical to Alt+arrow snapping.
+var placementOptions = [
+  { value: "left", label: "Left" },
+  { value: "right", label: "Right" },
+  { value: "up", label: "Above" },
+  { value: "down", label: "Below" }
+]
+
+// Keep an unreported or unknown current value visible in a closed set instead
+// of silently showing nothing selected.
+function optionsWithCurrent(options, value) {
+  var items = options instanceof Array ? options.slice() : []
+  var current = String(value === undefined || value === null ? "" : value)
+  if (current === "") return items
+  for (var i = 0; i < items.length; i++)
+    if (String((items[i] || {}).value) === current) return items
+  items.push({ value: current, label: current })
+  return items
+}
+
+// Exact coordinate entry: whole logical pixels only; anything else is rejected
+// (null) so the field reverts instead of writing a guess.
+function parseCoordinate(text) {
+  var s = String(text === undefined || text === null ? "" : text).trim()
+  if (!/^[-+]?\d+$/.test(s)) return null
+  var n = Number(s)
+  return isFinite(n) && Math.abs(n) <= 20000 ? n : null
+}
+
+// Width of one column in an N-column form grid, in whole pixels. A fractional
+// width (e.g. (340 - 7) / 2 = 166.5) puts every right-column control on a half
+// pixel; the scene graph snaps it right and its border crosses the clipping
+// edge of the scrolling inspector. Flooring keeps each column on the pixel grid
+// and the last column's right edge inside the grid.
+function gridCellWidth(width, spacing, columns) {
+  var n = Math.max(1, Math.floor(Number(columns) || 1))
+  var gap = Math.max(0, Number(spacing) || 0)
+  return Math.max(0, Math.floor((Math.max(0, Number(width) || 0) - gap * (n - 1)) / n))
+}
+
+// Keyboard stepping through the sharp scales, like the TUI's nextSharpScale:
+// the neighbouring option in value order, stopping at the ends. A current
+// value between options steps to the nearest one in that direction.
+function stepScaleOption(options, current, delta) {
+  var items = options instanceof Array ? options : []
+  if (items.length === 0 || !delta) return String(current)
+  var value = Number(current)
+  if (delta > 0) {
+    for (var i = 0; i < items.length; i++)
+      if (Number(items[i].value) > value + 1e-9) return String(items[i].value)
+    return String(items[items.length - 1].value)
+  }
+  for (var j = items.length - 1; j >= 0; j--)
+    if (Number(items[j].value) < value - 1e-9) return String(items[j].value)
+  return String(items[0].value)
+}
+
+// ---------------------------------------------------------------------------
+// Text size: maitri's desktop-wide setting (shell base font, GTK text scaling
+// and terminal font), shown with the same stops as maitri's Display panel.
+// It is live desktop state like brightness: never part of a profile.
+var textSizeStops = [9, 10, 11, 12, 14, 16, 20]
+
+function nearestTextStop(px) {
+  var best = 0, bestDistance = Infinity
+  for (var i = 0; i < textSizeStops.length; i++) {
+    var distance = Math.abs(textSizeStops[i] - Number(px))
+    if (distance < bestDistance) { bestDistance = distance; best = i }
+  }
+  return best
+}
+
+// Stop index the slider shows: the pending choice while a change is in
+// flight (previewIndex >= 0), otherwise the live base size's nearest stop.
+function textStopIndex(previewIndex, baseSize) {
+  return previewIndex >= 0 ? Math.min(previewIndex, textSizeStops.length - 1) : nearestTextStop(baseSize)
+}
+
+// Pixels shown in the header: the pending stop, else the true base size
+// (which may sit between stops when set from the command line).
+function textSizeLabel(previewIndex, baseSize) {
+  return (previewIndex >= 0 ? textSizeStops[Math.min(previewIndex, textSizeStops.length - 1)] : Number(baseSize)) + "px"
+}
+
+function steppedTextIndex(index, delta) {
+  return Math.max(0, Math.min(textSizeStops.length - 1, Number(index) + Number(delta || 0)))
+}
+
+// The pending choice is dropped once the live base size lands on it.
+function textPreviewSettled(previewIndex, baseSize) {
+  return previewIndex >= 0 && nearestTextStop(baseSize) === previewIndex
+}
+
+// Hyprland's animations:enabled (hyprctl -j getoption) is the desktop's motion
+// preference; maitri's shell has no reduced-motion setting of its own.
+// Hyprland reports it as {"bool": false}; older builds used {"int": 0}.
+// Anything unreadable means "not reduced".
+function motionReduced(getoptionJson) {
+  try {
+    var value = JSON.parse(String(getoptionJson || "{}"))
+    if (typeof value.bool === "boolean") return value.bool === false
+    return value.int !== undefined && Number(value.int) === 0
+  } catch (e) {
+    return false
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Workspace chip travel. When a plan change moves a workspace to another
+// display, its chip glides from the old card to the new one. `before` and
+// `after` map workspace ID to the chip's rectangle and owning display:
+//   { "4": { x, y, width, height, owner: "<output key>" }, ... }
+// Only chips present on both sides whose owner changed travel; chips that stay
+// with their display, appear or disappear do not move. More than `limit`
+// movers, or any disabling condition, returns no moves (the change is instant).
+var chipTravel = { limit: 12, duration: 240, stagger: 28 }
+
+function workspaceOwners(plan) {
+  var owners = {}
+  var rows = plan instanceof Array ? plan : []
+  for (var i = 0; i < rows.length; i++) {
+    var ids = (rows[i] || {}).workspaces instanceof Array ? rows[i].workspaces : []
+    for (var j = 0; j < ids.length; j++) owners[String(ids[j])] = String(rows[i].output_key || "")
+  }
+  return owners
+}
+
+function chipMoves(before, after, options) {
+  var o = options || {}
+  if (o.enabled === false || o.dragging === true || o.resizing === true || o.reducedMotion === true) return []
+  var limit = o.limit === undefined ? chipTravel.limit : Number(o.limit)
+  var a = before || {}, b = after || {}
+  var ids = Object.keys(b).filter(function(id) {
+    return a[id] && String(a[id].owner) !== String(b[id].owner)
+  })
+  if (ids.length === 0 || ids.length > limit) return []
+  ids.sort(function(x, y) {
+    var nx = Number(x), ny = Number(y)
+    return isFinite(nx) && isFinite(ny) ? nx - ny : (x < y ? -1 : x > y ? 1 : 0)
+  })
+  return ids.map(function(id, index) {
+    return {
+      id: id,
+      fromX: Number(a[id].x), fromY: Number(a[id].y),
+      toX: Number(b[id].x), toY: Number(b[id].y),
+      width: Number(b[id].width), height: Number(b[id].height),
+      delay: index * chipTravel.stagger
+    }
+  })
+}
+
+// Compact view: header, body and footer stacked with one gap between them. The
+// card is as tall as its content up to the available screen height; past that
+// only the body shrinks and scrolls, so the header and the footer (current
+// setup and its actions) always stay visible.
+function compactPanelLayout(input) {
+  var i = input || {}
+  var header = Math.max(0, Number(i.headerHeight) || 0)
+  var body = Math.max(0, Number(i.bodyHeight) || 0)
+  var footer = Math.max(0, Number(i.footerHeight) || 0)
+  var gap = Math.max(0, Number(i.gap) || 0)
+  var available = Number(i.availableHeight) > 0 ? Number(i.availableHeight) : Infinity
+  var fixed = header + gap + (footer > 0 ? gap + footer : 0)
+  var natural = fixed + body
+  var height = Math.min(natural, available)
+  return {
+    height: Math.round(height),
+    bodyHeight: Math.max(0, Math.round(height - fixed)),
+    scrolls: natural > available
+  }
+}
+
+if (typeof module !== "undefined") {
+  module.exports = {
+    layoutInspectorSpan: layoutInspectorSpan,
+    parseEnvelope: parseEnvelope,
+    canConfirmPreview: canConfirmPreview,
+    monitorStateSignature: monitorStateSignature,
+    monitorSnapshotsMatch: monitorSnapshotsMatch,
+    hiddenDisplays: hiddenDisplays,
+    displayNotes: displayNotes,
+    automaticSelectionNote: automaticSelectionNote,
+    automaticSelectionCanToggle: automaticSelectionCanToggle,
+    layoutDisplays: layoutDisplays,
+    displayModelLabel: displayModelLabel,
+    displayDetailLabel: displayDetailLabel,
+    displayScaleLayoutLabel: displayScaleLayoutLabel,
+    layoutBounds: layoutBounds,
+    layoutRect: layoutRect,
+    clone: clone,
+    validEditorDocument: validEditorDocument,
+    editorMetadata: editorMetadata,
+    outputLogicalSize: outputLogicalSize,
+    outputMode: outputMode,
+    profileLayoutDisplays: profileLayoutDisplays,
+    hiddenProfileDisplays: hiddenProfileDisplays,
+    monitorHardwareInfo: monitorHardwareInfo,
+    displaySummary: displaySummary,
+    identifyTargets: identifyTargets,
+    nonSpatialDisplays: nonSpatialDisplays,
+    outputByKey: outputByKey,
+    wrapIndex: wrapIndex,
+    adjacentOutputKey: adjacentOutputKey,
+    adjacentProfileName: adjacentProfileName,
+    cycleOptionValue: cycleOptionValue,
+    stepOptionValue: stepOptionValue,
+    snapOutputPosition: snapOutputPosition,
+    nearestSnapAnchor: nearestSnapAnchor,
+    snapAnchorName: snapAnchorName,
+    rotationOptions: rotationOptions,
+    transformKnown: transformKnown,
+    transformRotation: transformRotation,
+    transformFlipped: transformFlipped,
+    transformWith: transformWith,
+    placementOptions: placementOptions,
+    optionsWithCurrent: optionsWithCurrent,
+    parseCoordinate: parseCoordinate,
+    gridCellWidth: gridCellWidth,
+    stepScaleOption: stepScaleOption,
+    compactScaleLabels: compactScaleLabels,
+    scalePresetValues: scalePresetValues,
+    scalePresets: scalePresets,
+    outputName: outputName,
+    outputDisplayLabel: outputDisplayLabel,
+    outputFieldValue: outputFieldValue,
+    outputFieldChanged: outputFieldChanged,
+    outputFieldResetEdit: outputFieldResetEdit,
+    clampBrightness: clampBrightness,
+    brightnessTarget: brightnessTarget,
+    initialOutputKey: initialOutputKey,
+    modeOptions: modeOptions,
+    formatScale: formatScale,
+    scaleOptions: scaleOptions,
+    mirrorOptions: mirrorOptions,
+    outputOptions: outputOptions,
+    profileOptions: profileOptions,
+    savedProfileByName: savedProfileByName,
+    profileSummaryByName: profileSummaryByName,
+    exactDisplayProfile: exactDisplayProfile,
+    profileWorkspacePlan: profileWorkspacePlan,
+    displayType: displayType,
+    onOff: onOff,
+    profileWorkspaceSummary: profileWorkspaceSummary,
+    currentProfileName: currentProfileName,
+    profileIsCurrent: profileIsCurrent,
+    profileMatchLabel: profileMatchLabel,
+    profileMatchReasonRows: profileMatchReasonRows,
+    profileHiddenDisplayRows: profileHiddenDisplayRows,
+    profileUpdatedLabel: profileUpdatedLabel,
+    manualWorkspaceTargetKeys: manualWorkspaceTargetKeys,
+    manualWorkspaceRulesFromPlan: manualWorkspaceRulesFromPlan,
+    manualWorkspaceRows: manualWorkspaceRows,
+    manualWorkspaceCount: manualWorkspaceCount,
+    resizeManualWorkspaceRules: resizeManualWorkspaceRules,
+    cycleManualWorkspaceRule: cycleManualWorkspaceRule,
+    workspaceStrategyOptions: workspaceStrategyOptions,
+    workspaceOffMessage: workspaceOffMessage,
+    workspaceStrategyChoice: workspaceStrategyChoice,
+    workspaceStrategyChanges: workspaceStrategyChanges,
+    workspacePlanRows: workspacePlanRows,
+    enabledOutputCount: enabledOutputCount,
+    layoutMetrics: layoutMetrics,
+    workspaceText: workspaceText,
+    namedProfile: namedProfile,
+    releaseVersion: releaseVersion,
+    daemonNeedsRestart: daemonNeedsRestart,
+    versionAtLeast: versionAtLeast,
+    panelSizing: panelSizing,
+    arrangementAspect: arrangementAspect,
+    stageSize: stageSize,
+    stageHeightForWidth: stageHeightForWidth,
+    compactStageHeight: compactStageHeight,
+    visibleRowsHeight: visibleRowsHeight,
+    expandedPanelLayout: expandedPanelLayout,
+    panelResizeAllowed: panelResizeAllowed,
+    textSizeStops: textSizeStops,
+    nearestTextStop: nearestTextStop,
+    textStopIndex: textStopIndex,
+    textSizeLabel: textSizeLabel,
+    steppedTextIndex: steppedTextIndex,
+    textPreviewSettled: textPreviewSettled,
+    motionReduced: motionReduced,
+    chipTravel: chipTravel,
+    workspaceOwners: workspaceOwners,
+    chipMoves: chipMoves,
+    compactPanelLayout: compactPanelLayout
+  }
+}
