@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "maitri.display",
+  "name": "Display",
+  "version": "2.7.0",
+  "author": "Carmine Paolino (ported by maitri)",
+  "license": "MIT",
+  "description": "Monitor layouts and profiles with hyprmoncfg, plus brightness, text size and scale for the selected display.",
+  "kinds": [
+    "bar-widget",
+    "service"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml",
+    "service": "PreviewGuard.qml"
+  },
+  "keepLoaded": true,
+  "barWidget": {
+    "displayName": "Display",
+    "description": "Monitor layouts that switch themselves on hotplug and lid events, with brightness, text size and scale.",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  },
+  "hyprmoncfg": {
+    "package": "hyprmoncfg",
+    "minimumVersion": "1.19.0",
+    "protocolVersion": 1
+  }
+}

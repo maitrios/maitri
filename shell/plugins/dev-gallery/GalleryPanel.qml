@@ -1664,7 +1664,7 @@ Item {
                     { value: "audio", label: "Audio", description: "Output sink + volume" },
                     { value: "network", label: "Network", description: "Wi-Fi + ethernet status" },
                     { value: "bluetooth", label: "Bluetooth", description: "Paired and nearby devices" },
-                    { value: "monitor", label: "Monitor", description: "Brightness + scale" },
+                    { value: "display", label: "Display", description: "Layouts, brightness + scale" },
                     { value: "Media", label: "Media", description: "Now-playing + transport" },
                     { value: "Workspaces", label: "Workspaces", description: "Hyprland workspace pills" },
                     { value: "system-tray", label: "System tray", description: "StatusNotifierItem icons" },

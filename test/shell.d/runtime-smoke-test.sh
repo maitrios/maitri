@@ -496,7 +496,7 @@ visible_default_ids='[
   "maitri.system-update",
   "maitri.network",
   "maitri.audio",
-  "maitri.monitor"
+  "maitri.display"
 ]'
 
 geometry=""
@@ -543,7 +543,7 @@ jq -e '
 
 pass "runtime geometry keeps update before indicators"
 
-for panel_id in maitri.audio maitri.bluetooth maitri.monitor maitri.network maitri.power; do
+for panel_id in maitri.audio maitri.bluetooth maitri.display maitri.network maitri.power; do
   shell_ipc "$panel_id" open >/dev/null || fail_with_log "direct panel IPC opens $panel_id"
   shell_ipc "$panel_id" close >/dev/null || fail_with_log "direct panel IPC closes $panel_id"
 done

@@ -250,9 +250,8 @@ systemd instance:
 - `maitri-hook-install post-update install-voxtype.hook` — register the
   Voxtype post-update hook.
 - `install/user/first-run/enable-user-units.sh` — `systemctl --user enable`
-  the shipped user units (`bt-agent`, `maitri-sleep-lock`,
-  `maitri-recover-internal-monitor`, `maitri-migrate-notify.service`,
-  `maitri-fcitx5.service`).
+  the shipped user units (`bt-agent`, `hyprmoncfgd`, `maitri-sleep-lock`,
+  `maitri-migrate-notify.service`, `maitri-fcitx5.service`).
   Done here, not at finalize, because
   the user manager isn't reachable from the ISO chroot; `ConditionPath*`
   in the unit files keeps services inert when they don't apply.

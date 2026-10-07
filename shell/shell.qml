@@ -378,7 +378,6 @@ ShellRoot {
     var allowed = {
       "maitri.audio": ["maitri.osd"],
       "maitri.media": ["maitri.osd"],
-      "maitri.monitor": ["maitri.osd"],
       "maitri.network": ["maitri.speedtest", "maitri.wifiqr"]
     }
     var targets = allowed[sourceId] || []

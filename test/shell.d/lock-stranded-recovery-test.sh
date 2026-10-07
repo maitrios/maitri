@@ -87,3 +87,10 @@ assert(
   'recovery takes the lock once and records it in the journal'
 )
 JS
+
+grep -F 'lock-pending: no-real-screen' "$ROOT/shell/plugins/lock/Service.qml" >/dev/null
+grep -F 'lock-pending: screen-stabilizing' "$ROOT/shell/plugins/lock/Service.qml" >/dev/null
+grep -F 'id: sessionLockStabilizeTimer' "$ROOT/shell/plugins/lock/Service.qml" >/dev/null
+grep -Pzo 'function onScreensChanged\(\) \{\n(.*\n)*?\s*root\.requestSessionLock\(\)\n' "$ROOT/shell/plugins/lock/Service.qml" >/dev/null
+grep -F 'realScreens: root.realScreenCount()' "$ROOT/shell/plugins/lock/Service.qml" >/dev/null
+pass "lock service waits for stable real screens before session lock"

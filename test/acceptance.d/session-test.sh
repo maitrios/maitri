@@ -17,7 +17,7 @@ plugins=$(maitri-shell shell listPlugins)
 for plugin in \
   maitri.audio maitri.background maitri.bar maitri.bluetooth \
   maitri.clipboard maitri.emojis maitri.menu \
-  maitri.monitor maitri.network maitri.notifications maitri.power \
+  maitri.display maitri.network maitri.notifications maitri.power \
   maitri.reminders maitri.weather; do
   [[ $plugins == *"$plugin"* ]] || fail "shell plugin is loaded: $plugin" "loaded plugins: $plugins"
   pass "shell plugin is loaded: $plugin"

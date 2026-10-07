@@ -17,7 +17,7 @@ this page is the human-readable summary.
 ## Desktop
 
 Hyprland · the maitri Quickshell shell (bar, notifications, OSD, lock screen, panels) · Vicinae ·
-SDDM · Plymouth · uwsm · xdg-desktop-portal-hyprland · fcitx5
+SDDM · Plymouth · uwsm · xdg-desktop-portal-hyprland · fcitx5 · hyprmoncfg (monitor profiles)
 
 ## Web apps
 

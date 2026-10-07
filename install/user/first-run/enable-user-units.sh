@@ -14,7 +14,7 @@ set -euo pipefail
 systemctl --user daemon-reload
 systemctl --user enable --now \
   bt-agent.service \
-  maitri-recover-internal-monitor.service \
+  hyprmoncfgd.service \
   maitri-sleep-lock.service \
   maitri-migrate-notify.service \
   maitri-fcitx5.service \

@@ -13,6 +13,10 @@ require_all.files(toggles_dir, nil, {
   exclude = {
     ["touchpad-disabled"] = true,
     ["touchscreen-disabled"] = true,
+    -- Monitor toggles from before hyprmoncfgd owned displays; a migration removes them.
+    ["internal-monitor-disable"] = true,
+    ["internal-monitor-mirror"] = true,
+    ["internal-monitor-clamshell"] = true,
   },
 })
 

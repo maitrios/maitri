@@ -140,3 +140,10 @@ maitri is a rebranded fork that tracks Omarchy releases; see [`maitri.md`](maitr
   `install/maitri-other.packages`, `install/hardware/all.sh`, `install/hardware/nvidia.sh`,
   `install/hardware/intel/ptl-kernel.sh`, the Limine `BOOT_ORDER` and the acceptance kernel check keep
   their pre-4.0.4 content. Resolve sync conflicts on those toward maitri's side.
+- Displays belong to `hyprmoncfgd`, with the vendored `maitri.display` panel
+  (`shell/plugins/panels/display/README.md`) as its front end. Omarchy's monitor watcher, clamshell, <!-- rebrand:keep -->
+  internal/mirror toggles, scaling shortcuts, recovery unit and Display panel are in `DELETE_LIST`.
+  Never reintroduce a monitor writer or watcher (`test/shell.d/display-ownership-test.sh` guards
+  this). Resolve sync conflicts in the lid-close, sleep-lock and wake commands, the bindings,
+  `config/hypr/hyprland.lua` and `enable-user-units.sh` toward maitri's side, and drop upstream
+  migrations that drive the deleted helpers.

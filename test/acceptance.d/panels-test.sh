@@ -16,7 +16,7 @@ fi
 hide_panels() {
   local plugin
 
-  for plugin in maitri.weather maitri.bluetooth maitri.network maitri.audio maitri.monitor maitri.power; do
+  for plugin in maitri.weather maitri.bluetooth maitri.network maitri.audio maitri.display maitri.power; do
     maitri-shell shell hide "$plugin" >/dev/null 2>&1 || true
   done
 }
@@ -63,7 +63,7 @@ status=0
 panels='bluetooth|maitri.bluetooth
 network|maitri.network
 audio|maitri.audio
-monitor|maitri.monitor'
+display|maitri.display'
 
 while IFS='|' read -r name plugin; do
   if ! (trap - EXIT; open_and_capture_panel "$name" "$plugin"); then

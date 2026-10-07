@@ -65,8 +65,6 @@
   "trigger.toggle": {"icon":"󰔎","label":"Toggle","aliases":["toggle","toggles"]},
   "trigger.hardware": {"icon":"","label":"Hardware","aliases":["hardware","hw"]},
   "trigger.tests": {"icon":"󰓅","label":"Speed Test"},
-  "trigger.hardware.laptop-display": {"icon":"󰛧","label":"Laptop Display","when":"maitri-hw-laptop","action":"maitri-hyprland-monitor-internal toggle"},
-  "trigger.hardware.mirror-display": {"icon":"󰍹","label":"Mirror Display","when":"maitri-hw-laptop","action":"maitri-hyprland-monitor-internal-mirror toggle"},
   "trigger.hardware.hybrid-gpu": {"icon":"","label":"Hybrid GPU","when":"maitri-hw-hybrid-gpu","action":"maitri-launch-floating-terminal-with-presentation maitri-toggle-hybrid-gpu"},
   "trigger.hardware.touchpad": {"icon":"󰟸","label":"Touchpad","when":"maitri-hw-touchpad","action":"maitri-toggle-touchpad"},
   "trigger.hardware.touchpad-haptics": {"icon":"󰌌","label":"Touchpad Haptics"},
@@ -117,7 +115,7 @@
   "style.screensaver.default": {"icon":"","label":"Restore Default","action":"maitri-branding-screensaver reset"},
 
   // Setup
-  "setup.monitors": {"icon":"󰍹","label":"Monitors","action":"maitri-launch-config-editor \"$HOME/.config/hypr/monitors.lua\""},
+  "setup.monitors": {"icon":"󰍹","label":"Monitors","action":"maitri-launch-or-focus-tui hyprmoncfg"},
   "setup.keybindings": {"icon":"","label":"Keybindings","when":"[[ -f ~/.config/hypr/bindings.lua ]]","action":"maitri-launch-config-editor \"$HOME/.config/hypr/bindings.lua\""},
   "setup.input": {"icon":"","label":"Input","when":"[[ -f ~/.config/hypr/input.lua ]]","action":"maitri-launch-config-editor \"$HOME/.config/hypr/input.lua\""},
   "setup.network": {"icon":"󰛳","label":"Network","aliases":["network"]},
