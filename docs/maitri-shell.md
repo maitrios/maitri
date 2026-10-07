@@ -47,6 +47,22 @@ A third-party replacement bar can render registered widget components, but widge
 
 Full schema: [`shell/services/PluginRegistry.qml`](../shell/services/PluginRegistry.qml).
 
+## Where plugins live
+
+The shell scans three roots at startup and on `rescanPlugins`:
+
+| Root | Trust | What lives there |
+|------|-------|------------------|
+| `$MAITRI_PATH/shell/plugins/` | first-party | Built-ins that ship with maitri, directly or one category level down (`panels/clock/`), plus sibling `*.manifest.json` bar widgets |
+| `/usr/share/maitri-plugins/<name>/` | first-party | Plugins a package installs, such as `maitri.mail` from `maitri-mail`. The path is fixed, so `maitri dev link` still finds them |
+| `~/.config/maitri/plugins/<id>/` | third-party | Plugins you add, clone or drop in by hand |
+
+A built-in wins over a packaged plugin with the same id, and a third-party
+plugin can't take a first-party id or anything in the `maitri.*` namespace.
+The shell only watches the user root, so a command that installs a packaged
+plugin runs `maitri-shell shell rescanPlugins` for the running shell to pick it
+up (`maitri install mail` does).
+
 ## Installing a third-party plugin
 
 A plugin is a **git repo** with a `manifest.json` at its root. Adding one

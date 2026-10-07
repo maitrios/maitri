@@ -13,7 +13,9 @@ Run `maitri-restart-shell` after making changes to QML files.
 
 - First-party plugins live directly under `shell/plugins/` or one category
   level deeper, such as `shell/plugins/panels/weather/`. First-party bar-only
-  widgets may use adjacent `*.manifest.json` files. Third-party plugins live
+  widgets may use adjacent `*.manifest.json` files. Packages install
+  first-party plugins at `/usr/share/maitri-plugins/<name>/`, one plugin per
+  directory; a built-in with the same id wins. Third-party plugins live
   at `~/.config/maitri/plugins/<id>/` with a `manifest.json` at the root.
 - Every plugin manifest declares `schemaVersion`, `id`, `name`, `version`,
   `kinds`, and `entryPoints`. See

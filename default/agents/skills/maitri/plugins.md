@@ -30,7 +30,8 @@ in `~/.config/maitri/shell.json`; it hot-reloads on save.
 
 ## Customizing Built-In Plugins and Widgets
 
-To customize a built-in bar widget, never edit `$MAITRI_PATH/shell/plugins/`.
+To customize a built-in bar widget, never edit `$MAITRI_PATH/shell/plugins/`
+or the packaged plugins under `/usr/share/maitri-plugins/` (Mail lives there).
 Clone it into the user plugin directory instead:
 
 ```bash
