@@ -14,6 +14,14 @@ stub_bin="$TMPDIR/bin"
 calls="$TMPDIR/calls"
 mkdir -p "$stub_bin"
 
+for command in sudo hyprctl; do
+  cat >"$stub_bin/$command" <<SH
+#!/bin/bash
+printf '$command %s\n' "\$*" >>"\$MAITRI_TEST_CALLS"
+exit 1
+SH
+done
+
 cat >"$stub_bin/maitri-pkg-add" <<'SH'
 #!/bin/bash
 printf 'pkg-add %s\n' "$*" >>"$MAITRI_TEST_CALLS"
@@ -46,12 +54,19 @@ SH
 
 chmod +x "$stub_bin"/*
 
+# Every path the commands can reach resolves inside the test home, and nothing
+# can find the session the suite runs in.
 run() {
   rm -f "$calls"
-  HOME="$home" MAITRI_PATH="$ROOT" MAITRI_TEST_CALLS="$calls" MAITRI_SHELL_ABSENT_ATTEMPTS=1 \
+  env -u WAYLAND_DISPLAY -u HYPRLAND_INSTANCE_SIGNATURE -u DBUS_SESSION_BUS_ADDRESS \
+    HOME="$home" MAITRI_PATH="$ROOT" MAITRI_TEST_CALLS="$calls" MAITRI_SHELL_ABSENT_ATTEMPTS=1 \
     XDG_CONFIG_HOME="$home/.config" XDG_CACHE_HOME="$home/.cache" \
     XDG_STATE_HOME="$home/.local/state" XDG_DATA_HOME="$home/.local/share" \
-    PATH="$stub_bin:$ROOT/bin:$PATH" "$@"
+    XDG_RUNTIME_DIR="$TMPDIR/run" PATH="$stub_bin:$ROOT/bin:$PATH" "$@"
+}
+
+assert_no_escalation() {
+  ! grep -q '^sudo\|^hyprctl' "$calls" || fail "$1 leaves sudo and Hyprland to the helpers it calls" "$(cat "$calls")"
 }
 
 output=$(run maitri-install-mail)
@@ -65,6 +80,7 @@ put=$(grep -nx 'shell shell putBarWidget maitri.mail {"section":"center","index"
 pass "install rescans plugins, then puts Mail at the end of the bar's center"
 [[ $output == *"maitri.mail is on the bar"* ]] || fail "install reports Mail on the bar" "$output"
 pass "install reports Mail on the bar"
+assert_no_escalation "install"
 
 if run env MAITRI_TEST_PKG_STATUS=1 maitri-install-mail >/dev/null 2>&1; then
   fail "install fails when the package does not install"
@@ -94,6 +110,7 @@ pass "remove rescans plugins after the package is gone"
 pass "remove keeps the user's mail data and says where it lives"
 [[ ! -e $home/.local/share/applications/maitri-mail.desktop ]] || fail "remove drops the mailto handler that pointed into the package"
 pass "remove drops the mailto handler that pointed into the package"
+assert_no_escalation "remove"
 
 output=$(run env MAITRI_TEST_SHELL_DOWN=1 maitri-remove-mail 2>&1)
 grep -qx 'pkg-drop maitri-mail' "$calls" || fail "remove still drops the package without a running shell" "$output"

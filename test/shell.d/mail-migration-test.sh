@@ -67,12 +67,16 @@ reset_home() {
   mkdir -p "$home"
 }
 
+# Every path the migration can reach resolves inside the test home, and nothing
+# can find the session it runs in.
 run_migration() {
-  HOME="$home" MAITRI_PATH="$ROOT" PATH="$stub_bin:$ROOT/bin:$PATH" \
+  env -u WAYLAND_DISPLAY -u HYPRLAND_INSTANCE_SIGNATURE -u DBUS_SESSION_BUS_ADDRESS \
+    HOME="$home" MAITRI_PATH="$ROOT" PATH="$stub_bin:$ROOT/bin:$PATH" \
     XDG_CONFIG_HOME="$home/.config" XDG_CACHE_HOME="$home/.cache" \
     XDG_STATE_HOME="$home/.local/state" XDG_DATA_HOME="$home/.local/share" \
+    XDG_RUNTIME_DIR="$test_dir/run" \
     MAITRI_TEST_CALLS="$calls" MAITRI_TEST_MAILTO="$mailto" MAITRI_TEST_PGREP_COUNT="$pgrep_count" \
-    MAITRI_OMAMAIL_STOP_ATTEMPTS=5 "$@" bash -euo pipefail "$migration" >"$output" 2>&1
+    MAITRI_OMAMAIL_STOP_ATTEMPTS=5 bash -euo pipefail "$migration" >"$output" 2>&1
 }
 
 write_shell_json() {
