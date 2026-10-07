@@ -775,7 +775,7 @@ sanitize_child_output() {
   # post-install success/reboot banner can be buffered until process exit and
   # appear after an maitri failure, which makes the unified log contradictory.
   # Keep that third-party banner out of maitri's support log; the raw
-  # archinstall log is still uploaded separately by maitri-upload-log.
+  # archinstall log under /var/log/archinstall still has it.
   sed -u \
     -e $'s/\x1b\\[[0-9;?]*[A-Za-z]//g' \
     -e '/^Activating systemd-timesyncd for time synchronization using Arch Linux and ntp.org NTP servers$/d' \
