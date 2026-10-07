@@ -29,7 +29,10 @@ if [[ ${MAITRI_REMOVE_DEV_ENV_SECURITY_NS:-0} != "1" ]]; then
   )
 
   # Probe only the prerequisites; failures from the actual test must propagate.
-  if unshare "${namespace_args[@]}" /usr/bin/true; then
+  # Inside a container the uid-map helpers can leave unshare waiting forever,
+  # and its forked helper outlives a timeout. The probe gets a deadline and no
+  # inherited output, so a leftover helper can't hold the test runner's pipe.
+  if timeout --kill-after=2 10 unshare "${namespace_args[@]}" /usr/bin/true </dev/null >/dev/null 2>&1; then
     exec unshare "${namespace_args[@]}" env MAITRI_REMOVE_DEV_ENV_SECURITY_NS=1 bash "$0"
   else
     pass "user/mount namespace setup unavailable; skipping OCaml sudo namespace proof"
