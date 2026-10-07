@@ -82,6 +82,20 @@ else
 fi
 PKGBUILDS_ROOT="${MAITRI_PKGBUILDS_DIR:-$HOME/dev/maitri-pkgs/pkgbuilds}"
 
+# The release maitri pins maitri-settings to its own version, so the dev pair
+# replace the release pair only together.
+if (( ${#PKGS[@]} == 1 )); then
+  case ${PKGS[0]} in
+    maitri-settings-dev) partner=maitri-dev ;;
+    maitri-dev) partner=maitri-settings-dev ;;
+    *) partner="" ;;
+  esac
+  if [[ -n $partner ]] && ! pacman -Q "$partner" &>/dev/null; then
+    echo "Adding $partner: the dev packages only replace the release ones together."
+    PKGS+=("$partner")
+  fi
+fi
+
 if [[ ! -d "$CHECKOUT" ]]; then
   echo "Error: checkout not found at $CHECKOUT" >&2
   exit 1
@@ -106,6 +120,7 @@ if [[ -d "$CHECKOUT/.git" ]] && [[ -n "$(git -C "$CHECKOUT" status --porcelain)"
 fi
 new_pkgver="dev.${short_sha}${dirty}"
 
+built_pkgs=()
 for PKG in "${PKGS[@]}"; do
   PKGBUILD_DIR="$PKGBUILDS_ROOT/$PKG"
   package_build_dir="$build_dir/$PKG"
@@ -120,18 +135,24 @@ for PKG in "${PKGS[@]}"; do
   echo "  PKGBUILD : $PKGBUILD_DIR/PKGBUILD"
   echo
 
+  # The dev pair depend on each other (maitri-dev needs maitri-settings-dev), so
+  # neither passes makepkg's dependency check before both are installed. They
+  # only build with git and imagemagick; pacman resolves the rest below.
   (
     cd "$package_build_dir"
-    MAITRI_SRC="$CHECKOUT" makepkg -s --skipchecksums --noconfirm "${MAKEPKG_ARGS[@]}"
+    MAITRI_SRC="$CHECKOUT" makepkg --nodeps --skipchecksums --noconfirm "${MAKEPKG_ARGS[@]}"
   )
 
-  # Install separately so we can pass --overwrite='*' (makepkg -i can't).
-  # Dev builds frequently conflict with files left behind by previous
-  # script-installed maitri versions; the build is the authoritative state.
   built_pkg=$(ls -t "$package_build_dir"/*.pkg.tar.* 2>/dev/null | grep -v '\.sig$' | head -1)
   if [[ -z $built_pkg ]]; then
     echo "Error: no built package found in $package_build_dir" >&2
     exit 1
   fi
-  sudo pacman -U --noconfirm --overwrite='*' "$built_pkg"
+  built_pkgs+=("$built_pkg")
 done
+
+# One transaction, so the dev pair replace the release pair together.
+# --overwrite='*' because dev builds often meet files left behind by
+# script-installed versions. --noconfirm answers no to removing the release
+# package; --ask=4 flips only that answer.
+sudo pacman -U --noconfirm --ask=4 --overwrite='*' "${built_pkgs[@]}"
