@@ -4,7 +4,7 @@ description: >
   REQUIRED for end-user customization of Linux desktop, window manager, or system config.
   Use when editing ~/.config/hypr/, ~/.config/maitri/,
   ~/.config/alacritty/, ~/.config/foot/, ~/.config/kitty/, or ~/.config/ghostty/.
-  Triggers: Hyprland, window rules, animations, keybindings, monitors, gaps, borders,
+  Triggers: Hyprland, window rules, animations, keybindings, monitors, hyprmoncfg, gaps, borders,
   blur, opacity, maitri-shell, bar, terminal config, themes, background,
   night light, idle, lock screen, screenshots, reminders, layer rules, workspace
   settings, display config, and user-facing maitri commands. Excludes maitri
@@ -27,7 +27,7 @@ It is not for contributing to maitri source code.
 - Editing terminal configs (alacritty, foot, kitty, ghostty)
 - Editing ANY file in `~/.config/maitri/`
 - Window behavior, animations, opacity, blur, gaps, borders
-- Layer rules, workspace settings, display/monitor configuration
+- Layer rules, workspace settings, display/monitor configuration (hyprmoncfg profiles)
 - Themes, backgrounds, fonts, appearance changes
 - User-facing `maitri` commands (`maitri theme ...`, `maitri refresh ...`, `maitri restart ...`, etc.)
 - Screenshots, screen recording, reminders, night light, idle behavior, lock screen
@@ -41,7 +41,7 @@ It is not for contributing to maitri source code.
 Deeper instructions for common areas live next to this file. Read the
 matching guide before starting:
 
-- [`hyprland.md`](hyprland.md) - keybindings, monitors, window rules, and other Hyprland config
+- [`hyprland.md`](hyprland.md) - keybindings, monitors (hyprmoncfg), window rules, and other Hyprland config
 - [`plugins.md`](plugins.md) - the maitri shell: bar layout, widgets, plugins, idle behavior
 - [`theming.md`](theming.md) - themes, backgrounds, and fonts
 - [`hooks.md`](hooks.md) - automation hooks that run on system events
@@ -278,7 +278,7 @@ This skill intentionally does not cover maitri source development. Do not use th
 
 - "Change my theme to catppuccin" -> `maitri theme set catppuccin`
 - "Add a keybinding for Super+E to open file manager" -> Check existing bindings first, call `hl.unbind` if needed, then `o.bind` in `~/.config/hypr/bindings.lua`
-- "Configure my external monitor" -> Edit `~/.config/hypr/monitors.lua`
+- "Configure my external monitor" -> Arrange it in `hyprmoncfg` and save a profile (see `hyprland.md`)
 - "Make the window gaps smaller" -> Edit `~/.config/hypr/looknfeel.lua`
 - "Turn on night light" -> `maitri toggle nightlight` (for time-based schedules, edit `~/.config/hypr/hyprsunset.conf` profiles, then `maitri restart hyprsunset`)
 - "Set a reminder to pickup jack in 15 minutes" -> `maitri reminder 15 "Pickup Jack"`
