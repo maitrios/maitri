@@ -23,7 +23,7 @@ test_tmp=$(mktemp -d)
 trap 'rm -rf "$test_tmp"' EXIT
 
 fake_bin="$test_tmp/bin"
-mkdir -p "$fake_bin"
+mkdir -p "$fake_bin" "$test_tmp/home"
 
 cat >"$fake_bin/snapper" <<'STUB'
 #!/bin/bash
@@ -36,6 +36,15 @@ cat >"$fake_bin/systemctl" <<'STUB'
 printf 'systemctl %s\n' "$*" >>"$TEST_LOG"
 STUB
 chmod +x "$fake_bin/systemctl"
+
+cat >"$fake_bin/btrfs" <<'STUB'
+#!/bin/bash
+printf 'btrfs %s\n' "$*" >>"$TEST_LOG"
+[[ $1 == "subvolume" && $2 == "show" ]] && exit 1
+[[ $1 == "subvolume" && $2 == "create" ]] && mkdir -p "$3"
+exit 0
+STUB
+chmod +x "$fake_bin/btrfs"
 
 notification_migration=$(grep -rl 'Disable Limine Snapper warning notifier' "$ROOT/migrations" | head -n 1 || true)
 [[ -n $notification_migration ]] || fail "Limine Snapper warning notifier migration exists"
@@ -86,6 +95,7 @@ TEST_LOG="$test_tmp/calls.log" \
 PATH="$fake_bin:$PATH" \
 MAITRI_SNAPPER_CONFIGURE_TEST=1 \
 MAITRI_SNAPPER_HOME_SUBVOLUME_TEST=1 \
+MAITRI_SNAPPER_HOME_PATH="$test_tmp/home" \
 MAITRI_PATH="$ROOT" \
 MAITRI_SNAPPER_CONFIG_PATH="$test_tmp/etc/snapper/configs/root" \
 MAITRI_SNAPPER_HOME_CONFIG_PATH="$test_tmp/etc/snapper/configs/home" \
@@ -95,6 +105,8 @@ MAITRI_SNAPPER_CONF_PATH="$test_tmp/etc/conf.d/snapper" \
 cmp -s "$home_template" "$test_tmp/etc/snapper/configs/home" || fail "snapshot configure installs the maitri home Snapper template"
 grep -Fx 'SNAPPER_CONFIGS="root home"' "$test_tmp/etc/conf.d/snapper" >/dev/null || fail "snapshot configure registers the home config"
 grep -Fx 'systemctl enable --now snapper-timeline.timer' "$test_tmp/calls.log" >/dev/null || fail "snapshot configure enables timeline snapshots for /home"
+[[ -d $test_tmp/home/.snapshots ]] || fail "snapshot configure creates the home .snapshots subvolume"
+grep -Fx "btrfs subvolume create $test_tmp/home/.snapshots" "$test_tmp/calls.log" >/dev/null || fail "snapshot configure creates .snapshots as a btrfs subvolume"
 pass "snapshot configure adds hourly home snapshots when /home is a subvolume"
 
 setup_system="$ROOT/bin/maitri-apply-system"

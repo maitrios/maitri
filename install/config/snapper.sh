@@ -44,6 +44,14 @@ if home_is_subvolume; then
   fi
 
   install -m 0644 "$home_template" "$HOME_SNAPPER_CONFIG_PATH"
+
+  home_snapshots_dir="${MAITRI_SNAPPER_HOME_PATH:-/home}/.snapshots"
+  if ! btrfs subvolume show "$home_snapshots_dir" >/dev/null 2>&1; then
+    rmdir "$home_snapshots_dir" 2>/dev/null || true
+    btrfs subvolume create "$home_snapshots_dir" >/dev/null
+    chmod 0750 "$home_snapshots_dir"
+  fi
+
   snapper_configs="root home"
 fi
 
