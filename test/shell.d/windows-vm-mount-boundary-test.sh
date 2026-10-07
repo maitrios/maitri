@@ -18,7 +18,7 @@ if [[ ${MAITRI_WINDOWS_BOUNDARY_NAMESPACE:-0} != 1 ]]; then
   if unshare --mount --propagation private true 2>/dev/null; then
     exec env MAITRI_WINDOWS_BOUNDARY_NAMESPACE=1 unshare --mount --propagation private bash "$0"
   fi
-  pass "private mount namespace unavailable; skipping root Windows VM boundary probe"
+  skip "private mount namespace unavailable; skipping root Windows VM boundary probe"
   exit 0
 fi
 
