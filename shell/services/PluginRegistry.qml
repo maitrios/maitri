@@ -12,6 +12,8 @@ QtObject {
 
   // Set by shell.qml at startup so we can also scan bundled first-party plugins.
   property string firstPartyDir: ""
+  // Set by shell.qml at startup: first-party plugins that packages install.
+  property string packagedDir: ""
 
   // Wired by shell.qml so the registry can read the canonical shell.json
   // without owning file IO itself. shellConfigProvider returns the current
@@ -686,16 +688,18 @@ QtObject {
     onTriggered: localPluginWatcher.running = true
   }
 
-  function rescan() {
-    if (scanning) return
-    scanning = true
-    // $0 = first-party dir, $1 = third-party dir. Some bash versions need the explicit -- separator.
-    // First-party plugins may be grouped one level deeper, e.g. panels/audio
+  function scanCommand() {
+    // $0 = packaged first-party dir, $1 = built-in first-party dir, $2 = third-party dir.
+    // Built-in first-party plugins may be grouped one level deeper, e.g. panels/audio
     // or services/battery.
-    // First-party bar widgets can also carry sibling manifests such as
+    // Built-in bar widgets can also carry sibling manifests such as
     // widgets/Clock.manifest.json so multiple widgets can live in one source
     // directory without wrapper folders.
-    // Third-party plugins stay at the top level of ~/.config/maitri/plugins.
+    // Packaged and third-party plugins stay at the top level of their root, one
+    // plugin per directory.
+    // Packaged plugins are scanned before the built-in ones because a later
+    // manifest with the same id replaces an earlier one, and a plugin shipped
+    // with maitri itself has to win over one a separate package installs.
     var script = ""
       + "emit_manifest() { local kind=\"$1\"; local manifest=\"$2\"; local sub; "
       + "  if [[ ${manifest##*/} == \"manifest.json\" ]]; then sub=\"${manifest%/manifest.json}\"; else sub=\"$(dirname -- \"$manifest\")\"; fi; "
@@ -703,20 +707,27 @@ QtObject {
       + "  cat \"$manifest\"; "
       + "  printf '\\n=== EOM ===\\n'; "
       + "}; "
-      + "scan_firstparty() { local dir=\"$1\"; "
+      + "scan_builtin() { local dir=\"$1\"; "
       + "  [[ -d \"$dir\" ]] || return 0; "
       + "  while IFS= read -r manifest; do emit_manifest firstparty \"$manifest\"; done < <(find \"$dir\" -mindepth 2 -maxdepth 3 -type f \\( -name manifest.json -o -name '*.manifest.json' \\) | sort); "
       + "}; "
-      + "scan_thirdparty() { local dir=\"$1\"; "
+      + "scan_toplevel() { local kind=\"$1\"; local dir=\"$2\"; "
       + "  [[ -d \"$dir\" ]] || return 0; "
       + "  for sub in \"$dir\"/*/; do "
       + "    [[ -f \"$sub/manifest.json\" ]] || continue; "
-      + "    emit_manifest thirdparty \"$sub/manifest.json\"; "
+      + "    emit_manifest \"$kind\" \"$sub/manifest.json\"; "
       + "  done; "
       + "}; "
-      + "scan_firstparty \"$0\"; "
-      + "scan_thirdparty \"$1\""
-    scanProcess.command = ["bash", "-c", script, registry.firstPartyDir, registry.pluginsDir]
+      + "scan_toplevel firstparty \"$0\"; "
+      + "scan_builtin \"$1\"; "
+      + "scan_toplevel thirdparty \"$2\""
+    return ["bash", "-c", script, registry.packagedDir, registry.firstPartyDir, registry.pluginsDir]
+  }
+
+  function rescan() {
+    if (scanning) return
+    scanning = true
+    scanProcess.command = scanCommand()
     scanProcess.running = true
   }
 

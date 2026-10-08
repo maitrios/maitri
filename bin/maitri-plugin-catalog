@@ -4,11 +4,15 @@
 # maitri:group=plugin
 # maitri:hidden=true
 
-# Walks $MAITRI_PATH/shell/plugins and ~/.config/maitri/plugins, reads every
-# manifest.json / *.manifest.json, and emits one JSON object per plugin with
-# computed fields (sourceDir, barWidgetPath, barPath, firstParty). This is the
-# single source of truth used by bar selection and plugin enable/clone, so
-# those commands never re-implement manifest walking.
+# Walks $MAITRI_PATH/shell/plugins, /usr/share/maitri-plugins and
+# ~/.config/maitri/plugins, reads every manifest.json / *.manifest.json, and
+# emits one JSON object per plugin with computed fields (sourceDir,
+# barWidgetPath, barPath, firstParty). This is the single source of truth used
+# by bar selection and plugin enable/clone, so those commands never
+# re-implement manifest walking.
+#
+# When two manifests share an id the first one wins, matching the shell's
+# precedence: built-in over packaged, and both over the user's own.
 
 set -o pipefail
 
@@ -17,6 +21,13 @@ paths=()
 while IFS= read -r manifest; do
   paths+=("$manifest")
 done < <(find "$MAITRI_PATH/shell/plugins" -mindepth 2 -maxdepth 4 -type f \( -name manifest.json -o -name '*.manifest.json' \) | sort)
+
+packaged_dir="${MAITRI_PACKAGED_PLUGINS_DIR:-/usr/share/maitri-plugins}"
+if [[ -d $packaged_dir ]]; then
+  while IFS= read -r manifest; do
+    paths+=("$manifest")
+  done < <(find -L "$packaged_dir" -mindepth 2 -maxdepth 2 -type f -name manifest.json 2>/dev/null | sort)
+fi
 
 user_dir="$HOME/.config/maitri/plugins"
 if [[ -d $user_dir ]]; then
@@ -31,7 +42,7 @@ if (( ${#paths[@]} == 0 )); then
   exit 0
 fi
 
-jq -n '
+jq -n --arg userDir "$user_dir/" '
   [ inputs
     | . as $manifest
     | input_filename as $manifestPath
@@ -41,7 +52,7 @@ jq -n '
         name: ($manifest.name // $manifest.id // ""),
         description: ($manifest.description // ""),
         kinds: ($manifest.kinds // []),
-        firstParty: (($manifest.id // "") | startswith("maitri.")),
+        firstParty: ($manifestPath | startswith($userDir) | not),
         manifestPath: $manifestPath,
         sourceDir: $sourceDir,
         entryPoints: ($manifest.entryPoints // {}),

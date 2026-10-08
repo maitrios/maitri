@@ -3,13 +3,14 @@
 **maitri** (pronounced *MY-tree*) is an Arch-based Hyprland desktop made by [Kindness](https://k7.dev).
 It is a rebranded fork of [Omarchy](https://github.com/basecamp/omarchy) that tracks upstream releases. The current generation, **Karuna** (v0.3+), is built on Omarchy 4; the earlier git-pull line lives on the `legacy` branch. <!-- rebrand:keep -->
 
-## The three repositories
+## The repositories
 
 | Repo | What lives there |
 |---|---|
 | [maitrios/maitri](https://github.com/maitrios/maitri) | The desktop: `bin/` commands, `install/` setup, `default/` and `config/` defaults, `etc/` drop-ins, `shell/` (Quickshell), `themes/`, `migrations/`, the ISO builder under `iso/` |
 | [maitrios/maitri-pkgs](https://github.com/maitrios/maitri-pkgs) | PKGBUILDs and the CI that builds and signs the `[maitri]` pacman repository, including the `maitri` and `maitri-settings` packages built from this repo |
 | [maitrios/maitri-vicinae](https://github.com/maitrios/maitri-vicinae) | The Vicinae extension that renders the maitri menu, keybindings and pickers |
+| [maitrios/maitri-mail](https://github.com/maitrios/maitri-mail) | Mail, a rebranded fork of [omamail](https://github.com/huacnlee/omamail), packaged as `maitri-mail`: the backend at `/usr/bin/maitri-mail` and the `maitri.mail` shell plugin under `/usr/share/maitri-plugins/mail/` |
 
 ## How a maitri install is wired
 

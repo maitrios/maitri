@@ -46,6 +46,14 @@ from pathlib import Path
 
 root = Path(os.environ["ROOT"])
 config = json.loads((root / "config/maitri/shell.json").read_text())
+# Widgets whose plugin a package installs under /usr/share/maitri-plugins rather
+# than shipping in shell/plugins. Their package has to be in the base set, or a
+# fresh bar carries a widget nothing provides.
+packaged = {"maitri.mail": "maitri-mail"}
+base_packages = {
+  line.split("#", 1)[0].strip()
+  for line in (root / "install/maitri-base.packages").read_text().splitlines()
+} - {""}
 manifests = {}
 for manifest_path in (root / "shell/plugins").glob("**/*.manifest.json"):
   data = json.loads(manifest_path.read_text())
@@ -63,6 +71,11 @@ bad = []
 for entry in entries:
   widget_id = entry["id"] if isinstance(entry, dict) else str(entry)
   if not widget_id.startswith("maitri."):
+    continue
+
+  if widget_id in packaged:
+    if packaged[widget_id] not in base_packages:
+      bad.append(f"{widget_id}: {packaged[widget_id]} is not in maitri-base.packages")
     continue
 
   row = manifests.get(widget_id)
@@ -86,7 +99,7 @@ if missing or bad:
     print(item, file=sys.stderr)
   sys.exit(1)
 PY
-pass "default bar widget ids resolve to manifests and entry points"
+pass "default bar widget ids resolve to manifests, entry points or base packages"
 
 ROOT="$ROOT" python3 <<'PY'
 import os

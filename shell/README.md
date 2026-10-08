@@ -164,10 +164,11 @@ an active clone switches back to its built-in source.
 Saving a file anywhere under `~/.config/maitri/plugins/` reloads plugin code
 automatically; `maitri-shell shell rescanPlugins` remains available to force a reload.
 
-First-party plugins under `shell/plugins/` are discovered the same way and load
-by default. Disabling a non-widget records it in `disabledPlugins[]`; disabling
-a widget removes it from the bar layout while leaving its component available
-to add again. A full bar has no off state and is replaced by enabling another.
+First-party plugins under `shell/plugins/`, and those packages install under
+`/usr/share/maitri-plugins/`, are discovered the same way and load by default.
+Disabling a non-widget records it in `disabledPlugins[]`; disabling a widget
+removes it from the bar layout while leaving its component available to add
+again. A full bar has no off state and is replaced by enabling another.
 
 ## IPC contract
 

@@ -26,6 +26,11 @@ Two other packages live in `maitri-pkgs/` but stand alone:
 `maitri-keyring` (GPG keys for pacman) and `maitri-nvim` (the Neovim
 setup; independently seeds `/etc/skel`).
 
+`maitri-mail` is built from its own repo (`maitrios/maitri-mail`). It
+installs the Mail backend at `/usr/bin/maitri-mail` and its shell plugin
+under `/usr/share/maitri-plugins/mail/`, the packaged first-party plugin
+root the shell scans next to `/usr/share/maitri/shell/plugins/`.
+
 Three layers populate `$HOME`:
 
 1. **Seed** — `maitri-settings` ships static defaults to `/etc/skel/`.

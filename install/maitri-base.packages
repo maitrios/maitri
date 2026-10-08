@@ -4,8 +4,8 @@
 # Everything here resolves from the official Arch repos except the packages
 # served from the [maitri] channel (maitrios/maitri-pkgs):
 #   asdcontrol dell-xps13-sidecar-amps fish-pure-prompt herdr helium-browser-bin
-#   hyprland-preview-share-picker hyprmoncfg localsend maitri-fish maitri-nvim
-#   maitri-vicinae-extension mise-bin sublime-text-4
+#   hyprland-preview-share-picker hyprmoncfg localsend maitri-fish maitri-mail
+#   maitri-nvim maitri-vicinae-extension mise-bin sublime-text-4
 #   tensaku ttf-ia-writer ttf-jetbrains-mono-nerd-basic ttfx tzupdate
 #   ufw-docker vi vicinae-bin visual-studio-code-bin warp-terminal-bin
 #   xdg-terminal-exec yaru-icon-theme yay
@@ -89,6 +89,7 @@ localsend
 lua51
 luarocks
 maitri-fish
+maitri-mail
 maitri-nvim
 maitri-vicinae-extension
 man-db

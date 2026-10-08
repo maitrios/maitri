@@ -138,6 +138,8 @@ maitri is a rebranded fork that tracks Omarchy releases; see [`maitri.md`](maitr
   `config/maitri/shell.json`. Menu content still lives in `default/maitri/maitri-menu.jsonc`.
 - fish is the login shell, Helium the browser, VS Code the editor, Spark the theme. Only the seven
   maitri themes ship under `themes/`.
+- `/usr/share/maitri-plugins` is a maitri addition: a fixed first-party plugin root for plugins other
+  packages install, such as `maitri.mail` from `maitri-mail` (see `docs/maitri-shell.md`).
 - `./test/shell` points `MAITRI_PATH` and `PATH` at the checkout so the suites run on any machine.
 - maitri stays on the stock Arch `linux` kernel (`linux-ptl` on Dell XPS Panther Lake). Omarchy 4.0.4's <!-- rebrand:keep -->
   `linux-omarchy` switch is not taken: its migrations and tests sit in `DELETE_LIST`, and <!-- rebrand:keep -->

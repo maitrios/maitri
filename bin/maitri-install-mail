@@ -1,0 +1,26 @@
+#!/bin/bash
+
+# maitri:summary=Install Mail and put it on the bar.
+# maitri:requires-sudo=true
+
+set -euo pipefail
+
+echo "Installing Mail..."
+maitri-pkg-add maitri-mail
+
+echo "Adding Mail to the bar..."
+# The shell only watches the user plugin directory, so it learns about a plugin
+# a package installed when asked to rescan.
+maitri-shell -q shell rescanPlugins
+
+# The end of the center section, where a fresh install has it. A bare
+# --section center would land after the weather widget instead.
+placement=(--section center)
+center_size=$(maitri-shell shell listShellConfig 2>/dev/null | jq -e '.bar.layout.center | arrays | length' 2>/dev/null || true)
+if [[ -n $center_size ]]; then
+  placement+=(--index "$center_size")
+fi
+maitri-bar put maitri.mail "${placement[@]}"
+
+echo ""
+echo "Mail has been installed. Click the envelope in the bar to add a mailbox."
