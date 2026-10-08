@@ -113,7 +113,14 @@ wait "$inhibit_update_pid"
 (( inhibitor_holds_lock == 0 )) || fail "update keeps the update lock out of the sleep inhibitor it leaves running"
 pass "maitri-update keeps the update lock out of its sleep inhibitor"
 
-kill -0 "$inhibitor_pid" 2>/dev/null &&
+# A zombie counts as stopped, the way maitri-update-stay-awake sees it: where
+# nothing reaps orphans (a container without an init), one lingers after exit.
+inhibitor_running() {
+  local state
+  state=$(sed -E 's/^.*\) //' "/proc/$1/stat" 2>/dev/null | cut -d' ' -f1) || return 1
+  [[ -n $state && $state != "Z" ]]
+}
+inhibitor_running "$inhibitor_pid" &&
   fail "update waits for its sleep inhibitor to stop before continuing"
 pass "maitri-update waits for its sleep inhibitor to stop"
 
