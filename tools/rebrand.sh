@@ -116,6 +116,8 @@ DELETE_LIST=(
   'test/shell.d/monitor-scaling-test.sh'
   # A compatibility wrapper for an Omarchy-era unit name maitri installs never had.
   'bin/omarchy-update-user-notify'
+  # The open heart in default/plymouth/logos/heart.png replaces upstream's alternate boot logo.
+  'default/plymouth/logos/oma.png'
 )
 
 # Stock upstream themes are not shipped; only maitri's own live in themes/.

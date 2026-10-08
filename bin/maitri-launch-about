@@ -24,6 +24,12 @@ display_columns() {
   LC_ALL=C.UTF-8 wc -L
 }
 
+theme_colors=()
+if ! custom_fastfetch_config; then
+  accent=$(maitri-theme-color accent 2>/dev/null)
+  [[ $accent =~ ^#[0-9A-Fa-f]{6}$ ]] && theme_colors=(--color-keys "$accent" --logo-color-1 "$accent")
+fi
+
 logo_dimensions() {
   [[ -f $LOGO_FILE ]] || return 1
   printf '%s %s' "$(display_columns <"$LOGO_FILE")" "$(wc -l <"$LOGO_FILE")"
@@ -158,7 +164,7 @@ if [[ ${1:-} == "--render" ]]; then
     size=$(stty size)
     logo_stamp=$(stat -c %Y "$LOGO_FILE" 2>/dev/null)
     clear
-    fastfetch
+    fastfetch "${theme_colors[@]}"
     # A second pass picks up a fit that could not measure the window the first
     # time. Beyond that, a window that will not settle would be fitted again on
     # every repaint.

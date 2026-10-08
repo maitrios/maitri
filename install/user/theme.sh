@@ -4,10 +4,10 @@ mkdir -p ~/.config/maitri/themes
 if [[ ! -s $HOME/.local/state/maitri/current/theme.name ]]; then
   # iso-chroot and provision-owner both run without a live session to notify.
   if [[ ${MAITRI_SETUP_CONTEXT:-runtime} != "runtime" ]]; then
-    MAITRI_THEME_HEADLESS=1 maitri-theme-set "Spark"
+    MAITRI_THEME_HEADLESS=1 maitri-theme-set "Amethyst"
     rm -f ~/.config/chromium/SingletonLock # otherwise archiso owns the Chromium singleton
   else
-    maitri-theme-set "Spark"
+    maitri-theme-set "Amethyst"
   fi
 fi
 maitri-theme-set-pi --activate

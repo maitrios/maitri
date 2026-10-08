@@ -37,7 +37,7 @@ SHOW_CURSOR="${CSI}?25h"
 CLEAR="${CSI}2J${CSI}H"
 CLEAR_LINE="${CSI}2K"
 CLEAR_TO_END="${CSI}J"
-GREEN="${CSI}32m"
+ACCENT="${CSI}35m"
 WHITE="${CSI}37m"
 RED="${CSI}31m"
 DARK="${CSI}90m"
@@ -46,7 +46,7 @@ DARK="${CSI}90m"
 # styling that used to come from install/helpers/presentation.sh.
 export GUM_CONFIRM_PROMPT_FOREGROUND="${GUM_CONFIRM_PROMPT_FOREGROUND:-6}"
 export GUM_CONFIRM_SELECTED_FOREGROUND="${GUM_CONFIRM_SELECTED_FOREGROUND:-0}"
-export GUM_CONFIRM_SELECTED_BACKGROUND="${GUM_CONFIRM_SELECTED_BACKGROUND:-2}"
+export GUM_CONFIRM_SELECTED_BACKGROUND="${GUM_CONFIRM_SELECTED_BACKGROUND:-5}"
 export GUM_CONFIRM_UNSELECTED_FOREGROUND="${GUM_CONFIRM_UNSELECTED_FOREGROUND:-7}"
 export GUM_CONFIRM_UNSELECTED_BACKGROUND="${GUM_CONFIRM_UNSELECTED_BACKGROUND:-0}"
 
@@ -256,10 +256,10 @@ render_logo() {
   pad="$(left_padding "$LOGO_WIDTH")"
   if [[ -f $LOGO_PATH ]]; then
     while IFS= read -r line; do
-      printf '\r%s%s%b%s%b\n' "$CLEAR_LINE" "$pad" "$GREEN" "$line" "$RESET"
+      printf '\r%s%s%b%s%b\n' "$CLEAR_LINE" "$pad" "$ACCENT" "$line" "$RESET"
     done <"$LOGO_PATH"
   else
-    center "${GREEN}maitri${RESET}" "$CONTENT_WIDTH"
+    center "${ACCENT}maitri${RESET}" "$CONTENT_WIDTH"
   fi
 }
 
@@ -458,7 +458,7 @@ render_dynamic() {
   progress_bar "$pm" 34
   printf '\n'
   blank_line
-  center "${DIM}Tip:${RESET} ${GREEN}$(current_tip)${RESET}" "$CONTENT_WIDTH"
+  center "${DIM}Tip:${RESET} ${ACCENT}$(current_tip)${RESET}" "$CONTENT_WIDTH"
   printf '%s' "$CLEAR_TO_END"
 }
 
@@ -522,8 +522,8 @@ render_finish() {
     # Laseretch runs ~4s at 260fps, so the 8s cap is a stuck-process guard rather
     # than a trim. --xterm-colors keeps the whole effect in the 256-index palette
     # the way the greeter does, since the console reduces indexed codes well and
-    # truecolor ones badly, and it settles on indexed 2 — the green gum already
-    # drew the logo in above, so the send-off ends on the frame it started from
+    # truecolor ones badly, and it settles on indexed 5 — the Amethyst accent the
+    # logo was already drawn in above, so the send-off ends on the frame it started from
     # instead of recoloring it. The laser and sparks keep their own hot palette.
     timeout 8s ttfx -i "$LOGO_PATH" \
       --canvas-width "$effect_canvas_width" \
@@ -532,7 +532,7 @@ render_finish() {
       --reuse-canvas \
       --xterm-colors \
       laseretch \
-      --final-gradient-stops 2 \
+      --final-gradient-stops 5 \
       >"$TTY_PATH" 2>/dev/null || dashboard_log "logo effect skipped (ttfx exited $?)"
     printf '%s%d;1H' "$CSI" "$((FINISH_TOP_ROW + LOGO_HEIGHT + 5))" >"$TTY_PATH"
   fi

@@ -1,14 +1,20 @@
 #!/bin/bash
 
 # maitri:summary=Preview a Plymouth boot screen with custom colors and logo
-# maitri:args=<background-hex> <text-hex> <path-to-logo.png> <output-path>
+# maitri:args=[--no-view] <background-hex> <text-hex> <path-to-logo.png> <output-path>
 # maitri:examples=maitri plymouth preview '#1d2021' '#ebdbb2' ~/.local/state/maitri/current/theme/plymouth/logo.png /tmp/plymouth-preview.png
 
 # Render a Plymouth login-screen preview PNG by compositing the staged maitri
 # theme assets (recolored with the given text color) onto the background.
 
+view=1
+if [[ ${1:-} == "--no-view" ]]; then
+  view=0
+  shift
+fi
+
 if (( $# != 4 )); then
-  echo "Usage: maitri-plymouth-preview <background-hex> <text-hex> <path-to-logo.png> <output-path>" >&2
+  echo "Usage: maitri-plymouth-preview [--no-view] <background-hex> <text-hex> <path-to-logo.png> <output-path>" >&2
   exit 1
 fi
 
@@ -73,4 +79,6 @@ magick -size ${canvas_w}x${canvas_h} "xc:#$bg_hex" \
   "${bullet_args[@]}" \
   "$output_path"
 
-imv -f "$output_path"
+if (( view )); then
+  imv -f "$output_path"
+fi

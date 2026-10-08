@@ -136,7 +136,7 @@ maitri is a rebranded fork that tracks Omarchy releases; see [`maitri.md`](maitr
 - The launcher, menu, clipboard and emoji picker are Vicinae (`maitri-launch-vicinae`,
   `maitri-menu`, `maitri-menu-select`, `maitri-menu-input`); the Quickshell menu plugin is disabled in
   `config/maitri/shell.json`. Menu content still lives in `default/maitri/maitri-menu.jsonc`.
-- fish is the login shell, Helium the browser, VS Code the editor, Spark the theme. Only the seven
+- fish is the login shell, Helium the browser, VS Code the editor, Amethyst the default theme. Only the seven
   maitri themes ship under `themes/`.
 - `/usr/share/maitri-plugins` is a maitri addition: a fixed first-party plugin root for plugins other
   packages install, such as `maitri.mail` from `maitri-mail` (see `docs/maitri-shell.md`).
@@ -153,3 +153,10 @@ maitri is a rebranded fork that tracks Omarchy releases; see [`maitri.md`](maitr
   this). Resolve sync conflicts in the lid-close, sleep-lock and wake commands, the bindings,
   `config/hypr/hyprland.lua` and `enable-user-units.sh` toward maitri's side, and drop upstream
   migrations that drive the deleted helpers.
+- The brand is the block MAITRI wordmark from `logo.txt` and the open heart in `assets/brand/`.
+  `tools/brand.py` generates `logo.svg`, `icon.png`, the Plymouth and SDDM `logo.png`, every
+  `themes/*/unlock.png` and `preview-unlock.png`, and `default/plymouth/logos/heart.png`; never edit
+  those by hand, and `test/shell.d/brand-test.sh` fails when they drift. The heart glyph U+E900 is
+  redrawn with `maitri dev font replace U+E900 assets/brand/heart-glyph.svg`. Resolve sync conflicts
+  in those files, `icon.txt`, `maitri.ttf`, the boot and login background (`#0f0a18`) and the
+  Amethyst console palettes toward maitri's side.

@@ -38,8 +38,8 @@ a botched config edit is recoverable: browse `/home/.snapshots/<N>/snapshot/` or
 
 ## Themes
 
-maitri ships seven themes — six dark plus **Daybreak** (light) — with a shared vivid palette. **Spark**
-(deep blue) is the default; switch any time with `Super + Ctrl + Shift + Space`.
+maitri ships seven themes — six dark plus **Daybreak** (light) — with a shared vivid palette.
+**Amethyst** (violet) is the default; switch any time with `Super + Ctrl + Shift + Space`.
 
 ![maitri themes](assets/themes.svg)
 
