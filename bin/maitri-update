@@ -50,6 +50,7 @@ if [[ ${1:-} == "-y" ]] || maitri-update-confirm; then
   maitri-update-aur-pkgs
   maitri-update-mise
   maitri-update-orphan-pkgs
+  maitri-update-pacnew
 
   maitri-update-analyze-logs
   maitri-update-status
