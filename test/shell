@@ -14,9 +14,9 @@ ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 TEST_DIR="$ROOT/test/shell.d"
 
 # The suites read $MAITRI_PATH and call maitri-* commands the way the
-# installed runtime does. On a machine that is not running maitri, point both
-# at this checkout so the tests exercise the tree under test.
-export MAITRI_PATH="${MAITRI_PATH:-$ROOT}"
+# installed runtime does. Point both at this checkout so the tests exercise the
+# tree under test, not the copy a maitri machine has installed.
+export MAITRI_PATH="$ROOT"
 export PATH="$ROOT/bin:$PATH"
 
 shopt -s nullglob
@@ -35,11 +35,22 @@ fi
 # Keep going after a failing file. A test file exits at its first failed
 # assertion, so aborting the run there too would hide every file after it --
 # one packaging failure was masking 114 of 134 files.
+output=$(mktemp)
+trap 'rm -f "$output"' EXIT
 failed=()
+skipped=()
 for test in "${tests[@]}"; do
   printf '==> %s\n' "${test#$ROOT/}"
-  bash "$test" || failed+=("${test#$ROOT/}")
+  bash "$test" | tee "$output" || failed+=("${test#$ROOT/}")
+  if grep -q '^ok - .* # SKIP$' "$output"; then
+    skipped+=("${test#$ROOT/}")
+  fi
 done
+
+if (( ${#skipped[@]} > 0 )); then
+  printf '\nSkipped checks in %d of %d test files:\n' "${#skipped[@]}" "${#tests[@]}"
+  printf '  %s\n' "${skipped[@]}"
+fi
 
 if (( ${#failed[@]} > 0 )); then
   printf '\n%d of %d test files failed:\n' "${#failed[@]}" "${#tests[@]}" >&2
@@ -47,4 +58,8 @@ if (( ${#failed[@]} > 0 )); then
   exit 1
 fi
 
-printf '\nAll %d test files passed.\n' "${#tests[@]}"
+if (( ${#skipped[@]} == 0 )); then
+  printf '\nAll %d test files passed.\n' "${#tests[@]}"
+else
+  printf '\n%d test files completed without failures; %d had skipped checks.\n' "${#tests[@]}" "${#skipped[@]}"
+fi

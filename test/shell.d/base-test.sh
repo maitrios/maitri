@@ -14,6 +14,10 @@ pass() {
   printf 'ok - %s\n' "$1"
 }
 
+skip() {
+  printf 'ok - %s # SKIP\n' "$1"
+}
+
 fail() {
   local description="$1"
   local detail="${2:-}"
@@ -64,6 +68,14 @@ compositor_reachable() {
 require_compositor() {
   local description="$1"
 
+  # These tests start real Quickshell instances in the running session. One
+  # started while the session was locked took the lock for an orphan and
+  # crashed the lock screen, so they only run when asked for.
+  if [[ ${MAITRI_TEST_LIVE_SESSION:-0} != 1 ]]; then
+    skip "live-session test skipped; set MAITRI_TEST_LIVE_SESSION=1 to run $description"
+    exit 0
+  fi
+
   if compositor_reachable; then
     # No probe outruns a compositor that dies mid-run, and Quickshell leaves
     # through qFatal() when its connection drops. Keep that abort from writing a
@@ -72,7 +84,7 @@ require_compositor() {
     return 0
   fi
 
-  pass "no Wayland compositor; skipping $description"
+  skip "no Wayland compositor; skipping $description"
   exit 0
 }
 

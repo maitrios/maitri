@@ -113,7 +113,14 @@ wait "$inhibit_update_pid"
 (( inhibitor_holds_lock == 0 )) || fail "update keeps the update lock out of the sleep inhibitor it leaves running"
 pass "maitri-update keeps the update lock out of its sleep inhibitor"
 
-kill -0 "$inhibitor_pid" 2>/dev/null &&
+# A zombie counts as stopped, the way maitri-update-stay-awake sees it: where
+# nothing reaps orphans (a container without an init), one lingers after exit.
+inhibitor_running() {
+  local state
+  state=$(sed -E 's/^.*\) //' "/proc/$1/stat" 2>/dev/null | cut -d' ' -f1) || return 1
+  [[ -n $state && $state != "Z" ]]
+}
+inhibitor_running "$inhibitor_pid" &&
   fail "update waits for its sleep inhibitor to stop before continuing"
 pass "maitri-update waits for its sleep inhibitor to stop"
 
@@ -200,7 +207,7 @@ run_with_lock_env "$ROOT/bin/maitri-update-stay-awake" stop
 pass "stale update ownership preserves a newer Stay Awake choice"
 
 # A stale PID is safe even if it has been reused by another process.
-sleep 30 &
+sleep 30 >/dev/null &
 unrelated_pid=$!
 unrelated_start_time=$(awk '{ print $22 }' "/proc/$unrelated_pid/stat")
 mkdir -p "$stay_awake_helper_state"

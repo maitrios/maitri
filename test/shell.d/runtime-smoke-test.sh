@@ -20,7 +20,7 @@ trap cleanup EXIT
 require_compositor "shell runtime smoke test"
 
 if ! command -v quickshell >/dev/null 2>&1; then
-  pass "quickshell not installed; skipping shell runtime smoke test"
+  skip "quickshell not installed; skipping shell runtime smoke test"
   exit 0
 fi
 
@@ -528,20 +528,21 @@ jq -e --argjson expected "$default_ids" --argjson visibleExpected "$visible_defa
 }
 pass "default bar layout renders expected module slots"
 
+# Geometry rows come out in no layout order, so compare positions. Indicators sit
+# collapsed at the clock's leading edge until hovered.
 jq -e '
-  map(select(.section == "center")) | map(.id) as $center |
-  ($center | index("maitri.weather")) != null and
-  ($center | index("maitri.system-update")) != null and
-  ($center | index("maitri.indicators")) != null and
-  (($center | index("maitri.weather")) < ($center | index("maitri.system-update"))) and
-  (($center | index("maitri.system-update")) < ($center | index("maitri.indicators")))
+  map(select(.section == "center")) | (map({key: .id, value: .x}) | from_entries) as $x |
+  ($x["maitri.indicators"] != null) and ($x["maitri.clock"] != null) and
+  ($x["maitri.weather"] != null) and ($x["maitri.system-update"] != null) and
+  ($x["maitri.indicators"] <= $x["maitri.clock"]) and
+  ($x["maitri.weather"] < $x["maitri.system-update"])
 ' <<<"$geometry" >/dev/null || {
   printf 'Geometry:\n' >&2
   jq . <<<"$geometry" >&2
-  fail_with_log "runtime geometry keeps update before indicators"
+  fail_with_log "runtime geometry puts indicators before the clock and weather before updates"
 }
 
-pass "runtime geometry keeps update before indicators"
+pass "runtime geometry puts indicators before the clock and weather before updates"
 
 for panel_id in maitri.audio maitri.bluetooth maitri.display maitri.network maitri.power; do
   shell_ipc "$panel_id" open >/dev/null || fail_with_log "direct panel IPC opens $panel_id"

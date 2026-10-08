@@ -27,6 +27,9 @@ mkdir -p "$fake_bin" "$shell_root/shell"
 cat >"$fake_bin/quickshell" <<'SH'
 #!/bin/bash
 
+# Armed before the launch is logged: the test signals as soon as it sees one.
+trap 'touch "$MAITRI_TEST_QS_TERMINATED"; exit 143' TERM
+
 printf '%s\n' "$*" >>"$MAITRI_TEST_QS_LOG"
 printf 'watcher=%s popup=%s\n' \
   "${QS_DISABLE_FILE_WATCHER:-unset}" "${QS_NO_RELOAD_POPUP:-unset}" >>"$MAITRI_TEST_QS_ENV_LOG"
@@ -35,7 +38,6 @@ launches=$(wc -l <"$MAITRI_TEST_QS_LOG")
 status=$(awk -v n="$launches" 'NR == n { print; found = 1 } END { if (!found) print "0" }' <<<"$MAITRI_TEST_QS_STATUSES")
 
 if [[ $status == "run" ]]; then
-  trap 'touch "$MAITRI_TEST_QS_TERMINATED"; exit 143' TERM
   while true; do sleep 0.05; done
 fi
 
