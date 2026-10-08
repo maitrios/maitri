@@ -35,7 +35,7 @@ drag-and-drop in the web form, so save the capture and hand the user the file
 path to attach (`gh` cannot upload media).
 
 For screen-recording failures specifically, rerun with
-`MAITRI_SCREENRECORD_DEBUG=true` and attach `/tmp/maitri-screenrecord.log`.
+`MAITRI_SCREENRECORD_DEBUG=true` and attach `$XDG_RUNTIME_DIR/maitri-screenrecord.log` (or `${XDG_STATE_HOME:-$HOME/.local/state}/maitri/maitri-screenrecord.log` without a session runtime directory).
 
 File the issue with `gh` when available:
 
