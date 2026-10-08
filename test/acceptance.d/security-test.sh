@@ -6,8 +6,8 @@
 #
 # The sshd section reconfigures the machine (enables sshd, opens the firewall,
 # disables password logins), so it demands explicit opt-in: it only runs when
-# MAITRI_ACCEPTANCE_SUDO_PASSWORD is set, which maitri-iso-test does for its
-# throwaway VMs. A cached sudo timestamp alone never triggers it, so running
+# MAITRI_ACCEPTANCE_SUDO_PASSWORD is set, which you only do for a throwaway
+# VM. A cached sudo timestamp alone never triggers it, so running
 # the suite on a machine you care about cannot reconfigure sshd by accident.
 
 set -euo pipefail
@@ -61,7 +61,7 @@ verify_sshd_hardening() {
   # sudo keys its cached credential on the calling terminal and, absent one, on
   # the caller's parent process alone, so a timestamp validated in this shell
   # never reaches the setup command's own sudo calls when the suite runs
-  # without a terminal (maitri-iso-test drives it over ssh with no pty). Give
+  # without a terminal (as it does over ssh with no pty). Give
   # the exercise a pseudo-terminal and validate the password on it first, so
   # every sudo underneath shares that terminal's credential.
   if ! MAITRI_ACCEPTANCE_SUDO_PASSWORD="$MAITRI_ACCEPTANCE_SUDO_PASSWORD" \

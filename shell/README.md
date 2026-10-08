@@ -284,19 +284,3 @@ becomes the authoritative file — we do **not** deep-merge defaults back in.
    even if the 150s screensaver starts first.
 8. **`version: 1` is required** at the top level. The shell will fall back
    to defaults rather than load an unknown version.
-
-## Implementation history
-
-Built up in phases on this branch:
-
-- Phase 1 — `maitri-shell phase 1: host the existing bar in a single shell`
-- Phase 2 — `maitri-shell phase 2: plugin registry and bar widget registry`
-- Phase 3 — `maitri-shell phase 3: fold bar-settings into the shell as a panel plugin`
-- Phase 4 — `maitri-shell phase 4: absorb background-switcher as a plugin`
-- Phase 5 — `maitri-shell phase 5: docs, cleanup, and migration crumbs`
-- Phase 6 — `maitri-shell phase 6: reviewer cleanup (path traversal, collision, races)`
-- Phase 7 — `maitri-shell phase 7: replace socket with IpcHandler, rename to image-picker`
-- Phase 8a — `maitri-shell phase 8a: unified shell.json with inline plugin settings`
-
-Shared services and Pipewire/UPower/Hyprland consolidation are explicitly
-out of scope here and deferred to a follow-up after a review pass.

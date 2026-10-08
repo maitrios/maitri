@@ -8,8 +8,9 @@
 A single long-running [Quickshell](https://quickshell.org/) instance
 that hosts the maitri desktop. The bar, panels, overlays, menus, and
 services all run inside as plugins. IPC is the canonical way for CLIs
-to talk to a running shell — `maitri-shell-ipc` auto-starts it on
-first call.
+to talk to a running shell, through `maitri-shell <target> <method>`.
+That only forwards the call; it does not start the shell, which
+`maitri-launch-shell` (Hyprland autostart) and `maitri-restart-shell` do.
 
 ## Plugin manifest
 

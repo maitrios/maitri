@@ -21,8 +21,8 @@ open_and_close() {
   wait_until "$name closes" 15 layer_absent "$namespace"
 }
 
-# Search and select an emoji. The host harness separately proves the shortcut
-# with a QMP hardware key chord, while this test focuses on UI behavior.
+# Search and select an emoji. This covers the picker's UI, not the shortcut
+# that opens it.
 maitri-shell shell summon maitri.emojis >/dev/null
 wait_until "emoji picker opens" 15 layer_present "maitri-emojis"
 wtype "rocket"

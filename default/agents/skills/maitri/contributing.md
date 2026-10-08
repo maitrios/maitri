@@ -6,9 +6,11 @@ contribute a fix upstream.
 maitri lives at https://github.com/maitrios/maitri and grew from Omarchy <!-- rebrand:keep -->
 (https://github.com/basecamp/omarchy). Route requests to the right place:
 
-- **Verified bugs** -> GitHub issues on maitrios/maitri.
+- **Verified bugs** -> GitHub issues on maitrios/maitri, labelled `bug`.
 - **Feature ideas and suggestions** -> a GitHub issue on maitrios/maitri,
-  labelled as a suggestion.
+  labelled `enhancement`.
+- **Questions** ("is this a bug?") -> a GitHub issue on maitrios/maitri,
+  labelled `question`.
 - **Bugs in code maitri shares with Omarchy** (the shell, Hyprland config, <!-- rebrand:keep -->
   themes engine) may already be reported upstream; check there before filing.
 

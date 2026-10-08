@@ -6,12 +6,23 @@ maitri themes live under `themes/<name>/` in the source tree (installed at
 `colors.toml`; maitri generates the active theme files from
 `default/themed/*.tpl` when `maitri-theme-set <name>` runs.
 
-Beyond `colors.toml` and hand-written config overrides, a first-party theme can
-ship `backgrounds/` (users overlay their own via
-`~/.config/maitri/backgrounds/<name>/`; the active image is the
-`~/.local/state/maitri/current/background` symlink), `preview.png` and
-`preview-unlock.png` for the theme switcher, `icons.theme`, `keyboard.rgb`,
-`unlock.png`, and a `light.mode` marker file.
+Beyond `colors.toml` and hand-written config overrides, every first-party theme
+ships:
+
+- `backgrounds/` (users overlay their own via
+  `~/.config/maitri/backgrounds/<name>/`; the active image is the
+  `~/.local/state/maitri/current/background` symlink)
+- `icons.theme`
+- `unlock.png`, the Plymouth boot logo `maitri-plymouth-set-by-theme` installs
+- `preview-unlock.png`, the thumbnail `maitri-plymouth-switcher` shows; a theme
+  without one is left out of `maitri-plymouth-list`
+
+Daybreak also ships a legacy `light.mode` marker, though its `colors.toml`
+already sets `mode = "light"`, which takes precedence.
+
+A theme may ship a `preview.png` for the theme switcher, but none of the
+first-party themes do: `maitri-theme-switcher` falls back to the first image in
+`backgrounds/`.
 
 A theme installed from a git repo is held to a much shorter list; see [What an installed theme may not ship](#what-an-installed-theme-may-not-ship).
 

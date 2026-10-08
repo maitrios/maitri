@@ -18,9 +18,8 @@ Two Arch packages are built from this one repo (PKGBUILDs live in
   plymouth theme, sddm theme, branding, plus the limine/snapper configs
   (mkinitcpio hooks, limine-entry-tool drop-ins, snapper template, the
   `default/limine/` and `default/snapper/` trees, and the boot/snapshot
-  story end-to-end). Also ships the three debug binaries
-  (`maitri-debug`, `maitri-debug-idle`, `maitri-upload-log`) needed by
-  the live ISO env.
+  story end-to-end). Also ships the two debug binaries
+  (`maitri-debug`, `maitri-debug-idle`) needed by the live ISO env.
 
 Two other packages live in `maitri-pkgs/` but stand alone:
 `maitri-keyring` (GPG keys for pacman) and `maitri-nvim` (the Neovim
@@ -37,7 +36,7 @@ Three layers populate `$HOME`:
    Arch's `useradd -m` copies that tree into a new user's `$HOME` at user
    creation. This is the only mechanism that touches a brand-new user's home
    for these files.
-2. **Finalize** — `maitri-finalize-user` runs once per user and handles the
+2. **Finalize** — `maitri-provision-user` runs once per user and handles the
    things `/etc/skel` can't do because they need `$HOME` expansion, the live
    `$MAITRI_PATH`, or runtime detection of system state.
 3. **Resync** — `maitri-reinstall-configs` is the explicit, destructive
@@ -61,8 +60,7 @@ maitri/                            built into          installed at
 bin/maitri-*                  ──►  maitri             /usr/bin/maitri-*
                                                         (and symlinks in /usr/share/maitri/bin/)
 bin/maitri-debug,
-bin/maitri-debug-idle,
-bin/maitri-upload-log         ──►  maitri-settings    /usr/bin/  (needed before maitri is installed)
+bin/maitri-debug-idle         ──►  maitri-settings    /usr/bin/  (needed before maitri is installed)
 
 default/libalpm/hooks/*.hook
                                 ──►  maitri             /usr/share/libalpm/hooks/*.hook
@@ -187,7 +185,7 @@ yet and silently runs the packaged copy of one it has. The drop-in is validated
 with `visudo -c` before install and removed by `maitri-dev-unlink`; unlike
 `/etc/maitri.conf`, it takes effect without a reboot.
 
-## Runtime finalization (`maitri-finalize-user`)
+## Runtime finalization (`maitri-provision-user`)
 
 Runs once per user. It does **not** copy `~/.config/**`, `~/.bashrc`,
 `flags.lua`, or the nautilus extensions — `/etc/skel` already seeded those.
@@ -198,8 +196,7 @@ It only does the things `/etc/skel` can't:
   and `~/.config/gtk-3.0/bookmarks` (needs `$HOME` expansion).
 - Hyprland's package-owned default input reads `XKBLAYOUT` / `XKBVARIANT`
   from `/etc/vconsole.conf`; no per-user Hyprland config rewrite is needed.
-- `xdg-settings set default-web-browser helium.desktop` and
-  `xdg-mime default HEY.desktop x-scheme-handler/mailto` (XDG-aware paths).
+- `xdg-settings set default-web-browser helium.desktop` (XDG-aware paths).
 - `maitri-refresh-applications` (composes generated `.desktop` launchers).
 - Sources `install/user/all.sh` — theme, git, mise, keyring, per-user
   hardware quirks (asus mic/mixer, framework f13 audio, …).
@@ -209,7 +206,7 @@ It only does the things `/etc/skel` can't:
 Idempotency marker: `~/.local/state/maitri/done/finalize-user`, managed
 by `maitri-done`.
 
-The ISO calls it as `maitri-finalize-user --force --first-install` in the
+The ISO calls it as `maitri-provision-user --force --first-install` in the
 target chroot as the install user, after `maitri-apply-system` has finished
 the root-side work.
 
@@ -321,9 +318,9 @@ return to the packaged default.
 | Default file at `~/.config/foo/` | `config/foo/` |
 | `/etc/` drop-in we own outright | `etc/` |
 | `/etc/` file owned by an upstream package | `default/`, then add to `etc-overrides` in `maitri-settings` PKGBUILD + scriptlet |
-| Package-owned system file (e.g. systemd user service/path in `/usr/lib`) | `default/`, document the mapping in `default/package-defaults.tsv`, then add the `install -Dm644` line in `maitri-settings` PKGBUILD |
+| Package-owned system file (e.g. systemd user service/path in `/usr/lib`) | `default/`, add the mapping to the build-time map above, then add the `install -Dm644` line in `maitri-settings` PKGBUILD |
 | Per-user file that's static but lives outside `~/.config` | `default/`, then add `install -Dm644 ... $pkgdir/etc/skel/...` in `maitri-settings` PKGBUILD |
-| Runtime tweak that needs `$HOME` or live system state | extend `maitri-finalize-user`, or add a per-user leaf under `install/user/` and wire into `install/user/all.sh` |
+| Runtime tweak that needs `$HOME` or live system state | extend `maitri-provision-user`, or add a per-user leaf under `install/user/` and wire into `install/user/all.sh` |
 | One-time root-side setup step | `install/config/*.sh` or `install/hardware/*.sh`, wire into `install/config/all.sh` or `install/hardware/all.sh` |
 | One-time fix for existing installs | `migrations/<unix-timestamp>.sh` |
 | Package-owned path something else may already write | Prefer a path nothing else writes, such as a vendor drop-in under `/usr/lib`. Otherwise the `--overwrite` entry in `bin/maitri-update-system-pkgs` has to ship a release before the file |

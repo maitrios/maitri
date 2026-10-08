@@ -3,7 +3,7 @@
 # maitri:summary=Build and install an maitri package from a local checkout
 # maitri:group=dev
 # maitri:args=[package-name] [path-to-checkout]
-# maitri:examples=maitri dev pkg-test | maitri dev pkg-test maitri-dev ~/dev/kindness/maitri
+# maitri:examples=maitri dev pkg-test | maitri dev pkg-test maitri-dev ~/dev/maitri
 
 set -euo pipefail
 
@@ -18,17 +18,17 @@ can't shadow.
 
 Defaults:
   packages          maitri-settings-dev maitri-dev
-  path-to-checkout  ~/dev/kindness/maitri
+  path-to-checkout  ~/dev/maitri
 
 Examples:
   maitri dev pkg-test
   maitri dev pkg-test maitri-settings-dev
-  maitri dev pkg-test maitri-dev ~/dev/kindness/maitri
+  maitri dev pkg-test maitri-dev ~/dev/maitri
 
 The pkgver of the built package is tagged 'dev.<short-sha>[.dirty]' so
 'pacman -Q' makes it obvious where the installed version came from.
 
-PKGBUILDs are read from \${MAITRI_PKGBUILDS_DIR:-~/dev/kindness/maitri-pkgs/pkgbuilds}/<package-name>/.
+PKGBUILDs are read from \${MAITRI_PKGBUILDS_DIR:-~/dev/maitri-pkgs/pkgbuilds}/<package-name>/.
 USAGE
   exit 0
 fi
@@ -73,14 +73,28 @@ dev_package_name() {
 
 if (( $# == 0 )); then
   PKGS=(maitri-settings-dev maitri-dev)
-  CHECKOUT="$HOME/dev/kindness/maitri"
+  CHECKOUT="$HOME/dev/maitri"
   MAKEPKG_ARGS=()
 else
   PKGS=("$(dev_package_name "$1")")
-  CHECKOUT="${2:-$HOME/dev/kindness/maitri}"
+  CHECKOUT="${2:-$HOME/dev/maitri}"
   MAKEPKG_ARGS=("${@:3}")
 fi
-PKGBUILDS_ROOT="${MAITRI_PKGBUILDS_DIR:-$HOME/dev/kindness/maitri-pkgs/pkgbuilds}"
+PKGBUILDS_ROOT="${MAITRI_PKGBUILDS_DIR:-$HOME/dev/maitri-pkgs/pkgbuilds}"
+
+# The release maitri pins maitri-settings to its own version, so the dev pair
+# replace the release pair only together.
+if (( ${#PKGS[@]} == 1 )); then
+  case ${PKGS[0]} in
+    maitri-settings-dev) partner=maitri-dev ;;
+    maitri-dev) partner=maitri-settings-dev ;;
+    *) partner="" ;;
+  esac
+  if [[ -n $partner ]] && ! pacman -Q "$partner" &>/dev/null; then
+    echo "Adding $partner: the dev packages only replace the release ones together."
+    PKGS+=("$partner")
+  fi
+fi
 
 if [[ ! -d "$CHECKOUT" ]]; then
   echo "Error: checkout not found at $CHECKOUT" >&2
@@ -106,6 +120,7 @@ if [[ -d "$CHECKOUT/.git" ]] && [[ -n "$(git -C "$CHECKOUT" status --porcelain)"
 fi
 new_pkgver="dev.${short_sha}${dirty}"
 
+built_pkgs=()
 for PKG in "${PKGS[@]}"; do
   PKGBUILD_DIR="$PKGBUILDS_ROOT/$PKG"
   package_build_dir="$build_dir/$PKG"
@@ -120,18 +135,24 @@ for PKG in "${PKGS[@]}"; do
   echo "  PKGBUILD : $PKGBUILD_DIR/PKGBUILD"
   echo
 
+  # The dev pair depend on each other (maitri-dev needs maitri-settings-dev), so
+  # neither passes makepkg's dependency check before both are installed. They
+  # only build with git and imagemagick; pacman resolves the rest below.
   (
     cd "$package_build_dir"
-    MAITRI_SRC="$CHECKOUT" makepkg -s --skipchecksums --noconfirm "${MAKEPKG_ARGS[@]}"
+    MAITRI_SRC="$CHECKOUT" makepkg --nodeps --skipchecksums --noconfirm "${MAKEPKG_ARGS[@]}"
   )
 
-  # Install separately so we can pass --overwrite='*' (makepkg -i can't).
-  # Dev builds frequently conflict with files left behind by previous
-  # script-installed maitri versions; the build is the authoritative state.
   built_pkg=$(ls -t "$package_build_dir"/*.pkg.tar.* 2>/dev/null | grep -v '\.sig$' | head -1)
   if [[ -z $built_pkg ]]; then
     echo "Error: no built package found in $package_build_dir" >&2
     exit 1
   fi
-  sudo pacman -U --noconfirm --overwrite='*' "$built_pkg"
+  built_pkgs+=("$built_pkg")
 done
+
+# One transaction, so the dev pair replace the release pair together.
+# --overwrite='*' because dev builds often meet files left behind by
+# script-installed versions. --noconfirm answers no to removing the release
+# package; --ask=4 flips only that answer.
+sudo pacman -U --noconfirm --ask=4 --overwrite='*' "${built_pkgs[@]}"

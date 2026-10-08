@@ -3,9 +3,10 @@
 Read this before editing the Quickshell desktop under `shell/`.
 
 The Quickshell desktop runs as a single long-running process out of
-`shell/`. Hyprland autostart launches it directly with `quickshell -n -p`;
-do not start additional standalone Quickshell instances for individual
-components.
+`shell/`. Hyprland autostart (`default/hypr/autostart.lua`) starts it through
+`maitri-launch-shell`, which runs `quickshell -n -p "$MAITRI_PATH/shell"`
+under `systemd-cat` and relaunches it when it exits with an error; do not
+start additional standalone Quickshell instances for individual components.
 
 Run `maitri-restart-shell` after making changes to QML files.
 
@@ -38,7 +39,9 @@ Run `maitri-restart-shell` after making changes to QML files.
 - Individual plugins register their own IPC targets, named for the plugin rather
   than for where they appear: the background switcher registers `background`, and
   bar widgets register one target each — `maitri.indicators`,
-  `maitri.system-update`, `maitri.clock`. There is no `bar` target.
+  `maitri.system-update`, `maitri.clock`. The bar itself registers
+  `maitri.bar`, whose only method is `syncHidden` (called by
+  `maitri-toggle-bar`); there is no plain `bar` target.
 
 ## Editing widget files with glyphs
 

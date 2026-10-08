@@ -1,0 +1,16 @@
+name: Suggestion
+description: Suggest a new feature or a change to an existing one
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Remember: maitri is an open source gift, not a product you bought from a vendor
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: What would you like to change?
+      description: Describe the feature or change, and the problem it solves for you
+    validations:
+      required: true

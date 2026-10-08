@@ -15,7 +15,7 @@ maitri theme install <url>     # Install from git repo
 ## Making a New Theme
 
 1. Create a directory under `~/.config/maitri/themes`.
-2. See how an existing theme is done via `/usr/share/maitri/themes/catppuccin`.
+2. See how an existing theme is done via `/usr/share/maitri/themes/ember`.
 3. Download a matching background (or several) from the internet and put them in `~/.config/maitri/themes/<name-of-new-theme>/backgrounds/`.
 4. When done with the theme, run `maitri theme set "Name of new theme"`.
 
@@ -55,19 +55,19 @@ the SAME slug containing only the files you want to change. When the theme is
 applied, the stock theme is copied first and your files win on top:
 
 ```bash
-mkdir -p ~/.config/maitri/themes/catppuccin
-cp /usr/share/maitri/themes/catppuccin/colors.toml ~/.config/maitri/themes/catppuccin/
+mkdir -p ~/.config/maitri/themes/ember
+cp /usr/share/maitri/themes/ember/colors.toml ~/.config/maitri/themes/ember/
 # Edit the copied colors.toml, then re-apply:
-maitri theme set catppuccin
+maitri theme set ember
 ```
 
 **Fork:** copy the whole stock theme under a new name for a fully independent
 variant:
 
 ```bash
-cp -r /usr/share/maitri/themes/catppuccin ~/.config/maitri/themes/catppuccin-custom
-# Edit ~/.config/maitri/themes/catppuccin-custom/, then:
-maitri theme set catppuccin-custom
+cp -r /usr/share/maitri/themes/ember ~/.config/maitri/themes/ember-custom
+# Edit ~/.config/maitri/themes/ember-custom/, then:
+maitri theme set ember-custom
 ```
 
 ## Fonts

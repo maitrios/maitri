@@ -121,8 +121,10 @@ maitri-update
   ├─ maitri-update-lock
   │    └─ acquire the update lock and run maitri-update inside it
   ├─ maitri-update-requires-free-space
-  │    └─ check free space on / and warn below the configured threshold
+  │    └─ stop when / has less than 10 GiB free
   ├─ confirm unless -y
+  ├─ maitri-update-pkg-prune
+  │    └─ trim the pacman cache to two versions per package, before the snapshot
   ├─ create snapper snapshot, if snapper is installed
   ├─ maitri-update-stay-awake start
   ├─ run package updates, migrations, hooks, and log analysis
@@ -246,10 +248,13 @@ scripts.
 | `maitri-update-lock` | Hidden command wrapper that holds the per-user update lock while its child runs. | **Keep internal/hidden.** Isolates update concurrency and lock descriptor handling. |
 | `maitri-update-stay-awake` | Hidden helper that starts or stops update-owned sleep and idle inhibition, restoring only the state it changed. | **Keep internal/hidden.** Keeps inhibitor ownership and cleanup together. |
 | `maitri-update-status` | Hidden helper that refreshes or clears the shell update indicator after rechecking available updates. | **Keep internal/hidden.** Keeps shell status synchronization out of the main pipeline. |
+| `maitri-update-requires-free-space` | Hidden pre-flight check that stops the update when `/` has less than 10 GiB free. Skipped when free space can't be read or `MAITRI_UPDATE_FORCE=1`. | **Keep internal/hidden.** Small guard that runs before anything changes. |
 | `maitri-update-confirm` | Gum confirmation copy for `maitri update`. | **Question.** Could be inlined into `maitri-update`; separate file only helps keep copy isolated. |
+| `maitri-update-pkg-prune` | Runs `sudo paccache -rk2`, keeping two versions of each package as the offline downgrade path. Runs before the snapshot, since the cache lives on the snapshotted subvolume. A failure only warns. | **Keep.** Has to stay ahead of the snapshot to free anything. |
 | `maitri-update-dev` | Fast-forwards the active dev-linked checkout from its configured upstream; no-ops for package-backed installs. | **Keep.** Runs before package updates so a checkout conflict stops the update before system mutation. |
 | `maitri-update-keyring` | Ensures maitri keyring and Arch keyring are current before the main transaction. | **Keep, but review.** It uses targeted `pacman -Sy` for keyring bootstrapping; acceptable for this special case but should remain tightly scoped. |
-| `maitri-update-system-pkgs` | Runs `maitri-update-pacman -Syu --noconfirm` with targeted transition `--overwrite` entries so the ALPM guard allows the transaction and early package-layout conflicts are handled. | **Keep for now.** Small leaf command, clear/testable. |
+| `maitri-update-system-pkgs` | Runs `maitri-update-pacman -Syu --noconfirm --overwrite '/usr/share/maitri/*'` so the ALPM guard allows the transaction and unowned files under `/usr/share/maitri` don't abort it. On failure it hands pacman's error report to `maitri-update-system-pkgs-when-conflicted`. | **Keep for now.** Small leaf command, clear/testable. |
+| `maitri-update-system-pkgs-when-conflicted` | Hidden conflict handler that `maitri-update-system-pkgs` execs; it refuses to run without that caller's `MAITRI_UPDATE_CONFLICT=1`. For files in maitri's own packages that no package owns, it moves them to `/var/lib/maitri/replaced/` and retries once, putting back whatever the retry didn't install. For a package conflict, it reruns the upgrade without `--noconfirm` so the user answers pacman, or fails under `-y` or without a terminal. | **Keep internal/hidden.** Keeps recovery out of the main transaction step. |
 | `maitri-migrate` | Public migration command. Waits for pacman, then runs all pending migrations for the current user. Supports `--pending`. | **Keep.** This replaces the discarded `maitri-update-user-finalize` name and no longer needs `--force`. |
 | `maitri-update-pacman-guard` | ALPM pre-transaction guard that aborts direct `pacman -Syu` style upgrades unless maitri set `MAITRI_UPDATE_PACMAN=1` or the user explicitly set `MAITRI_ALLOW_DIRECT_PACMAN=1`. | **Keep internal/hidden.** This is what nudges users back to `maitri update`. |
 | `maitri-update-pacman` | Hidden helper that runs a guard-approved pacman transaction as a PID 1 scope (`systemd-run --scope`) so a mid-transaction systemd reexec cannot kill it; runs pacman directly when not booted under systemd. | **Keep internal/hidden.** Single place that owns how maitri invokes pacman for system mutation. |

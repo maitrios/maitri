@@ -276,7 +276,7 @@ This skill intentionally does not cover maitri source development. Do not use th
 
 ## Example Requests
 
-- "Change my theme to catppuccin" -> `maitri theme set catppuccin`
+- "Change my theme to ember" -> `maitri theme set ember`
 - "Add a keybinding for Super+E to open file manager" -> Check existing bindings first, call `hl.unbind` if needed, then `o.bind` in `~/.config/hypr/bindings.lua`
 - "Configure my external monitor" -> Arrange it in `hyprmoncfg` and save a profile (see `hyprland.md`)
 - "Make the window gaps smaller" -> Edit `~/.config/hypr/looknfeel.lua`
@@ -284,7 +284,7 @@ This skill intentionally does not cover maitri source development. Do not use th
 - "Set a reminder to pickup jack in 15 minutes" -> `maitri reminder 15 "Pickup Jack"`
 - "Show my reminders" -> `maitri reminder show`
 - "Clear all reminders" -> `maitri reminder clear`
-- "Customize the catppuccin theme colors" -> Overlay: put an edited `colors.toml` in `~/.config/maitri/themes/catppuccin/`, then re-apply the theme (see `theming.md`)
+- "Customize the ember theme colors" -> Overlay: put an edited `colors.toml` in `~/.config/maitri/themes/ember/`, then re-apply the theme (see `theming.md`)
 - "Run a script every time I change themes" -> Install it with `maitri hook install theme-set <script>`
 - "Change how workspace labels are rendered" -> Clone `maitri.workspaces`, which switches the bar to `<username>.workspaces`, then edit the clone
 - "Lock after ten minutes" -> Set `idle.lock` to `600` in `~/.config/maitri/shell.json`
