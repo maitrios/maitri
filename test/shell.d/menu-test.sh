@@ -119,6 +119,18 @@ const ranked = menu.mergeAppRows(rankBase.items, rankBase.itemOrder, [
   { id: 'apps.zen', parent: 'apps', kind: 'app', label: 'Zen Browser', description: '', aliases: [] }
 ])
 const rankScore = (id, query) => menu.searchScore(ranked.items, ranked.items[id], query)
+const searchHits = query => rankBase.itemOrder.filter(id => menu.matchesQuery(rankBase.items[id], query, true))
+assertDeepEqual(searchHits('install aur'), ['install.aur'], 'menu search matches a leaf qualified by its parent menu')
+assertDeepEqual(searchHits('default browser'), ['setup.default.browser'], 'menu search matches parent words before the leaf name')
+assert(searchHits('inst chrom').includes('install.browser.chrome'), 'menu search matches parent words by prefix')
+assert(!menu.matchesQuery(rankBase.items['install.aur'], 'install', true), 'a parent word alone does not match every leaf under it')
+assert(!menu.matchesQuery(rankBase.items['install.aur'], 'remove aur', true), 'menu search does not match a leaf under a different parent')
+assert(searchHits('services dropbox').includes('remove.service.dropbox'), 'menu search matches a parent by the label it shows')
+assert(searchHits('speed network').includes('trigger.tests.network-speedtest'), 'menu search matches a parent label that differs from its id')
+const relocated = menu.mergeMenuSources(defaultItems, menu.parseMenuJsonc('{"style.hello": {"label": "Hello", "parent": "install"}}'))
+assert(menu.matchesQuery(relocated.items['style.hello'], 'install hello', true), 'menu search follows an explicit parent over the id')
+assert(!menu.matchesQuery(relocated.items['style.hello'], 'style hello', true), 'menu search ignores id words of a menu the entry does not sit under')
+assert(rankScore('install.aur', 'install aur') < rankScore('install.aur', 'aur install pkg'), 'a parent-qualified match outranks a weaker one')
 assert(
   ['install.browser.brave', 'remove.browser.brave', 'setup.default.browser.brave'].every(
     id => rankScore('apps.brave', 'brave') < rankScore(id, 'brave')

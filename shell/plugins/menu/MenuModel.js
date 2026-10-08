@@ -87,6 +87,10 @@ function mergeMenuSources(defaultItems, userItems) {
     nextOrder.unshift("root")
   }
   for (var k3 = 0; k3 < nextOrder.length; k3++) nextItems[nextOrder[k3]].order = k3
+  for (var k4 = 0; k4 < nextOrder.length; k4++) {
+    var current = nextItems[nextOrder[k4]]
+    current.parentSearch = ancestorSearchText(nextItems, current)
+  }
 
   return {
     items: nextItems,
@@ -293,6 +297,57 @@ function nameSearchText(entry) {
   return [entry.label, searchableToken(leafIdFor(entry.id)), aliases.join(" ")].join(" ").toLowerCase()
 }
 
+// The words a search can use to narrow down to a menu: each ancestor's label
+// as shown, plus its id, so "services" and "service" both reach Remove ›
+// Services.
+function ancestorSearchText(items, entry) {
+  var words = []
+  var ancestor = items[entry.parent]
+  for (var guard = 0; ancestor && ancestor.id !== "root" && guard < 32; guard++) {
+    words.push(ancestor.label, ancestor.id)
+    ancestor = items[ancestor.parent]
+  }
+  return searchableToken(words.join(" ")).toLowerCase()
+}
+
+function parentSearchText(entry) {
+  if (!entry) return ""
+  if (typeof entry.parentSearch === "string") return entry.parentSearch
+  return entry.parent && entry.parent !== "root" ? searchableToken(entry.parent).toLowerCase() : ""
+}
+
+function termStartsSearchWord(term, text) {
+  var words = String(text || "").toLowerCase().split(/\s+/)
+  for (var i = 0; i < words.length; i++) {
+    if (words[i] && words[i].indexOf(term) === 0) return true
+  }
+  return false
+}
+
+// Every term has to match the entry itself (its name, or a whole word of its
+// description) or the start of a word in one of its parent menus. Null when a
+// term matches neither.
+function queryTermMatches(entry, query) {
+  var nameText = nameSearchText(entry)
+  var descriptionText = String(entry.description || "").toLowerCase()
+  var parentText = parentSearchText(entry)
+  var terms = String(query || "").toLowerCase().trim().split(/\s+/)
+  var match = { searched: false, own: false, parent: false }
+  for (var i = 0; i < terms.length; i++) {
+    if (!terms[i]) continue
+    match.searched = true
+    if (nameText.indexOf(terms[i]) >= 0 || termInSearchWords(terms[i], descriptionText)) match.own = true
+    else if (termStartsSearchWord(terms[i], parentText)) match.parent = true
+    else return null
+  }
+  return match
+}
+
+function parentQualifiedMatch(entry, query) {
+  var match = queryTermMatches(entry, query)
+  return !!match && match.own && match.parent
+}
+
 function termInSearchWords(term, text) {
   var words = String(text || "").toLowerCase().split(/\s+/)
   for (var i = 0; i < words.length; i++) {
@@ -313,18 +368,8 @@ function matchesQuery(entry, query, visible) {
   if (!entry || entry.id === "root") return false
   if (!visible) return false
 
-  var nameText = nameSearchText(entry)
-  var descriptionText = String(entry.description || "").toLowerCase()
-  var terms = String(query || "").toLowerCase().trim().split(/\s+/)
-
-  for (var i = 0; i < terms.length; i++) {
-    if (!terms[i]) continue
-    if (nameText.indexOf(terms[i]) >= 0) continue
-    if (termInSearchWords(terms[i], descriptionText)) continue
-    return false
-  }
-
-  return true
+  var match = queryTermMatches(entry, query)
+  return !!match && (match.own || !match.searched)
 }
 
 function searchScore(items, entry, query) {
@@ -341,6 +386,7 @@ function searchScore(items, entry, query) {
   else if (label.indexOf(needle) === 0) score = 10
   else if (label.indexOf(needle) >= 0) score = 30
   else if (nameText.indexOf(needle) >= 0) score = 40
+  else if (parentQualifiedMatch(entry, needle)) score = 50
   else if (descriptionTextMatches(needle, descriptionText)) score = 60
 
   if (entry.kind === "menu" || entry.kind === "link") score -= 2
