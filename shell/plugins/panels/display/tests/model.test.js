@@ -911,7 +911,7 @@ test("bar icon stays legible through transient daemon restarts", () => {
   assert.match(qml, /id: barDisplayGlyph/)
   assert.match(qml, /visible: root\.backendConnected/)
   assert.match(qml, /text: "󰄬"/)
-  assert.match(qml, /color: Color\.accent/)
+  assert.match(qml, /color: Commons\.Color\.accent/)
 })
 
 test("the panel header uses the clear managed check at hero scale", () => {
@@ -919,7 +919,7 @@ test("the panel header uses the clear managed check at hero scale", () => {
   assert.match(qml, /id: compactHeroGlyph/)
   assert.match(qml, /visible: root\.backendConnected/)
   assert.match(qml, /text: "󰄬"/)
-  assert.match(qml, /color: Color\.accent/)
+  assert.match(qml, /color: Commons\.Color\.accent/)
   assert.match(qml, /text: "hyprmoncfg"/)
 })
 

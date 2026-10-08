@@ -1,5 +1,6 @@
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 import "Model.js" as Model
 
@@ -21,8 +22,8 @@ Column {
   property string resetTooltip: "Reset to loaded profile value"
   property Item popupParent: null
   property bool ownerOpen: true
-  property color foreground: Color.popups.text
-  property color accent: Color.accent
+  property color foreground: Commons.Color.popups.text
+  property color accent: Commons.Color.accent
   property string fontFamily: Style.font.family
   readonly property alias more: moreDropdown
 

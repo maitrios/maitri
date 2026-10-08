@@ -4,6 +4,7 @@ import QtQuick.Controls as Controls
 import Quickshell
 import Quickshell.Io
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 import "Model.js" as Model
 
@@ -327,9 +328,9 @@ Panel {
     && root.serviceStateKnown
     && !root.managedChecked
     && !root.serviceActionPending
-  readonly property color foreground: bar ? bar.foreground : Color.foreground
+  readonly property color foreground: bar ? bar.foreground : Commons.Color.foreground
   readonly property color dim: Qt.darker(foreground, 1.5)
-  readonly property color urgent: bar ? bar.urgent : Color.urgent
+  readonly property color urgent: bar ? bar.urgent : Commons.Color.urgent
   readonly property real unmanagedOpacity: 0.45
   // NumberField is backed by a QML int. Keep only that technical boundary;
   // workspace planning itself has no product-level maximum.
@@ -2131,7 +2132,7 @@ Panel {
                 anchors.rightMargin: -Style.space(2)
                 anchors.bottomMargin: -Style.space(1)
                 text: "󰄬"
-                color: Color.accent
+                color: Commons.Color.accent
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.caption
                 font.bold: true
@@ -2257,7 +2258,7 @@ Panel {
                 active: true
                 foreground: root.foreground
                 dim: root.dim
-                accent: Color.accent
+                accent: Commons.Color.accent
                 fontFamily: root.fontFamily
                 opacity: root.managedChecked ? 1.0 : root.unmanagedOpacity
 
@@ -2280,7 +2281,7 @@ Panel {
                   framed: true
                   foreground: root.foreground
                   dim: root.dim
-                  accent: Color.accent
+                  accent: Commons.Color.accent
                   fontFamily: root.fontFamily
                   onOutputSelected: function(key) { root.selectedOutputKey = key }
                   onOutputMoved: function(key, x, y, snapDistance) {
@@ -2296,8 +2297,8 @@ Panel {
                 visible: root.draftDirty || root.previewTransaction !== ""
                 width: parent.width
                 implicitHeight: compactDraftActions.implicitHeight + Style.space(16)
-                color: Style.selectedFillFor(root.foreground, Color.accent)
-                borderSpec: Border.controlSpec("selected", root.foreground, Color.accent)
+                color: Style.selectedFillFor(root.foreground, Commons.Color.accent)
+                borderSpec: Border.controlSpec("selected", root.foreground, Commons.Color.accent)
                 radius: Style.cornerRadius
                 opacity: root.managedChecked ? 1.0 : root.unmanagedOpacity
 
@@ -2394,7 +2395,7 @@ Panel {
                 loading: root.brightnessLoading
                 foreground: root.foreground
                 dim: root.dim
-                accent: Color.accent
+                accent: Commons.Color.accent
                 fontFamily: root.fontFamily
                 onPreviewed: function(value) { root.previewBrightness(value) }
                 onCommitted: function(value) {
@@ -2414,7 +2415,7 @@ Panel {
                 hasCursor: root.cursorActive && root.cursorIndex === -2
                 foreground: root.foreground
                 dim: root.dim
-                accent: Color.accent
+                accent: Commons.Color.accent
                 fontFamily: root.fontFamily
                 onCommitted: function(pixels) { root.setTextSize(pixels) }
                 onHoveredRow: if (!root.reflowingText) {
@@ -2676,8 +2677,8 @@ Panel {
           anchors.top: editorNav.bottom
           anchors.topMargin: Style.space(8)
           height: Style.space(58)
-          color: Style.selectedFillFor(root.foreground, Color.accent)
-          borderSpec: Border.controlSpec("selected", root.foreground, Color.accent)
+          color: Style.selectedFillFor(root.foreground, Commons.Color.accent)
+          borderSpec: Border.controlSpec("selected", root.foreground, Commons.Color.accent)
           radius: Style.cornerRadius
 
           Row {
@@ -2763,7 +2764,7 @@ Panel {
               active: root.keyboardLayoutPane === "canvas"
               foreground: root.foreground
               dim: root.dim
-              accent: Color.accent
+              accent: Commons.Color.accent
               fontFamily: root.fontFamily
               opacity: root.managedChecked ? 1.0 : root.unmanagedOpacity
 
@@ -2787,7 +2788,7 @@ Panel {
                 framed: true
                 foreground: root.foreground
                 dim: root.dim
-                accent: Color.accent
+                accent: Commons.Color.accent
                 fontFamily: root.fontFamily
                 onOutputSelected: function(key) { root.selectedOutputKey = key }
                 onOutputMoved: function(key, x, y, snapDistance) {
@@ -2809,7 +2810,7 @@ Panel {
               metadata: root.selectedOutputMetadata
               foreground: root.foreground
               dim: root.dim
-              accent: Color.accent
+              accent: Commons.Color.accent
               fontFamily: root.fontFamily
               canIdentify: root.identifyAvailable && !!root.selectedOutput
               onIdentifyRequested: root.identifyDisplays(root.selectedOutputKey)
@@ -2838,7 +2839,7 @@ Panel {
                 active: root.keyboardLayoutPane !== "canvas"
                 foreground: root.foreground
                 dim: root.dim
-                accent: Color.accent
+                accent: Commons.Color.accent
                 fontFamily: root.fontFamily
 
                 ButtonGroup {
@@ -2848,8 +2849,8 @@ Panel {
                   options: root.inspectorOptions
                   value: root.inspectorPage
                   foreground: root.foreground
-                  background: root.bar ? root.bar.background : Color.background
-                  accent: Color.accent
+                  background: root.bar ? root.bar.background : Commons.Color.background
+                  accent: Commons.Color.accent
                   fontFamily: root.fontFamily
                   fontSize: Style.font.caption
                   onChanged: function(value) {
@@ -3399,7 +3400,7 @@ Panel {
               active: true
               foreground: root.foreground
               dim: root.dim
-              accent: Color.accent
+              accent: Commons.Color.accent
               fontFamily: root.fontFamily
 
               Column {
@@ -3501,9 +3502,9 @@ Panel {
                       readonly property bool selected: String(modelData.name || "") === root.selectedSavedProfileName
                       readonly property bool current: Model.profileIsCurrent(modelData, root.document)
                       color: selected
-                        ? Style.selectedFillFor(root.foreground, Color.accent)
+                        ? Style.selectedFillFor(root.foreground, Commons.Color.accent)
                         : "transparent"
-                      borderSpec: selected ? Border.controlSpec("selected", root.foreground, Color.accent) : Border.none()
+                      borderSpec: selected ? Border.controlSpec("selected", root.foreground, Commons.Color.accent) : Border.none()
                       radius: Style.cornerRadius
 
                       Row {
@@ -3527,7 +3528,7 @@ Panel {
                           markDisconnected: true
                           foreground: root.foreground
                           dim: root.dim
-                          accent: Color.accent
+                          accent: Commons.Color.accent
                           fontFamily: root.fontFamily
                         }
 
@@ -3568,7 +3569,7 @@ Panel {
                           horizontalAlignment: Text.AlignRight
                           anchors.verticalCenter: parent.verticalCenter
                           text: Number(modelData.match_score || 0) > 0 ? String(modelData.match_score) : "—"
-                          color: modelData.recommended ? Color.accent : root.dim
+                          color: modelData.recommended ? Commons.Color.accent : root.dim
                           font.family: root.fontFamily
                           font.pixelSize: Style.font.bodySmall
                           font.bold: modelData.recommended
@@ -3633,7 +3634,7 @@ Panel {
                 meta: ""
                 foreground: root.foreground
                 dim: root.dim
-                accent: Color.accent
+                accent: Commons.Color.accent
                 fontFamily: root.fontFamily
 
                 DisplayCanvas {
@@ -3650,7 +3651,7 @@ Panel {
                   markDisconnected: true
                   foreground: root.foreground
                   dim: root.dim
-                  accent: Color.accent
+                  accent: Commons.Color.accent
                   fontFamily: root.fontFamily
                 }
               }
@@ -3662,7 +3663,7 @@ Panel {
                 meta: root.selectedSavedProfileCurrent ? "Active" : ""
                 foreground: root.foreground
                 dim: root.dim
-                accent: Color.accent
+                accent: Commons.Color.accent
                 fontFamily: root.fontFamily
 
                 Flickable {
@@ -3801,7 +3802,7 @@ Panel {
               active: true
               foreground: root.foreground
               dim: root.dim
-              accent: Color.accent
+              accent: Commons.Color.accent
               fontFamily: root.fontFamily
 
               Column {
@@ -3943,10 +3944,10 @@ Panel {
                       && root.activePage === "workspaces"
                       && root.workspaceKeyboardIndex === root.workspaceListKeyboardStart + index
                     color: hasKeyboardCursor
-                      ? Style.selectedFillFor(root.foreground, Color.accent)
+                      ? Style.selectedFillFor(root.foreground, Commons.Color.accent)
                       : Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.025)
                     borderSpec: Border.controlSpec(hasKeyboardCursor ? "focus" : "normal",
-                      root.foreground, Color.accent)
+                      root.foreground, Commons.Color.accent)
                     radius: Style.cornerRadius
 
                     Row {
@@ -4019,10 +4020,10 @@ Panel {
                       && root.activePage === "workspaces"
                       && root.workspaceKeyboardIndex === root.workspaceListKeyboardStart + index
                     color: hasKeyboardCursor
-                      ? Style.selectedFillFor(root.foreground, Color.accent)
+                      ? Style.selectedFillFor(root.foreground, Commons.Color.accent)
                       : Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.025)
                     borderSpec: Border.controlSpec(hasKeyboardCursor ? "focus" : "normal",
-                      root.foreground, Color.accent)
+                      root.foreground, Commons.Color.accent)
                     radius: Style.cornerRadius
 
                     Row {
@@ -4107,7 +4108,7 @@ Panel {
                 title: ""
                 foreground: root.foreground
                 dim: root.dim
-                accent: Color.accent
+                accent: Commons.Color.accent
                 fontFamily: root.fontFamily
 
                 DisplayCanvas {
@@ -4126,7 +4127,7 @@ Panel {
                   framed: true
                   foreground: root.foreground
                   dim: root.dim
-                  accent: Color.accent
+                  accent: Commons.Color.accent
                   fontFamily: root.fontFamily
                 }
               }
@@ -4137,7 +4138,7 @@ Panel {
                 title: "Workspace Plan"
                 foreground: root.foreground
                 dim: root.dim
-                accent: Color.accent
+                accent: Commons.Color.accent
                 fontFamily: root.fontFamily
 
                 Column {
@@ -4192,7 +4193,7 @@ Panel {
             anchors.top: parent.top
             height: root.draftDirty || root.creatingProfile ? 2 : 1
             color: root.draftDirty || root.creatingProfile
-              ? Color.accent
+              ? Commons.Color.accent
               : Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.18)
           }
 
@@ -4305,8 +4306,8 @@ Panel {
                   rightPadding: Style.spacing.controlPaddingX
                   topPadding: Style.spacing.controlPaddingY
                   bottomPadding: Style.spacing.controlPaddingY
-                  color: Style.selectedFillFor(root.foreground, Color.accent)
-                  borderSpec: Border.controlSpec("selected", root.foreground, Color.accent)
+                  color: Style.selectedFillFor(root.foreground, Commons.Color.accent)
+                  borderSpec: Border.controlSpec("selected", root.foreground, Commons.Color.accent)
                   radius: Style.cornerRadius
 
                   Row {
@@ -4317,7 +4318,7 @@ Panel {
                     Text {
                       textFormat: Text.PlainText
                       text: "󰄬"
-                      color: Style.selectedStateColor(root.foreground, Color.accent)
+                      color: Style.selectedStateColor(root.foreground, Commons.Color.accent)
                       font.family: root.fontFamily
                       font.pixelSize: Style.font.icon
                       anchors.verticalCenter: parent.verticalCenter
@@ -4326,7 +4327,7 @@ Panel {
                     Text {
                       textFormat: Text.PlainText
                       text: "Current profile"
-                      color: Style.selectedStateColor(root.foreground, Color.accent)
+                      color: Style.selectedStateColor(root.foreground, Commons.Color.accent)
                       font.family: root.fontFamily
                       font.pixelSize: Style.font.body
                       font.bold: true
@@ -4391,8 +4392,8 @@ Panel {
         visible: root.keyboardHelpOpen
         page: root.activePage
         foreground: root.foreground
-        background: root.bar ? root.bar.background : Color.background
-        accent: Color.accent
+        background: root.bar ? root.bar.background : Commons.Color.background
+        accent: Commons.Color.accent
         fontFamily: root.fontFamily
         onCloseRequested: root.keyboardHelpOpen = false
       }
@@ -4416,8 +4417,8 @@ Panel {
           anchors.centerIn: parent
           width: Math.min(parent.width - Style.space(48), Style.space(660))
           height: execContent.implicitHeight + Style.space(30)
-          color: root.bar ? root.bar.background : Color.background
-          borderSpec: Border.controlSpec("focus", root.foreground, Color.accent)
+          color: root.bar ? root.bar.background : Commons.Color.background
+          borderSpec: Border.controlSpec("focus", root.foreground, Commons.Color.accent)
           radius: Style.cornerRadius
 
           Column {
@@ -4473,8 +4474,8 @@ Panel {
     preferredWidth: Style.space(280)
     rowHeight: Style.space(36)
     foreground: root.foreground
-    backgroundColor: root.bar ? root.bar.background : Color.background
-    accent: Color.accent
+    backgroundColor: root.bar ? root.bar.background : Commons.Color.background
+    accent: Commons.Color.accent
     fontFamily: root.fontFamily
     fontSize: Style.font.body
     property bool available: !root.draftDirty && !root.editPending && !root.previewPending && root.previewTransaction === ""
@@ -4513,8 +4514,8 @@ Panel {
       anchors.centerIn: parent
       width: Math.min(parent.width - Style.space(24), Style.space(440))
       height: deleteContent.implicitHeight + Style.space(32)
-      color: root.bar ? root.bar.background : Color.background
-      borderSpec: Border.controlSpec("focus", root.foreground, Color.accent)
+      color: root.bar ? root.bar.background : Commons.Color.background
+      borderSpec: Border.controlSpec("focus", root.foreground, Commons.Color.accent)
       radius: Style.cornerRadius
       MouseArea { anchors.fill: parent }
       Column {
@@ -4617,7 +4618,7 @@ Panel {
       anchors.right: parent.right
       anchors.verticalCenter: parent.verticalCenter
       text: infoRow.value
-      color: infoRow.valueAccent ? Color.accent : root.foreground
+      color: infoRow.valueAccent ? Commons.Color.accent : root.foreground
       font.family: root.fontFamily
       font.pixelSize: Style.font.bodySmall
       font.bold: infoRow.valueAccent || infoRow.valueBold
@@ -4805,7 +4806,7 @@ Panel {
       anchors.right: parent.right
       anchors.verticalCenter: parent.verticalCenter
       text: workspaceInfoRow.workspaces
-      color: Color.accent
+      color: Commons.Color.accent
       font.family: root.fontFamily
       font.pixelSize: Style.font.bodySmall
       font.bold: true
