@@ -6,7 +6,9 @@ source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/base-test.sh"
 
 if [[ ${MAITRI_WINDOWS_BOUNDARY_NAMESPACE:-0} != 1 ]]; then
   if ((EUID != 0)); then
-    if unshare --user --map-auto --map-root-user --mount true 2>/dev/null; then
+    # --map-auto's forked uid-map helper can wait forever inside a container and
+    # outlive a timeout, so the probe gets a deadline and no inherited output.
+    if timeout --kill-after=2 10 unshare --user --map-auto --map-root-user --mount true </dev/null >/dev/null 2>&1; then
       exec env MAITRI_WINDOWS_BOUNDARY_NAMESPACE=1 \
         unshare --user --map-auto --map-root-user --mount --propagation private bash "$0"
     fi
