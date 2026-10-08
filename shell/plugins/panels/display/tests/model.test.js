@@ -2284,3 +2284,11 @@ test("lid-closed match reasons have labels", () => {
   assert.equal(rows[0].value, "+100   1 display built-in, kept off with the lid closed")
   assert.equal(rows[1].value, "+50   1 display built-in, turned off by the closed lid")
 })
+
+test("only newly connected external screens count as added", () => {
+  assert.deepEqual(Model.addedExternalScreens([], ["eDP-1", "DP-1"]), ["DP-1"])
+  assert.deepEqual(Model.addedExternalScreens(["eDP-1", "DP-1"], ["eDP-1", "DP-1"]), [])
+  assert.deepEqual(Model.addedExternalScreens(["eDP-1", "DP-1"], ["eDP-1"]), [])
+  assert.deepEqual(Model.addedExternalScreens(["eDP-1"], ["eDP-1", "DP-2", "HDMI-A-1"]), ["DP-2", "HDMI-A-1"])
+  assert.deepEqual(Model.addedExternalScreens(null, ["LVDS-1", "DSI-1", ""]), [])
+})

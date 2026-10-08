@@ -40,6 +40,10 @@ by Carmine Paolino, MIT (see `LICENSE`).
    (`UniversalScaleControl.qml` at `c7b6425`, MIT), narrowed to one display.
    `ScaleField` gained `cursorValue` for the keyboard highlight, and
    `tests/focused-scale.test.js` covers the row.
+7. `AppleBrightness.qml`, loaded by the `PreviewGuard` service, runs
+   `maitri-brightness-display-apple --reapply` a few seconds after an external
+   screen connects. A Studio Display that reconnects reports its saved
+   brightness but drives the panel dimmer until the brightness changes.
 
 The vendored tests are updated to match each change, and the label assertions in
 `tests/model.test.js` use a complete regex escape. `test/shell.d/display-plugin-test.sh`

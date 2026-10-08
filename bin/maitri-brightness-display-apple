@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # maitri:summary=Show or adjust Apple Studio Display and Apple XDR Display brightness using asdcontrol.
-# maitri:args=[--no-osd] [+N%|N%-|N%]
-# maitri:examples=maitri brightness display apple | maitri brightness display apple +5% | maitri brightness display apple --no-osd 50%
+# maitri:args=[--no-osd] [+N%|N%-|N%] | --reapply
+# maitri:examples=maitri brightness display apple | maitri brightness display apple +5% | maitri brightness display apple --no-osd 50% | maitri brightness display apple --reapply
 
 # Only cache under the user-private runtime dir. With no XDG_RUNTIME_DIR we skip
 # caching (detect every run) rather than fall back to a predictable, world-writable
@@ -77,6 +77,33 @@ retry_with_fresh_device() {
     exit 1
   fi
 }
+
+apple_display_connected() {
+  local name
+  while IFS= read -r name; do
+    maitri-hyprland-monitor-focused-apple "$name" && return 0
+  done < <(hyprctl monitors -j 2>/dev/null | jq -r '.[].name')
+  return 1
+}
+
+# After a reconnect, a Studio Display reports its saved brightness but drives the
+# panel dimmer until the brightness changes, so step one notch away and back.
+# Relative steps land on the exact saved value.
+if [[ ${1:-} == "--reapply" ]]; then
+  apple_display_connected || exit 0
+  device="$(find_apple_display_device || true)"
+  [[ -n $device ]] || exit 0
+  level="$(current_brightness "$device")" || exit 0
+  if (( level > 0 )); then
+    away="-1%" back="+1%"
+  else
+    away="+1%" back="-1%"
+  fi
+  sudo asdcontrol "$device" -- "$away" >/dev/null || exit 1
+  sleep 0.3
+  sudo asdcontrol "$device" -- "$back" >/dev/null
+  exit
+fi
 
 device="$(find_apple_display_device || true)"
 if [[ -z $device ]]; then

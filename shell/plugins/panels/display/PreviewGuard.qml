@@ -75,6 +75,7 @@ Item {
   }
 
   DisplayIdentify { id: identifyOverlay }
+  AppleBrightness {}
   Timer {
     id: identifyTimeout
     interval: 7000
