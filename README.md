@@ -1,7 +1,7 @@
 # maitri
 
 **maitri** (pronounced *MY-tree*) is a beautiful, opinionated Linux desktop made by
-[Kindness](https://kindness.ai). It turns a fresh [Arch Linux](https://archlinux.org) install into a
+[Kindness](https://k7.dev). It turns a fresh [Arch Linux](https://archlinux.org) install into a
 fully configured, Hyprland-based desktop with sane defaults and a curated set of apps.
 
 *Maitrī* is a Sanskrit word for loving-kindness — unconditional friendliness and goodwill. That's the

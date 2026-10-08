@@ -3,7 +3,7 @@
 
 iso_name="maitri"
 iso_label="MAITRI_$(date --date="@${SOURCE_DATE_EPOCH:-$(date +%s)}" +%Y%m)"
-iso_publisher="maitri <https://kindness.ai>"
+iso_publisher="maitri <https://k7.dev>"
 iso_application="maitri Installer"
 iso_version="$(date --date="@${SOURCE_DATE_EPOCH:-$(date +%s)}" +%Y.%m.%d)"
 install_dir="arch"
