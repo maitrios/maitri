@@ -33,7 +33,7 @@ Recordings land in the configured Videos directory (override with
 `maitri capture webcam resize <smaller|larger|reset|small|medium|large>`.
 
 If recording fails to start, rerun with `MAITRI_SCREENRECORD_DEBUG=true` to
-collect a log at `/tmp/maitri-screenrecord.log` worth attaching to a bug
+collect a log at `$XDG_RUNTIME_DIR/maitri-screenrecord.log` (or `${XDG_STATE_HOME:-$HOME/.local/state}/maitri/maitri-screenrecord.log` without a session runtime directory) worth attaching to a bug
 report.
 
 ## Text Capture (OCR)
