@@ -78,7 +78,7 @@ jobs:
 
       - name: Set up ORAS
         if: steps.ref.outputs.publish == 'true'
-        uses: oras-project/setup-oras@22ce207df3b08e061f537244349aac6ae1d214f6 # v1
+        uses: oras-project/setup-oras@005458ad77f1c8facd38a094e4af2e69e5607ff4 # v2.0.2
 
       # A bad token should fail here, not after the build.
       - name: Check Docker Hub credentials
@@ -99,7 +99,7 @@ jobs:
           swap-storage: false
 
       - name: Checkout
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ steps.ref.outputs.ref }}
 
@@ -180,7 +180,7 @@ jobs:
       # never costs the 45-minute build.
       - name: Upload ISO artifact (backup / test builds)
         if: always() && steps.build.outcome == 'success'
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: maitri-iso-${{ github.run_number }}
           path: |
