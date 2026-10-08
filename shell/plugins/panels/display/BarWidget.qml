@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 
 BarWidget {
@@ -82,7 +83,7 @@ BarWidget {
           anchors.rightMargin: -Style.space(1)
           anchors.bottomMargin: -Style.space(1)
           text: "󰄬"
-          color: Color.accent
+          color: Commons.Color.accent
           font.family: button.fontFamily
           font.pixelSize: Math.max(7, Math.round(button.fontSize * 0.45))
           font.bold: true
