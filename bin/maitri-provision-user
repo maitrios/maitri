@@ -57,7 +57,7 @@ state_dir="$HOME/.local/state/maitri"
 mkdir -p "$state_dir"
 
 if maitri-done check finalize-user && (( force == 0 )); then
-  echo "User finalization already complete (rerun with --force to refresh)."
+  echo "User finalization already complete."
   exit 0
 fi
 

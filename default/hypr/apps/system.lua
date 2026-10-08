@@ -35,6 +35,9 @@ o.window("org.gnome.Calculator", { float = true })
 o.window("org.maitri.screensaver", { fullscreen = true })
 o.window("org.maitri.screensaver", { float = true })
 o.window("org.maitri.screensaver", { animation = "slide" })
+-- The launcher picks each screensaver's workspace. A terminal mapped again as it closes lands out of sight instead,
+-- where its fullscreen rule cannot take fullscreen from a window.
+o.window("org.maitri.screensaver", { workspace = "special:screensaver silent" })
 
 -- No transparency on media windows.
 o.window(

@@ -50,8 +50,7 @@ Item {
   // user picks a new background mid-session.
   function fileUrl(path) {
     if (!path) return ""
-    var encoded = String(path).split("/").map(encodeURIComponent).join("/")
-    return "file://" + encoded + "?v=" + backgroundVersion
+    return Util.fileUrl(path) + "?v=" + backgroundVersion
   }
 
   function forcePasswordFocus() {
@@ -60,6 +59,14 @@ Item {
 
   function clearPassword() {
     passwordTextEdited("")
+  }
+
+  // Waking a DPMS-blanked display can stall the compositor for seconds while
+  // the monitor modesets, so the wake key's release arrives late and client-side
+  // key repeat floods the field with that character. A held key has no business
+  // typing a password; only holding Backspace/Delete to clear stays useful.
+  function dropsAutoRepeat(key) {
+    return key !== Qt.Key_Backspace && key !== Qt.Key_Delete
   }
 
   function syncPasswordText() {
@@ -95,10 +102,14 @@ Item {
     Image {
       id: wallpaper
       anchors.fill: parent
-      source: root.loadBackground ? root.fileUrl(root.backgroundPath) : ""
+      // Decode only once sized, at the lock's own size: an unsized first
+      // request decoded the file at its native resolution, then again once
+      // sized. That size is what the lock service keeps decoded ahead of the
+      // lock, so the first frame has the wallpaper.
+      source: root.loadBackground && width > 0 ? root.fileUrl(root.backgroundPath) : ""
       fillMode: Image.PreserveAspectCrop
       asynchronous: true
-      cache: false
+      cache: true
       sourceSize.width: width
       sourceSize.height: height
     }
@@ -178,6 +189,10 @@ Item {
 
         Keys.onPressed: function(event) {
           root.wakeRequested()
+          if (event.isAutoRepeat && root.dropsAutoRepeat(event.key)) {
+            event.accepted = true
+            return
+          }
           if (event.key === Qt.Key_Escape || (event.modifiers & Qt.ControlModifier && event.key === Qt.Key_U)) {
             root.passwordTextEdited("")
             event.accepted = true

@@ -82,13 +82,18 @@ maitri update command, the hook exits non-zero with `AbortOnFail`, which stops
 the transaction before packages are changed.
 
 `maitri-update-system-pkgs`, `maitri-refresh-pacman`, `maitri-reinstall-pkgs`,
-and the v4 upgrader run pacman through:
+and `maitri-channel-set` run pacman through the hidden `maitri-update-pacman`
+helper:
 
 ```bash
-env MAITRI_UPDATE_PACMAN=1 pacman ...
+sudo env MAITRI_UPDATE_PACMAN=1 systemd-run --scope --quiet --collect pacman ...
 ```
 
-so the guard allows maitri-owned update flows. A user can intentionally bypass
+so the guard allows maitri-owned update flows. The `systemd-run --scope`
+wrapper registers the transaction as a PID 1 scope: upgrading systemd reexecs
+the system and user managers mid-transaction, and a pacman left inside a
+user-session scope can be SIGKILLed by that reexec. On unbooted systems (such
+as the installer chroot) the helper runs pacman directly. A user can intentionally bypass
 the guard with:
 
 ```bash
@@ -244,9 +249,10 @@ scripts.
 | `maitri-update-confirm` | Gum confirmation copy for `maitri update`. | **Question.** Could be inlined into `maitri-update`; separate file only helps keep copy isolated. |
 | `maitri-update-dev` | Fast-forwards the active dev-linked checkout from its configured upstream; no-ops for package-backed installs. | **Keep.** Runs before package updates so a checkout conflict stops the update before system mutation. |
 | `maitri-update-keyring` | Ensures maitri keyring and Arch keyring are current before the main transaction. | **Keep, but review.** It uses targeted `pacman -Sy` for keyring bootstrapping; acceptable for this special case but should remain tightly scoped. |
-| `maitri-update-system-pkgs` | Runs `sudo env MAITRI_UPDATE_PACMAN=1 pacman -Syu --noconfirm` with targeted transition `--overwrite` entries so the ALPM guard allows the transaction and early package-layout conflicts are handled. | **Keep for now.** Small leaf command, clear/testable. |
+| `maitri-update-system-pkgs` | Runs `maitri-update-pacman -Syu --noconfirm` with targeted transition `--overwrite` entries so the ALPM guard allows the transaction and early package-layout conflicts are handled. | **Keep for now.** Small leaf command, clear/testable. |
 | `maitri-migrate` | Public migration command. Waits for pacman, then runs all pending migrations for the current user. Supports `--pending`. | **Keep.** This replaces the discarded `maitri-update-user-finalize` name and no longer needs `--force`. |
 | `maitri-update-pacman-guard` | ALPM pre-transaction guard that aborts direct `pacman -Syu` style upgrades unless maitri set `MAITRI_UPDATE_PACMAN=1` or the user explicitly set `MAITRI_ALLOW_DIRECT_PACMAN=1`. | **Keep internal/hidden.** This is what nudges users back to `maitri update`. |
+| `maitri-update-pacman` | Hidden helper that runs a guard-approved pacman transaction as a PID 1 scope (`systemd-run --scope`) so a mid-transaction systemd reexec cannot kill it; runs pacman directly when not booted under systemd. | **Keep internal/hidden.** Single place that owns how maitri invokes pacman for system mutation. |
 | `maitri-migrate-notify` | Internal login-time notification helper. Uses `maitri-migrate --pending` and shows a notification only when this user has pending migrations. | **Keep internal/hidden.** Clear name now that the public command is `maitri-migrate`. |
 | `maitri-update-available` | Update checker for shell widget and post-update refresh. | **Keep.** Could eventually be renamed `maitri-update-check`, but current name matches widget semantics. |
 | `maitri-update-aur-pkgs` | Updates AUR packages with `yay -Sua` if foreign packages exist and AUR is reachable. | **Question.** maitri is package-backed now, but users may still install AUR packages. Keep for now. |

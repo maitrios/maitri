@@ -24,6 +24,7 @@ if [[ -n $pkg_names ]]; then
   source maitri-sudo-keepalive
 
   echo "$pkg_names" | sed 's/^/aur\//' | tr '\n' ' ' | xargs yay -S --noconfirm
+  code=$?
   sudo updatedb --prune-bind-mounts=no --add-prunepaths=/.snapshots
-  maitri-show-done
+  maitri-show-done $code
 fi
