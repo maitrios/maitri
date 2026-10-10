@@ -16,7 +16,13 @@ output="$test_tmp/output"
   fail "fingerprint removal has one fixed deletion path"
 sed -e "s|/etc/pam.d/|$test_tmp/etc/pam.d/|g" \
   -e "s|/var/lib/fprint/|$test_tmp/fprint/|g" \
+  -e "s|/usr/lib/systemd/system-sleep/|$test_tmp/system-sleep/|g" \
+  -e "s|/etc/systemd/system/fprintd.service.d|$test_tmp/fprintd.service.d|g" \
   -e "s|/usr/bin/id|$test_tmp/trusted-id|g" "$remove" >"$copy"
+# A machine with the resume hook installed would otherwise send the copy after
+# the real files.
+! grep -Eq '/usr/lib/systemd|/etc/systemd' "$copy" ||
+  fail "the copied removal script reaches no host systemd paths"
 
 cat >"$test_tmp/trusted-id" <<'SH'
 #!/bin/bash
@@ -39,9 +45,23 @@ SH
 cat >"$test_tmp/bin/sudo" <<'SH'
 #!/bin/bash
 printf 'sudo %s\n' "$*" >>"$TEST_LOG"
-[[ $# == 4 && $1 == rm && $2 == -rf && $3 == -- && $4 == "$TEST_FPRINT/$TEST_EXPECTED_USER" ]] || exit 91
-[[ ${TEST_DELETE_FAIL:-0} == 0 ]] || exit 92
-exec /usr/bin/rm -rf -- "$4"
+case "$1" in
+  rm)
+    if [[ $# == 4 && $2 == -rf && $3 == -- && $4 == "$TEST_FPRINT/$TEST_EXPECTED_USER" ]]; then
+      [[ ${TEST_DELETE_FAIL:-0} == 0 ]] || exit 92
+      exec /usr/bin/rm -rf -- "$4"
+    fi
+    [[ $# == 3 && $2 == -f && $3 == "$TEST_ROOT"/* ]] && exec /usr/bin/rm -f "$3"
+    ;;
+  rmdir)
+    [[ $# == 3 && $2 == --ignore-fail-on-non-empty && $3 == "$TEST_ROOT"/* ]] &&
+      exec /usr/bin/rmdir --ignore-fail-on-non-empty "$3"
+    ;;
+  systemctl)
+    [[ $# == 2 && $2 == daemon-reload ]] && exit 0
+    ;;
+esac
+exit 91
 SH
 cat >"$test_tmp/bin/maitri-pkg-drop" <<'SH'
 #!/bin/bash
@@ -70,7 +90,7 @@ run_remove() {
   local sudo_env=()
   [[ -v SUDO_UID ]] && sudo_env=("SUDO_UID=$SUDO_UID")
   local fixture_env=(
-    "TEST_LOG=$log" "TEST_FPRINT=$test_tmp/fprint" "TEST_EXPECTED_USER=$expected"
+    "TEST_LOG=$log" "TEST_ROOT=$test_tmp" "TEST_FPRINT=$test_tmp/fprint" "TEST_EXPECTED_USER=$expected"
     "TEST_DIRECT_USER=$direct_user" "TEST_SUDO_USER=$sudo_user" "TEST_SUDO_UID=${SUDO_UID:-}"
     "TEST_ID_FAIL=${id_fail:-0}" "TEST_DELETE_FAIL=${delete_fail:-0}"
     "TEST_PACKAGE_FAIL=${package_fail:-0}" "USER=spoofed" "SUDO_USER=spoofed"
@@ -98,6 +118,14 @@ grep -Fq "sudo rm -rf -- $test_tmp/fprint/alice" "$log" || fail "deletion preced
 [[ $(tail -n 1 "$log") == 'package fprintd libfprint libfprint-git' ]] || fail "packages drop after deletion"
 grep -Fq "alice's local saved fingerprints have been removed" "$output" || fail "success describes local saved files"
 pass "direct user ignores spoofed USER and leaves other accounts alone"
+
+mkdir -p "$test_tmp/system-sleep" "$test_tmp/fprintd.service.d" "$test_tmp/fprint/alice"
+touch "$test_tmp/system-sleep/fprintd-resume" "$test_tmp/fprintd.service.d/10-stop-timeout.conf"
+run_remove || fail "removal with the resume hook installed succeeds" "$(cat "$output")"
+[[ ! -e $test_tmp/system-sleep/fprintd-resume ]] || fail "removal deletes the resume hook"
+[[ ! -e $test_tmp/fprintd.service.d ]] || fail "removal deletes the stop-timeout drop-in and its empty directory"
+grep -Fxq 'sudo systemctl daemon-reload' "$log" || fail "removal reloads systemd after dropping the drop-in"
+pass "removal takes out the resume hook and the fprintd stop-timeout drop-in"
 
 SUDO_UID=12345
 run_remove || fail "unprivileged caller ignores forged SUDO_UID" "$(cat "$output")"
@@ -156,7 +184,7 @@ if unshare -Ur true >/dev/null 2>&1; then
     local status=0
     local sudo_env=()
     [[ -v SUDO_UID ]] && sudo_env=("SUDO_UID=$SUDO_UID")
-    TEST_LOG="$log" TEST_FPRINT="$test_tmp/fprint" TEST_EXPECTED_USER="$expected" \
+    TEST_LOG="$log" TEST_ROOT="$test_tmp" TEST_FPRINT="$test_tmp/fprint" TEST_EXPECTED_USER="$expected" \
       TEST_DIRECT_USER=root TEST_SUDO_USER="$sudo_user" TEST_SUDO_UID="${SUDO_UID:-}" \
       USER=spoofed SUDO_USER=spoofed PATH="$test_tmp/bin:/usr/bin:/bin" \
       env -u SUDO_UID "${sudo_env[@]}" unshare -Ur bash "$copy" >"$output" 2>&1 || status=$?
