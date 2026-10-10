@@ -1,0 +1,57 @@
+#!/bin/bash
+
+# A PCIe cellular modem with a live connection wakes the machine whenever data
+# or a network event arrives, so a laptop on cellular wakes seconds after every
+# suspend and stays up until it suspends again. Nothing needs the modem to wake
+# a laptop, so take wake away from the modem and from the port it sits behind
+# for every suspend, and hand it back on resume, only to what this hook turned
+# off. A USB modem is left alone: its controller also wakes for the keyboard.
+
+shopt -s nullglob
+
+root=${MAITRI_SLEEP_HOOK_ROOT:-}
+state=$root/run/maitri-wwan-wake
+pci_address='^[0-9a-f]{4}:[0-9a-f]{2}:[0-9a-f]{2}\.[0-9a-f]$'
+
+# Each modem's PCI device, then its port when the modem is the only device
+# behind it.
+modem_wake_paths() {
+  local wwan dir port devices
+  local -A seen=()
+
+  for wwan in "$root"/sys/class/wwan/*; do
+    dir=$(/usr/bin/readlink -f -- "$wwan/device") || continue
+    while [[ $dir == "$root"/sys/devices/* && ! ${dir##*/} =~ $pci_address ]]; do
+      dir=${dir%/*}
+    done
+    [[ ${dir##*/} =~ $pci_address && -r $dir/class ]] || continue
+    # PCI class 0x0d40 is a cellular controller.
+    [[ $(< "$dir/class") == 0x0d40* && -z ${seen[$dir]} ]] || continue
+    seen[$dir]=1
+    printf '%s\n' "$dir"
+
+    port=${dir%/*}
+    [[ ${port##*/} =~ $pci_address ]] || continue
+    devices=("$port"/????:??:??.?)
+    (( ${#devices[@]} == 1 )) && printf '%s\n' "$port"
+  done
+}
+
+if [[ $1 == "pre" ]]; then
+  disabled=()
+  while IFS= read -r device; do
+    [[ -w $device/power/wakeup && $(< "$device/power/wakeup") == "enabled" ]] || continue
+    echo disabled > "$device/power/wakeup" && disabled+=("$device")
+  done < <(modem_wake_paths)
+
+  (( ${#disabled[@]} )) && printf '%s\n' "${disabled[@]}" > "$state"
+fi
+
+if [[ $1 == "post" && -f $state ]]; then
+  while IFS= read -r device; do
+    [[ $device == "$root"/sys/devices/* && -w $device/power/wakeup ]] && echo enabled > "$device/power/wakeup"
+  done < "$state"
+  /usr/bin/rm -f -- "$state"
+fi
+
+exit 0
