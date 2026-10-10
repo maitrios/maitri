@@ -20,11 +20,15 @@ mock_bin="$tmpdir/bin"
 call_log="$tmpdir/systemctl-calls"
 mkdir -p "$mock_bin"
 
-cat >"$mock_bin/systemctl" <<SH
+for command in systemctl systemd-run; do
+  cat >"$mock_bin/$command" <<SH
 #!/bin/bash
-printf '%s\n' "\$*" >>"$call_log"
+printf '%s %s\n' "$command" "\$*" >>"$call_log"
 SH
-chmod +x "$mock_bin/systemctl"
+  chmod +x "$mock_bin/$command"
+done
+
+expected="systemd-run --quiet --no-block --collect --on-active=3s /usr/bin/systemctl try-restart fprintd.service"
 
 run_hook() {
   : >"$call_log"
@@ -32,16 +36,23 @@ run_hook() {
 }
 
 # Resume ("post") is the only edge that clears a claim wedged across suspend.
-# The restart is enqueued, not awaited: user sessions stay frozen until the
-# hook returns, and a wedged fprintd can ride out its whole stop timeout.
+# The restart is scheduled, not awaited: user sessions stay frozen until the
+# hook returns, and a wedged fprintd can ride out its whole stop timeout. It
+# waits for the reader, which re-enumerates on resume, and lands inside the
+# lock screen's 5s resume grace (FingerprintModel.RESUME_GRACE_MS).
 run_hook post suspend
-[[ $(<"$call_log") == "--no-block try-restart fprintd.service" ]] ||
-  fail "resume enqueues an fprintd restart to clear a wedged claim" "calls: $(<"$call_log")"
-pass "resume enqueues an fprintd restart to clear a wedged claim"
+[[ $(<"$call_log") == "$expected" ]] ||
+  fail "resume schedules an fprintd restart once the reader settles" "calls: $(<"$call_log")"
+pass "resume schedules an fprintd restart once the reader settles"
+
+grace_ms=$(sed -n 's/^var RESUME_GRACE_MS = \([0-9]*\)$/\1/p' "$ROOT/shell/plugins/lock/FingerprintModel.js")
+(( 3000 < grace_ms )) ||
+  fail "the restart lands inside the lock screen's resume grace" "grace: ${grace_ms}ms"
+pass "the restart lands inside the lock screen's resume grace"
 
 # Every resume path lands on "post" regardless of how the machine slept.
 run_hook post hibernate
-[[ $(<"$call_log") == "--no-block try-restart fprintd.service" ]] ||
+[[ $(<"$call_log") == "$expected" ]] ||
   fail "resume from hibernate also restarts fprintd" "calls: $(<"$call_log")"
 pass "resume from hibernate also restarts fprintd"
 
