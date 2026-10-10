@@ -4,6 +4,9 @@
 # Upstream: https://gitlab.freedesktop.org/libfprint/fprintd/-/issues/173
 
 if [[ $1 == "post" ]]; then
-  # user.slice stays frozen until this hook returns; enqueue rather than wait.
-  systemctl --no-block try-restart fprintd.service 2>/dev/null || true
+  # The reader re-enumerates on resume, and a daemon started before it is back
+  # holds a stale handle, so restart once it has settled. user.slice stays
+  # frozen until this hook returns, so schedule the restart rather than wait.
+  systemd-run --quiet --no-block --collect --on-active=3s \
+    /usr/bin/systemctl try-restart fprintd.service 2>/dev/null || true
 fi
