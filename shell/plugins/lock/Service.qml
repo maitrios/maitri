@@ -46,8 +46,14 @@ Item {
   property string lastEventAt: ""
   property bool strandedLock: false
   property bool strandedLockResolved: false
+  // Workaround for quickshell 0.3.2: WlSessionLock::unlock() checks isLocked()
+  // after releasing the lock, so lockStateChanged never fires on unlock and a
+  // binding on sessionLock.locked keeps reading true. Every later lock request
+  // then looks already satisfied, and the machine suspends unlocked. Mirror the
+  // flag and re-read it wherever an unlock can land.
+  property bool sessionLocked: false
 
-  readonly property bool locked: lockRequested || sessionLock.locked || sessionLock.secure
+  readonly property bool locked: lockRequested || sessionLocked || sessionLock.secure
   readonly property bool authenticating: authenticatingPassword || fingerprintAuthenticating
   // A prompt clears the unavailable notice before the attempt finishes.
   readonly property bool fingerprintUnavailable: FingerprintModel.isUnavailable(fingerprintProbeStreak) || (fingerprintConfigured && (!fingerprintAttemptReachedDevice || fingerprintAttemptFastError) && FingerprintModel.isUnavailable(fingerprintUnreachedStreak))
@@ -149,6 +155,24 @@ Item {
     }
   }
 
+  function syncSessionLocked() {
+    sessionLocked = sessionLock.locked
+  }
+
+  // Also the path for a lock the compositor ends on its own, which 0.3.2 only
+  // reports through secureStateChanged.
+  function settleSessionUnlock() {
+    syncSessionLocked()
+    if (sessionLock.locked || !lockRequested) return
+
+    lockRequested = false
+    pendingSessionLock = false
+    sessionLockStabilizeTimer.stop()
+    pendingSessionLockTimer.stop()
+    resetAuthenticationState()
+    runWake()
+  }
+
   function logEvent(event) {
     lastEvent = event
     lastEventAt = new Date().toISOString()
@@ -206,6 +230,7 @@ Item {
     resetAuthenticationState()
     idleBlankTimer.stop()
     sessionLock.locked = false
+    syncSessionLocked()
     logEvent("unlocked")
     runWake()
   }
@@ -395,25 +420,22 @@ Item {
         sessionLockStabilizeTimer.stop()
         pendingSessionLockTimer.stop()
         root.startFingerprint()
+      } else {
+        // The lock still reads as held until this emission unwinds.
+        Qt.callLater(root.settleSessionUnlock)
       }
     }
 
     onLockStateChanged: {
+      root.syncSessionLocked()
       root.logEvent("session-locked=" + locked)
 
       if (locked) {
         root.pendingSessionLock = false
         sessionLockStabilizeTimer.stop()
         pendingSessionLockTimer.stop()
-      }
-
-      if (!locked && root.lockRequested) {
-        root.lockRequested = false
-        root.pendingSessionLock = false
-        sessionLockStabilizeTimer.stop()
-        pendingSessionLockTimer.stop()
-        root.resetAuthenticationState()
-        root.runWake()
+      } else {
+        root.settleSessionUnlock()
       }
     }
 
@@ -732,16 +754,19 @@ Item {
     target: "lock"
 
     function lock(): string {
+      root.syncSessionLocked()
       if (!root.passwordPamConfigured) return "missing-pam"
       if (!root.locked && !root.beginLock()) return "failed"
       return "ok"
     }
 
     function isLocked(): string {
+      root.syncSessionLocked()
       return root.locked ? "true" : "false"
     }
 
     function status(): string {
+      root.syncSessionLocked()
       return JSON.stringify({
         locked: root.locked,
         requested: root.lockRequested,
