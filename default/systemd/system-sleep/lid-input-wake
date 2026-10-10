@@ -1,0 +1,44 @@
+#!/bin/bash
+
+# A closed lid rests on the touchpad, and an I2C HID touchpad or touchscreen can
+# take that for input and wake the machine seconds after every suspend. Nobody
+# can use those devices with the lid shut, so take their wake away for a
+# lid-closed suspend and hand it back on resume, only to the devices this hook
+# turned off. The lid, power button, keyboard controller and USB devices keep
+# their wake, so a docked keyboard still wakes the machine.
+
+root=${MAITRI_SLEEP_HOOK_ROOT:-}
+state=$root/run/maitri-lid-input-wake
+
+lid_closed() {
+  local lid
+  for lid in "$root"/proc/acpi/button/lid/*/state; do
+    [[ -r $lid && $(< "$lid") == *closed* ]] && return 0
+  done
+  return 1
+}
+
+if [[ $1 == "pre" ]]; then
+  lid_closed || exit 0
+
+  disabled=()
+  for device in "$root"/sys/bus/i2c/devices/*; do
+    [[ -w $device/power/wakeup && -r $device/modalias ]] || continue
+    [[ $(< "$device/power/wakeup") == "enabled" ]] || continue
+    # PNP0C50 and ACPI0C50 are the ACPI compatible IDs for HID over I2C.
+    [[ $(< "$device/modalias") =~ (PNP|ACPI)0C50 ]] || continue
+    echo disabled > "$device/power/wakeup" && disabled+=("${device##*/}")
+  done
+
+  (( ${#disabled[@]} )) && printf '%s\n' "${disabled[@]}" > "$state"
+fi
+
+if [[ $1 == "post" && -f $state ]]; then
+  while IFS= read -r name; do
+    wakeup=$root/sys/bus/i2c/devices/$name/power/wakeup
+    [[ -w $wakeup ]] && echo enabled > "$wakeup"
+  done < "$state"
+  /usr/bin/rm -f -- "$state"
+fi
+
+exit 0
