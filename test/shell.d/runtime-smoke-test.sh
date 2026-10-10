@@ -409,14 +409,6 @@ jq -e '
 }
 pass "shell IPC returns effective shell config"
 
-# maitri ships the shell menu disabled (Vicinae is the launcher); enable it for the smoke check.
-[[ $(shell_ipc shell setPluginEnabled maitri.menu true) == "ok" ]] || fail_with_log "shell IPC enables the menu plugin"
-[[ $(shell_ipc shell summon maitri.menu '{"menu":"apps"}') == "ok" ]] || fail_with_log "shell IPC summons menu apps overlay"
-shell_ipc_quiet shell hide maitri.menu >/dev/null
-shell_ipc_quiet shell setPluginEnabled maitri.menu false >/dev/null
-[[ $(shell_ipc shell summon missing.plugin "{}") == "unknown" ]] || fail_with_log "shell IPC rejects unknown plugin"
-pass "shell IPC summon and hide contract works"
-
 [[ $(shell_ipc notifications ping) == "ok" ]] || fail_with_log "notifications IPC responds"
 [[ $(shell_ipc notifications setDnd false) == "off" ]] || fail_with_log "notifications IPC toggles DND"
 [[ $(shell_ipc media ping) == "ok" ]] || fail_with_log "media IPC responds"
@@ -567,6 +559,23 @@ if (( worst > screens - 1 )); then
   fail_with_log "each widget registers its IPC handler once per screen (saw $worst for $screens screen(s))"
 fi
 pass "each widget registers its IPC handler once per screen"
+
+# maitri ships the shell menu disabled (Vicinae is the launcher); enable it for
+# the smoke check. Enabling it puts its widget on the bar, a structural change
+# that rebuilds the bar like the reloads below, so it runs after the duplicate
+# handler check. Wait for the menu to leave the layout before the next step
+# edits shell.json from outside the shell.
+[[ $(shell_ipc shell setPluginEnabled maitri.menu true) == "ok" ]] || fail_with_log "shell IPC enables the menu plugin"
+[[ $(shell_ipc shell summon maitri.menu '{"menu":"apps"}') == "ok" ]] || fail_with_log "shell IPC summons menu apps overlay"
+shell_ipc_quiet shell hide maitri.menu >/dev/null
+shell_ipc_quiet shell setPluginEnabled maitri.menu false >/dev/null
+[[ $(shell_ipc shell summon missing.plugin "{}") == "unknown" ]] || fail_with_log "shell IPC rejects unknown plugin"
+for _ in {1..80}; do
+  shell_ipc shell listShellConfig 2>/dev/null |
+    jq -e 'all(.bar.layout[][]; (.id // .) != "maitri.menu")' >/dev/null 2>&1 && break
+  sleep 0.1
+done
+pass "shell IPC summon and hide contract works"
 
 HOME="$test_home" MAITRI_PATH="$test_root" PATH="$ROOT/bin:$PATH" "$ROOT/bin/maitri-plugin-disable" maitri.audio
 
