@@ -73,7 +73,7 @@ Use these instead of raw shell commands:
 
 - `maitri-cmd-missing` / `maitri-cmd-present` - check for commands
 - `maitri-pkg-missing` / `maitri-pkg-present` - check for packages (don't use these if you can just use `maitri-pkg-add`/`maitri-pkg-drop`)
-- `maitri-pkg-add` - install packages (handles both pacman and AUR)
+- `maitri-pkg-add` - install packages from the configured pacman repos, maitri's included; use `maitri-pkg-aur-add` for AUR packages
 - `maitri-pkg-drop` - remove packages; use this instead of raw `pacman -R*`
 - `maitri-notification-send` - send desktop notifications; do not call `notify-send` directly
 - `maitri-hw-asus-rog` - detect ASUS ROG hardware (and similar `hw-*` commands)
