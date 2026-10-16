@@ -18,7 +18,14 @@ mkdir -p "$stub_bin"
 # sudo just drops the prefix; limine-mkinitcpio records that it ran, and fails
 # when told to.
 printf '#!/bin/bash\nexec "$@"\n' >"$stub_bin/sudo"
-printf '#!/bin/bash\necho rebuilt >>"${REBUILDS:?}"\n[[ -z ${REBUILD_FAILS:-} ]]\n' >"$stub_bin/limine-mkinitcpio"
+# A rebuild writes the new command line into the boot menu, unless it is the
+# kind that builds nothing and still exits 0.
+cat >"$stub_bin/limine-mkinitcpio" <<'STUB'
+#!/bin/bash
+echo rebuilt >>"${REBUILDS:?}"
+[[ -z ${REBUILD_FAILS:-} ]] || exit 1
+[[ -n ${REBUILD_BUILDS_NOTHING:-} ]] || printf '  cmdline: %s\n' "${NEW_CMDLINE:?}" >"${LIMINE_CONF:?}"
+STUB
 chmod +x "$stub_bin"/*
 
 old_cmdline="root=PARTUUID=1 rw quiet splash initramfs_async=0"
@@ -27,7 +34,9 @@ new_cmdline="$old_cmdline systemd.tty.term.console=dumb"
 run() { # booted cmdline, defaults conf
   : >"$test_dir/rebuilds"
   printf '%s\n' "$1" >"$test_dir/cmdline"
+  printf '  cmdline: %s\n' "$1" >"$test_dir/limine.conf"
   PATH="$stub_bin:$ROOT/bin:$PATH" REBUILDS="$test_dir/rebuilds" \
+    LIMINE_CONF="$test_dir/limine.conf" NEW_CMDLINE="$new_cmdline" MAITRI_LIMINE_CONF="$test_dir/limine.conf" \
     MAITRI_RUNNING_CMDLINE="$test_dir/cmdline" MAITRI_LIMINE_DEFAULTS_CONF="$2" \
     MAITRI_LIMINE_REBUILD_MARKER="$test_dir/marker" bash -euo pipefail "$migration" >/dev/null
 }
@@ -40,6 +49,13 @@ if REBUILD_FAILS=1 run "$old_cmdline" "$ROOT/etc/limine-entry-tool.d/maitri-defa
 fi
 [[ $(rebuilds) == 1 && ! -e $test_dir/marker ]] || fail "a failed rebuild was marked as done"
 pass "a rebuild that fails stops the migration and leaves no marker"
+
+# limine-mkinitcpio exits 0 past a kernel it could not build.
+if REBUILD_BUILDS_NOTHING=1 run "$old_cmdline" "$ROOT/etc/limine-entry-tool.d/maitri-defaults.conf"; then
+  fail "a rebuild that changed nothing was reported as a success"
+fi
+[[ ! -e $test_dir/marker ]] || fail "a rebuild that changed nothing was marked as done"
+pass "a rebuild that exits 0 without changing the boot menu leaves the migration pending"
 
 run "$old_cmdline" "$ROOT/etc/limine-entry-tool.d/maitri-defaults.conf"
 [[ $(rebuilds) == 1 && -e $test_dir/marker ]] ||
@@ -65,7 +81,7 @@ pass "a machine whose defaults were edited to leave the parameter out is left al
 # not found either.
 rm "$stub_bin/limine-mkinitcpio"
 mkdir -p "$test_dir/tools"
-for tool in bash grep install cat; do ln -s "$(command -v "$tool")" "$test_dir/tools/$tool"; done
+for tool in bash grep install cat sed tail; do ln -s "$(command -v "$tool")" "$test_dir/tools/$tool"; done
 : >"$test_dir/rebuilds"
 printf '%s\n' "$old_cmdline" >"$test_dir/cmdline"
 PATH="$stub_bin:$ROOT/bin:$test_dir/tools" REBUILDS="$test_dir/rebuilds" \

@@ -12,6 +12,8 @@ defaults_conf="${MAITRI_LIMINE_DEFAULTS_CONF:-/etc/limine-entry-tool.d/maitri-de
 running_cmdline="${MAITRI_RUNNING_CMDLINE:-/proc/cmdline}"
 rebuild_marker="${MAITRI_LIMINE_REBUILD_MARKER:-/var/lib/maitri/migrations/1791581004}"
 param="systemd.tty.term.console=dumb"
+esp=$(sed -n 's/^ESP_PATH=["'\'']\?\([^"'\'']*\).*/\1/p' /etc/default/limine 2>/dev/null | tail -n 1)
+limine_conf="${MAITRI_LIMINE_CONF:-${esp:-/boot}/limine.conf}"
 
 maitri-cmd-present limine-mkinitcpio || exit 0
 [[ -f $defaults_conf && -r $running_cmdline ]] || exit 0
@@ -28,4 +30,16 @@ grep -Eq "^KERNEL_CMDLINE\[default\]\+=\".*${param//./\\.}.*\"" "$defaults_conf"
 
 echo "The booted kernel is missing $param; rebuilding the boot image"
 sudo limine-mkinitcpio
+
+# limine-mkinitcpio carries on past a kernel it could not build, a full boot
+# partition for one, and still exits 0. Done means a boot entry has the
+# parameter: without that the migration stays pending and the next update
+# tries again. A menu with no command lines in it (they are inside the boot
+# images then) has nothing to look at, and is taken at its word.
+if sudo grep -Eq '^[[:space:]]*cmdline:' "$limine_conf" 2>/dev/null &&
+  ! sudo grep -Eq "^[[:space:]]*cmdline:.*[[:space:]]${param//./\\.}([[:space:]]|\$)" "$limine_conf"; then
+  echo "The boot menu still has no entry with $param after the rebuild" >&2
+  exit 1
+fi
+
 sudo install -Dm644 /dev/null "$rebuild_marker"
