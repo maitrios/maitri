@@ -1,0 +1,42 @@
+name: Release watch
+
+# A `version` bump landing on main means a release is due. Opens a `flare` issue for it unless the
+# tag already exists; the flare follows "Releasing as a flare" in RELEASING.md.
+
+on:
+  push:
+    branches: [main]
+    paths: [version]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out maitri
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Open a release issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(< version)
+          if git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null; then
+            echo "v$version is already tagged"
+            exit 0
+          fi
+          title="Release maitri $version"
+          if gh issue list --state open --search "\"$title\" in:title" --json title --jq '.[].title' | grep -qxF "$title"; then
+            echo "already open: $title"
+            exit 0
+          fi
+          gh label create flare --color FF7A00 --description "Work for a flare (agent) to pick up" --force
+          gh issue create --title "$title" --label flare --body "$(cat <<EOF
+          \`version\` is $version on main (${GITHUB_SHA:0:12}) and v$version isn't tagged yet.
+
+          Follow "Releasing as a flare" in RELEASING.md: tag ${GITHUB_SHA:0:12} as v$version, pin it in maitri-pkgs with \`scripts/bump-maitri\`, wait for the stable channel, then publish the GitHub release with a short summary above the generated notes and check that the ISO build starts.
+          EOF
+          )"

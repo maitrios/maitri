@@ -1,0 +1,38 @@
+name: Upstream watch
+
+# Opens `flare` issues for upstream work (a release to sync, a batch of development-branch commits to
+# review for backports). Flares on the agent box pick them up; see tools/upstream-watch.
+
+on:
+  schedule:
+    - cron: "41 10 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: upstream-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out maitri
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Make sure the labels exist
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create flare --color FF7A00 --description "Work for a flare (agent) to pick up" --force
+          gh label create upstream-sync --color 5319E7 --description "Upstream sync or backport; merge with a merge commit" --force
+
+      - name: Open issues for new upstream work
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: tools/upstream-watch

@@ -1,0 +1,75 @@
+#!/bin/bash
+# Opens `flare` issues for upstream work, for agents on the agent box to pick up:
+#   - a new upstream release to sync (agents/skills/upstream-sync.md)
+#   - a batch of unreviewed commits on upstream's development branch to triage (agents/skills/upstream-backports.md)
+# Only reads git and opens issues, so it's safe to run by hand. Run by .github/workflows/upstream-watch.yml.
+set -euo pipefail
+
+upstream_repo=omacom/omarchy # rebrand:keep
+dev_branch=quattro
+repo=${GITHUB_REPOSITORY:-maitrios/maitri}
+batch=${UPSTREAM_BATCH:-100}
+min_batch=${UPSTREAM_MIN_BATCH:-20}
+max_age_days=${UPSTREAM_MAX_AGE_DAYS:-7}
+dry=${DRY_RUN:-}
+
+cd "$(git rev-parse --show-toplevel)"
+git remote get-url upstream-src >/dev/null 2>&1 || git remote add upstream-src "https://github.com/$upstream_repo.git"
+git fetch -q --tags --force upstream-src "+refs/heads/$dev_branch:refs/remotes/upstream-src/$dev_branch"
+git fetch -q origin "+refs/heads/upstream:refs/remotes/origin/upstream"
+
+open_issue() {
+  local title=$1 prefix=$2 body=$3
+  if gh issue list -R "$repo" --state open --search "\"$prefix\" in:title" --json title --jq '.[].title' | grep -qF "$prefix"; then
+    echo "already open: $prefix"
+    return 0
+  fi
+  if [[ -n $dry ]]; then
+    printf 'would open: %s\n\n%s\n' "$title" "$body"
+    return 0
+  fi
+  gh issue create -R "$repo" --title "$title" --body "$body" --label flare --label upstream-sync
+}
+
+current=$(git log -1 --format=%s origin/upstream | sed -n 's/^Merge [a-z]* \(v[0-9][0-9.]*\) (rebranded)$/\1/p')
+latest=$(gh release list -R "$upstream_repo" --exclude-pre-releases --exclude-drafts --limit 30 --json tagName --jq '.[].tagName' |
+  grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)
+echo "upstream release synced: ${current:-unknown}, latest: ${latest:-none}"
+
+newest=$(printf '%s\n%s\n' "$current" "$latest" | sort -V | tail -1)
+if [[ -n $current && -n $latest && $latest != "$current" && $newest == "$latest" ]]; then
+  open_issue "Sync the $latest upstream release" "Sync the v" "$(cat <<EOF
+Upstream published $latest. \`upstream\` holds $current.
+
+Follow \`agents/skills/upstream-sync.md\`: rebrand $latest onto \`upstream\`, merge it into your branch, resolve conflicts toward maitri's side, audit, bump \`version\`, and open the PR with the \`upstream-sync\` label. Queue it with \`gh pr merge --merge --auto\`, never squash. Andrew's approval is the merge, and the merge cuts the release.
+
+Release notes: https://github.com/$upstream_repo/releases/tag/$latest
+EOF
+)"
+fi
+
+reviewed=$(sed -n 's/^default_branch_reviewed = "\([0-9a-f]*\)"/\1/p' .maitri/upstream.toml)
+[[ -n $reviewed ]] || { echo "no default_branch_reviewed in .maitri/upstream.toml" >&2; exit 1; }
+mapfile -t pending < <(git rev-list --reverse --no-merges "$reviewed..upstream-src/$dev_branch")
+echo "unreviewed $dev_branch commits: ${#pending[@]}"
+(( ${#pending[@]} > 0 )) || exit 0
+
+oldest_age=$(( ($(date +%s) - $(git log -1 --format=%ct "${pending[0]}")) / 86400 ))
+if (( ${#pending[@]} < min_batch && oldest_age < max_age_days )); then
+  echo "waiting for more commits (${#pending[@]} < $min_batch, oldest is $oldest_age days old)"
+  exit 0
+fi
+
+count=$(( ${#pending[@]} < batch ? ${#pending[@]} : batch ))
+end=${pending[count - 1]}
+left=$(( ${#pending[@]} - count ))
+open_issue "Review upstream $dev_branch commits ${reviewed:0:8}..${end:0:8} for backports" "Review upstream $dev_branch commits" "$(cat <<EOF
+$count commits on upstream's \`$dev_branch\` haven't been reviewed for backports: \`${reviewed:0:12}..${end:0:12}\` ($left more after this batch).
+
+Follow \`agents/skills/upstream-backports.md\`: cherry-pick the security and bug fixes that apply to maitri, skip the rest with a one-line reason each, set \`default_branch_reviewed = "$end"\` in \`.maitri/upstream.toml\`, bump \`version\`, and open the PR with the \`upstream-sync\` label. Queue it with \`gh pr merge --merge --auto\`. If nothing applies, the PR only moves \`default_branch_reviewed\` and lists the skips, and doesn't bump \`version\`.
+
+\`\`\`
+git log --reverse --no-merges --format='%h %s' ${reviewed:0:12}..${end:0:12}
+\`\`\`
+EOF
+)"
