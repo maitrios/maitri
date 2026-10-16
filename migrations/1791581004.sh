@@ -12,8 +12,6 @@ defaults_conf="${MAITRI_LIMINE_DEFAULTS_CONF:-/etc/limine-entry-tool.d/maitri-de
 running_cmdline="${MAITRI_RUNNING_CMDLINE:-/proc/cmdline}"
 rebuild_marker="${MAITRI_LIMINE_REBUILD_MARKER:-/var/lib/maitri/migrations/1791581004}"
 param="systemd.tty.term.console=dumb"
-esp=$(sed -n 's/^ESP_PATH=["'\'']\?\([^"'\'']*\).*/\1/p' /etc/default/limine 2>/dev/null | tail -n 1)
-limine_conf="${MAITRI_LIMINE_CONF:-${esp:-/boot}/limine.conf}"
 
 maitri-cmd-present limine-mkinitcpio || exit 0
 [[ -f $defaults_conf && -r $running_cmdline ]] || exit 0
@@ -30,6 +28,17 @@ grep -Eq "^KERNEL_CMDLINE\[default\]\+=\".*${param//./\\.}.*\"" "$defaults_conf"
 
 echo "The booted kernel is missing $param; rebuilding the boot image"
 sudo limine-mkinitcpio
+
+# The boot menu is on the ESP, which /etc/default/limine names; /boot when it
+# does not, or is not there.
+limine_conf="${MAITRI_LIMINE_CONF:-}"
+if [[ -z $limine_conf ]]; then
+  esp=""
+  if [[ -r /etc/default/limine ]]; then
+    esp=$(sed -n 's/^ESP_PATH=["'\'']\?\([^"'\'']*\).*/\1/p' /etc/default/limine | tail -n 1)
+  fi
+  limine_conf="${esp:-/boot}/limine.conf"
+fi
 
 # limine-mkinitcpio carries on past a kernel it could not build, a full boot
 # partition for one, and still exits 0. Done means a boot entry has the
