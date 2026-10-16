@@ -15,9 +15,10 @@ trap 'rm -rf "$test_dir"' EXIT
 stub_bin="$test_dir/bin"
 mkdir -p "$stub_bin"
 
-# sudo just drops the prefix; limine-mkinitcpio records that it ran.
+# sudo just drops the prefix; limine-mkinitcpio records that it ran, and fails
+# when told to.
 printf '#!/bin/bash\nexec "$@"\n' >"$stub_bin/sudo"
-printf '#!/bin/bash\necho rebuilt >>"${REBUILDS:?}"\n' >"$stub_bin/limine-mkinitcpio"
+printf '#!/bin/bash\necho rebuilt >>"${REBUILDS:?}"\n[[ -z ${REBUILD_FAILS:-} ]]\n' >"$stub_bin/limine-mkinitcpio"
 chmod +x "$stub_bin"/*
 
 old_cmdline="root=PARTUUID=1 rw quiet splash initramfs_async=0"
@@ -28,14 +29,22 @@ run() { # booted cmdline, defaults conf
   printf '%s\n' "$1" >"$test_dir/cmdline"
   PATH="$stub_bin:$ROOT/bin:$PATH" REBUILDS="$test_dir/rebuilds" \
     MAITRI_RUNNING_CMDLINE="$test_dir/cmdline" MAITRI_LIMINE_DEFAULTS_CONF="$2" \
-    MAITRI_LIMINE_REBUILD_MARKER="$test_dir/marker" bash "$migration" >/dev/null
+    MAITRI_LIMINE_REBUILD_MARKER="$test_dir/marker" bash -euo pipefail "$migration" >/dev/null
 }
 rebuilds() { wc -l <"$test_dir/rebuilds"; }
+
+# maitri-migrate runs a migration with bash -euo pipefail, and so does run:
+# that is what stops a failed rebuild before the marker is written.
+if REBUILD_FAILS=1 run "$old_cmdline" "$ROOT/etc/limine-entry-tool.d/maitri-defaults.conf"; then
+  fail "a rebuild that failed was reported as a success"
+fi
+[[ $(rebuilds) == 1 && ! -e $test_dir/marker ]] || fail "a failed rebuild was marked as done"
+pass "a rebuild that fails stops the migration and leaves no marker"
 
 run "$old_cmdline" "$ROOT/etc/limine-entry-tool.d/maitri-defaults.conf"
 [[ $(rebuilds) == 1 && -e $test_dir/marker ]] ||
   fail "a machine booted without the parameter did not get its boot image rebuilt"
-pass "a machine booted without the parameter gets its boot image rebuilt, with the packaged defaults"
+pass "the next run rebuilds the boot image, with the packaged defaults, and marks it"
 
 run "$old_cmdline" "$ROOT/etc/limine-entry-tool.d/maitri-defaults.conf"
 [[ $(rebuilds) == 0 ]] || fail "the rebuild ran a second time before a reboot"
@@ -61,6 +70,6 @@ for tool in bash grep install cat; do ln -s "$(command -v "$tool")" "$test_dir/t
 printf '%s\n' "$old_cmdline" >"$test_dir/cmdline"
 PATH="$stub_bin:$ROOT/bin:$test_dir/tools" REBUILDS="$test_dir/rebuilds" \
   MAITRI_RUNNING_CMDLINE="$test_dir/cmdline" MAITRI_LIMINE_DEFAULTS_CONF="$ROOT/etc/limine-entry-tool.d/maitri-defaults.conf" \
-  MAITRI_LIMINE_REBUILD_MARKER="$test_dir/marker" "$test_dir/tools/bash" "$migration" >/dev/null
+  MAITRI_LIMINE_REBUILD_MARKER="$test_dir/marker" "$test_dir/tools/bash" -euo pipefail "$migration" >/dev/null
 [[ ! -e $test_dir/marker ]] || fail "a machine without Limine was marked as rebuilt"
 pass "a machine without Limine is left alone"
