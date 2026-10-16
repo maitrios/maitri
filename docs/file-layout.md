@@ -185,6 +185,8 @@ yet and silently runs the packaged copy of one it has. The drop-in is validated
 with `visudo -c` before install and removed by `maitri-dev-unlink`; unlike
 `/etc/maitri.conf`, it takes effect without a reboot.
 
+Factory reset is an exception: it always self-elevates through `/usr/bin/maitri-system-factory-reset` and refuses a checkout copy that differs from the installed command, including when invoked with `sudo`. Install the matching package before resetting so a newer checkout cannot silently hand off to older account-scrubbing code.
+
 ## Runtime finalization (`maitri-provision-user`)
 
 Runs once per user. It does **not** copy `~/.config/**`, `~/.bashrc`,
