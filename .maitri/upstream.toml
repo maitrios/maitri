@@ -1,0 +1,3 @@
+# Where the upstream job has got to. tools/upstream-watch reads it; backport review PRs move it forward.
+# default_branch_reviewed: the newest commit on upstream's development branch already reviewed for backports.
+default_branch_reviewed = "02d28d273a1b0f45d9beb19243b2ee6caf5e7a7d"

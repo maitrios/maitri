@@ -10,6 +10,9 @@ matching guide before starting:
 - [`agents/skills/acceptance-tests.md`](agents/skills/acceptance-tests.md) - writing or running graphical acceptance tests under `test/acceptance.d/`
 - [`agents/skills/visual-verification.md`](agents/skills/visual-verification.md) - verifying any change with a visual effect in the running UI
 - [`docs/migrations.md`](docs/migrations.md) - creating or changing migrations under `migrations/`
+- [`agents/skills/upstream-sync.md`](agents/skills/upstream-sync.md) - syncing an upstream release
+- [`agents/skills/upstream-backports.md`](agents/skills/upstream-backports.md) - reviewing upstream's development branch for backports
+- [`RELEASING.md`](RELEASING.md) - cutting a release, including "Releasing as a flare"
 
 # Style
 

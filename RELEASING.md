@@ -38,6 +38,34 @@ maitri uses SemVer tags `vMAJOR.MINOR.PATCH`. `v0.x` is pre-stable; `v0.3.0` is 
 
 Release notes are generated from merged pull requests, so land changes through PRs with clear titles.
 
+## Releasing as a flare
+
+A `version` change landing on `main` (usually inside an approved `upstream-sync` PR) makes
+`.github/workflows/release-watch.yml` open a "Release maitri X.Y.Z" issue. A flare on the agent box
+takes it; Andrew's approval of the PR that bumped `version` was the approval for the release.
+
+1. Tag the commit named in the issue and push only that tag (never `git push --tags`; a sync fetches
+   upstream's tags into the local namespace): `git tag vX.Y.Z <sha> && git push origin vX.Y.Z`.
+2. In a fresh clone of maitri-pkgs, run `scripts/bump-maitri vX.Y.Z`. It needs pacman's `vercmp`,
+   so run it in an Arch container and push from the box:
+
+   ```bash
+   docker run --rm -v "$PWD:/w" -w /w -e GIT_AUTHOR_NAME -e GIT_AUTHOR_EMAIL -e GIT_COMMITTER_NAME \
+     -e GIT_COMMITTER_EMAIL archlinux:latest bash -c \
+     'pacman -Sy --noconfirm --needed git >/dev/null && git config --global --add safe.directory /w && scripts/bump-maitri vX.Y.Z'
+   git push origin main
+   ```
+
+   Set the four `GIT_*` variables to the box's git identity first. The push publishes; wait for
+   `build-pkgs.yml` (`gh run watch`) and check `gh release view stable -R maitrios/maitri-pkgs`.
+3. Publish the release with a short prose summary above the generated notes (what changed for users,
+   security fixes first, which upstream release or backports it carries):
+   `gh release create vX.Y.Z --repo maitrios/maitri --target <sha> --title "maitri vX.Y.Z" --notes-file <summary> --generate-notes`.
+4. Check that `build-iso.yml` started for the release. If it didn't, start it with
+   `gh workflow run build-iso.yml -R maitrios/maitri -f release_tag=vX.Y.Z` (see its inputs).
+5. Comment on the issue with the tag, the maitri-pkgs commit and the release link, then close it.
+   The QEMU smoke test stays with Andrew.
+
 ## Edge
 
 Every push to `main` triggers `notify-pkgs.yml`, which asks maitri-pkgs to rebuild `maitri-dev` and
