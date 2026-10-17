@@ -11,6 +11,8 @@ fi
 
 foot_osc=$(maitri-theme-osc "$colors_toml")
 [[ -n $foot_osc ]] || exit 0
+# maitri-theme-osc sends color8 as `muted`, a line color; bright black is dim text in a terminal.
+foot_osc+=$(printf '\033]4;8;%s\007' "$(maitri-theme-color --file "$colors_toml" comment)")
 
 for foot_pid in $(pgrep -x foot); do
   for child_pid in $(pgrep -P "$foot_pid"); do

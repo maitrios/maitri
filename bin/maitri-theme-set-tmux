@@ -49,6 +49,8 @@ sync_colorfgbg() {
 
 theme_osc_sequences() {
   maitri-theme-osc "$COLORS_TOML"
+  # maitri-theme-osc sends color8 as `muted`, a line color; bright black is dim text in a terminal.
+  printf '\033]4;8;%s\007' "$(theme_color comment)"
 }
 
 theme_color() {

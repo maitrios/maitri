@@ -33,36 +33,36 @@ active-border-foreground = "{{ shell_gradient hyprland_active_border foreground 
 # solid color or a Hyprland-style gradient, e.g. "rgba(...) rgba(...) 45deg".
 normal-color        = "{{ foreground }}"
 normal-fill-alpha   = 0.04
-normal-border       = "{{ foreground }}"
+normal-border       = "{{ border }}"
 normal-border-width = 1
-normal-border-alpha = 0.4
+normal-border-alpha = 1.0
 
 # Hover-cursor: mouse hover and the panel keyboard cursor.
 hover-cursor-color        = "{{ foreground }}"
 hover-cursor-fill-alpha   = 0.08
-hover-cursor-border       = "{{ foreground }}"
+hover-cursor-border       = "{{ mix border foreground 25% }}"
 hover-cursor-border-width = 1
-hover-cursor-border-alpha = 0.25
+hover-cursor-border-alpha = 1.0
 
-# Focus: Qt activeFocus. Mirror the hover-cursor values by default so
-# mouse hover, keyboard cursor, and tab focus all read as the same state
-# — themes that want focus to stand out override these four lines.
+# Focus: Qt activeFocus. Same fill as hover-cursor, with an accent ring so
+# tab focus stays visible.
 focus-color        = "{{ foreground }}"
 focus-fill-alpha   = 0.08
-focus-border       = "{{ foreground }}"
+focus-border       = "{{ border_focus }}"
 focus-border-width = 1
-focus-border-alpha = 0.25
+focus-border-alpha = 1.0
 
 # Selected: persistent chosen/current state.
 selected-color        = "{{ foreground }}"
 selected-fill-alpha   = 0.18
-selected-border       = "{{ foreground }}"
+selected-border       = "{{ border_focus }}"
 selected-border-width = 0
 selected-border-alpha = 1.0
 
-# Momentary fills.
+# Momentary fills. Text selection is the theme's selection fill.
 pressed-fill-alpha   = 0.22
-selection-fill-alpha = 0.35
+selection-color      = "{{ selection }}"
+selection-fill-alpha = 1.0
 
 [spacing]
 # `scale` multiplies shared margins, gaps, padding, controls, and panel
@@ -163,11 +163,11 @@ border                    = "hyprland.active-border-foreground"
 border-alpha              = 1.0
 scrim                     = "{{ background }}"
 scrim-alpha               = 0.5
-selected-background       = "{{ foreground }}"
-selected-background-alpha = 0.08
-selected-text             = "{{ accent }}"
-selected-border           = "hyprland.active-border-foreground"
-selected-border-alpha     = 0.25
+selected-background       = "{{ selection }}"
+selected-background-alpha = 1.0
+selected-text             = "{{ foreground }}"
+selected-border           = "{{ border_focus }}"
+selected-border-alpha     = 1.0
 
 [menu]
 # Cards, rows, and selected-row treatment. Alpha companions (where present)
@@ -180,11 +180,11 @@ border                    = "hyprland.active-border-foreground"
 border-alpha              = 1.0
 scrim                     = "{{ background }}"
 scrim-alpha               = 0.5
-selected-background       = "{{ foreground }}"
-selected-background-alpha = 0.08
-selected-text             = "{{ accent }}"
-selected-border           = "hyprland.active-border-foreground"
-selected-border-alpha     = 0.25
+selected-background       = "{{ selection }}"
+selected-background-alpha = 1.0
+selected-text             = "{{ foreground }}"
+selected-border           = "{{ border_focus }}"
+selected-border-alpha     = 1.0
 
 [polkit]
 # Polkit authentication prompt (sudo/password dialogs). scrim is the
@@ -213,15 +213,15 @@ accent           = "{{ accent }}"
 background       = "{{ background }}"
 background-alpha = 0.8
 text             = "{{ foreground }}"
-placeholder      = "{{ mix foreground background 34% }}"
+placeholder      = "{{ comment }}"
 text-error       = "{{ red }}"
 border           = "hyprland.active-border"
 border-active    = "hyprland.active-border"
 border-error     = "{{ red }}"
 border-alpha     = 1.0
-# selection is the text-selection tint inside the input field.
-selection        = "{{ accent }}"
-selection-alpha  = 0.45
+# selection is the text-selection fill inside the input field.
+selection        = "{{ selection }}"
+selection-alpha  = 1.0
 
 [image-picker]
 # Carousel-style picker. The picker has no card surface, so `scrim` is
@@ -233,5 +233,5 @@ scrim-alpha             = 0.5
 text                    = "{{ foreground }}"
 selected-border         = "{{ accent }}"
 selected-border-alpha   = 1.0
-unselected-border       = "{{ foreground }}"
-unselected-border-alpha = 0.28
+unselected-border       = "{{ border }}"
+unselected-border-alpha = 1.0
