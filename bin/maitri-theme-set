@@ -337,6 +337,7 @@ post_theme_commands=(
   maitri-theme-set-warp
   maitri-theme-set-sublime
   maitri-theme-set-zed maitri-theme-set-jetbrains maitri-theme-set-emacs
+  maitri-theme-set-slack maitri-theme-set-insomnia maitri-theme-set-fish
 )
 
 if [[ $THEME_HEADLESS != "1" ]]; then

@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# maitri:summary=Copy the current theme's Slack sidebar colours to the clipboard
+
+src="$HOME/.local/state/maitri/current/theme/slack.txt"
+
+if [[ ! -f $src ]]; then
+  echo "The current theme has no Slack colours." >&2
+  exit 1
+fi
+
+colors=$(tr -d '[:space:]' <"$src")
+
+if [[ ! $colors =~ ^#[0-9A-Fa-f]{6}(,#[0-9A-Fa-f]{6}){3}$ ]]; then
+  echo "slack.txt in the current theme is not a Slack theme: $colors" >&2
+  exit 1
+fi
+
+printf '%s' "$colors" | wl-copy
+echo "Copied $colors. In Slack, paste it into Preferences > Themes > Custom theme."

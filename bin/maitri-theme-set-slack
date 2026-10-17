@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# maitri:summary=Tell Slack users how to apply the current maitri sidebar colours
+# maitri:hidden=true
+
+src="$HOME/.local/state/maitri/current/theme/slack.txt"
+[[ -f $src ]] || exit 0
+maitri-cmd-present slack || exit 0
+
+# Slack keeps its theme on its servers and reads no file for it, so the colours
+# can only reach it by being pasted in.
+echo "Slack takes the maitri colours from a paste: run maitri theme slack-copy, then paste into Preferences > Themes > Custom theme." >&2
