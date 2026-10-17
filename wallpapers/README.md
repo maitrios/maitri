@@ -6,8 +6,8 @@ under `themes/`. Everything here except this README is ignored.
 
 To ship them with a release, pack this directory, attach it to the published
 release as `wallpapers.tar`, and run `.github/workflows/wallpapers.yml` on
-`main` with the release's tag; it uploads the files under their sha256 and
-publishes the manifest. Check what it would do first:
+`main` with the release's tag; it uploads the files and their WebP previews
+under their sha256 and publishes the manifest. Check what it would do first:
 
 ```bash
 tools/wallpapers-upload.sh --dry-run vX.Y.Z
