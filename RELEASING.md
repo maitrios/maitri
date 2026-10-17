@@ -25,44 +25,39 @@ maitri uses SemVer tags `vMAJOR.MINOR.PATCH`. `v0.x` is pre-stable; `v0.3.0` is 
 
    Verify with `gh release view stable -R maitrios/maitri-pkgs` (or `pacman -Sy && pacman -Si
    maitri` on a stable machine).
-4. Publish the GitHub release, which triggers the ISO build and the wallpaper upload:
+4. Publish the GitHub release, which triggers the ISO build:
 
    ```bash
    gh release create vX.Y.Z --repo maitrios/maitri --target main --title "maitri vX.Y.Z" --generate-notes
    ```
 
-   With new wallpapers staged under `wallpapers/<theme>/`, pack them and publish with the tar
-   attached instead:
+   `build-iso.yml` waits for the `stable` channel to carry `maitri X.Y.Z`, builds the ISO, pushes it
+   to Docker Hub as an OCI artifact (GitHub caps release assets at 2 GiB), attaches the `.sha256`,
+   and appends the download link to the release notes.
+
+5. If there are new wallpapers, stage them under `wallpapers/<theme>/`, pack them and attach them
+   to the release:
 
    ```bash
    tar -cf wallpapers.tar -C wallpapers --exclude README.md .
    ```
 
    ```bash
-   gh release create vX.Y.Z --repo maitrios/maitri --target main --title "maitri vX.Y.Z" --generate-notes wallpapers.tar
+   gh release upload vX.Y.Z wallpapers.tar --repo maitrios/maitri
    ```
 
-   `build-iso.yml` waits for the `stable` channel to carry `maitri X.Y.Z`, builds the ISO, pushes it
-   to Docker Hub as an OCI artifact (GitHub caps release assets at 2 GiB), attaches the `.sha256`,
-   and appends the download link to the release notes.
-5. Smoke test the ISO in QEMU (`iso/bin/maitri-iso-boot`).
+6. Publish the wallpaper manifest, with or without new wallpapers. The run has to start on `main`:
+
+   ```bash
+   gh workflow run wallpapers.yml --repo maitrios/maitri --ref main -f tag=vX.Y.Z
+   ```
+
+7. Smoke test the ISO in QEMU (`iso/bin/maitri-iso-boot`).
 
 Release notes are generated from merged pull requests, so land changes through PRs with clear titles.
 
-New wallpapers ship by attaching `wallpapers.tar` to the release when publishing it; `wallpapers.yml`
-uploads them and moves the stable wallpaper manifest to the release either way. If the tar missed the
-release, attach it and rerun the workflow on the tag (a run started from `main` is refused by the
-`release` environment):
-
-```bash
-gh release upload vX.Y.Z wallpapers.tar --repo maitrios/maitri
-```
-
-```bash
-gh workflow run wallpapers.yml --repo maitrios/maitri --ref vX.Y.Z -f tag=vX.Y.Z
-```
-
-See [`docs/wallpapers.md`](docs/wallpapers.md).
+Wallpapers attached to a release after step 6 ship by attaching `wallpapers.tar` and running step 6
+again; a release's wallpaper manifest only grows. See [`docs/wallpapers.md`](docs/wallpapers.md).
 
 ## Releasing as a flare
 
@@ -92,8 +87,10 @@ takes it; Andrew's approval of the PR that bumped `version` was the approval for
    compare range from the previous release; `git log --first-parent vPREV..vX.Y.Z` shows the same
    merges locally:
    `gh release create vX.Y.Z --repo maitrios/maitri --target <sha> --title "maitri vX.Y.Z" --notes-file <summary> --generate-notes`.
-   If Andrew handed over a `wallpapers.tar` for the release, pass it as the last argument
-   (`... --generate-notes wallpapers.tar`), then check that `wallpapers.yml` passed for the release.
+   If Andrew handed over a `wallpapers.tar` for the release, attach it:
+   `gh release upload vX.Y.Z wallpapers.tar --repo maitrios/maitri`. Then publish the wallpaper
+   manifest, with or without new wallpapers, and check that the run passed:
+   `gh workflow run wallpapers.yml --repo maitrios/maitri --ref main -f tag=vX.Y.Z`.
 4. Check that `build-iso.yml` started for the release. If it didn't, start it with
    `gh workflow run build-iso.yml -R maitrios/maitri -f release_tag=vX.Y.Z` (see its inputs).
 5. Comment on the issue with the tag, the maitri-pkgs commit and the release link, then close it.

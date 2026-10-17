@@ -78,23 +78,18 @@ it.
 
 ## Publishing: `.github/workflows/wallpapers.yml`
 
-The workflow runs when a `v*` GitHub release is published, in the `release`
-environment, with the bucket-scoped token in its secrets `R2_ACCESS_KEY_ID`,
-`R2_SECRET_ACCESS_KEY` and `R2_ENDPOINT` (Andrew sets these from 1Password
-`k7 Provisioner/k7m - R2 maitri upload`). It runs on the published release
-rather than the tag push because `RELEASING.md` pushes the tag before the
-packages reach stable, and the wallpapers should land with the packages.
-
-The `release` environment only accepts `v*` tags. A release event deploys from
-its tag, so it just works; a manual run has to be started on the tag with
-`--ref vX.Y.Z` and the same `tag` input. A run started from `main` is refused
-by the environment, and the workflow itself refuses a `tag` input that isn't
-the ref it was started on.
+The workflow only runs when it's started by hand on `main`, with the release
+tag as its `tag` input. Its job uses the `release` environment, which holds the
+bucket-scoped token in the secrets `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`
+and `R2_ENDPOINT` (Andrew sets these from 1Password
+`k7 Provisioner/k7m - R2 maitri upload`) and only accepts `main`. Run it after
+the release is published, so the wallpapers land with the packages.
 
 ### Shipping wallpapers with a release
 
 The picked wallpapers aren't in git, so they ride along on the release as a
-`wallpapers.tar` asset. From a checkout of `main`:
+`wallpapers.tar` asset. From a checkout of `main`, once
+`gh release create vX.Y.Z` has published the release:
 
 1. Stage each pick as `wallpapers/<theme>/<any name>.<ext>`, where `<theme>` is
    a directory under `themes/` and `<ext>` is `jpg`, `jpeg`, `png` or `webp`.
@@ -112,43 +107,38 @@ The picked wallpapers aren't in git, so they ride along on the release as a
    tar -cf wallpapers.tar -C wallpapers --exclude README.md .
    ```
 
-4. Publish the release with the tar attached (the full commands are in
-   `RELEASING.md`). `gh release create` with an asset creates a draft, uploads
-   the asset and only then publishes, so the workflow sees the tar:
+4. Attach it to the release:
 
    ```bash
-   gh release create vX.Y.Z --repo maitrios/maitri --target main --title "maitri vX.Y.Z" --generate-notes wallpapers.tar
+   gh release upload vX.Y.Z wallpapers.tar --repo maitrios/maitri
    ```
 
-A release without `wallpapers.tar` still gets a manifest, carrying the current
-wallpapers forward.
+5. Publish:
 
-### Adding wallpapers to a published release
+   ```bash
+   gh workflow run wallpapers.yml --repo maitrios/maitri --ref main -f tag=vX.Y.Z
+   ```
 
-If the tar missed the release, attach it and rerun the workflow on the tag.
-A release's manifest only grows, so the rerun adds the new files and keeps
-everything it already listed:
+A release with no new wallpapers only needs step 5. It still gets a manifest,
+carrying the current wallpapers forward, and moves stable to it.
 
-```bash
-gh release upload vX.Y.Z wallpapers.tar --repo maitrios/maitri
-```
-
-```bash
-gh workflow run wallpapers.yml --repo maitrios/maitri --ref vX.Y.Z -f tag=vX.Y.Z
-```
+To add wallpapers to a release that was already published, repeat steps 1 to 5
+for it. A release's manifest only grows, so the rerun adds the new files and
+keeps everything it already listed.
 
 To rehearse a run in CI without uploading anything:
 
 ```bash
-gh workflow run wallpapers.yml --repo maitrios/maitri --ref vX.Y.Z -f tag=vX.Y.Z -f dry_run=true
+gh workflow run wallpapers.yml --repo maitrios/maitri --ref main -f tag=vX.Y.Z -f dry_run=true
 ```
 
 ### What the workflow does
 
-1. Checks out `main` and refuses to go on unless the tag's commit is the one
-   the run was started for and is in `main`'s history, so the bucket token only
-   ever reaches reviewed code. This step runs before anything sees the
-   secrets, and the uploader it runs is `main`'s copy.
+1. Checks out `main` and refuses to go on unless the run was started on
+   `main`. Then `tools/wallpapers-check-tag.sh` checks that the tag is
+   `vX.Y.Z` or `vX.Y.Z-<pre>`, exists on the remote, and points at a commit in
+   `main`'s history. This runs before any step that sees a secret. Nothing from
+   the tag's tree is checked out or run.
 2. Reads the release. A release marked as a prerelease only gets its own
    manifest. If `wallpapers.tar` is attached and is at most 1 GiB, it's
    downloaded.
@@ -156,10 +146,13 @@ gh workflow run wallpapers.yml --repo maitrios/maitri --ref vX.Y.Z -f tag=vX.Y.Z
    1. Refuses a tar holding anything but directories and plain files, or a
       member that climbs out with `..`.
    2. Checks every file: a plain file directly in a directory named after a
-      maitri theme, a `jpg`, `png` or `webp` by both its name and its first
-      bytes, and between 1 byte and 64 MiB. It hashes each one.
+      maitri theme, a name with no control characters or backslashes, a `jpg`,
+      `png` or `webp` by both its name and its first bytes, and between 1 byte
+      and 64 MiB. It hashes each one.
    3. Reads the current stable manifest straight from the bucket and builds
-      the release's manifest from it plus the new files.
+      the release's manifest from it plus the new files. The whole manifest
+      must pass the same checks the stable one does (paths, 64-hex sha256s,
+      whole-number sizes) and fit in the 1 MiB the updater reads.
    4. Stops before uploading anything if `releases/<tag>/manifest.json`
       already lists a file the new manifest doesn't.
    5. HEADs `themes/<theme>/<sha256>.<ext>` for each file and uploads it only
@@ -171,11 +164,20 @@ gh workflow run wallpapers.yml --repo maitrios/maitri --ref vX.Y.Z -f tag=vX.Y.Z
       stable is already on a newer release. Both get
       `Cache-Control: public, max-age=60`.
 
-On `release: published`, GitHub runs the workflow file from the tag, so a tag
-pushed at an unreviewed commit could carry its own copy of this workflow
-without the check. The check guards against a tag at a commit that only
-changes the uploader; the `release` environment's `v*` tag policy is what
-decides who can reach the secrets at all.
+### What keeps the token safe
+
+GitHub runs a workflow from the ref it was started on, so a tag at an
+unreviewed commit runs that commit's workflow files. Those runs aren't on
+`main`, and the `release` environment only accepts `main`, so none of them get
+the token. Every run that can get it uses a workflow file from `main`, and
+changes to `main` go through a reviewed pull request. That only holds while
+the `R2_*` secrets live in the `release` environment and nowhere else: never
+add them as repository or organization secrets.
+
+The tag is checked so that only a real release gets published, but anyone who
+can start the workflow and attach a release asset can publish any wallpaper
+that passes the checks above. The checks cover each file's shape, not what it
+shows.
 
 ## Tests
 
@@ -185,8 +187,12 @@ staying deleted, a bad checksum being rejected, an offline run exiting 0, a
 300 MB body for a 5 KB entry (with and without a Content-Length) being cut off
 without landing on disk, and an oversized manifest. On the publishing side it
 builds a manifest with `tools/wallpapers-upload.sh --dry-run` from both a
-staging directory and a `wallpapers.tar`, refuses bad tars, and runs a real
-upload against a stub `aws` to check the keys, headers, prerelease handling,
-attaching wallpapers after a release and the grow-only release manifest, then
-installs from the result. It also checks that a theme switch and `maitri theme
+staging directory and a `wallpapers.tar`, refuses bad tars and file names, and
+runs a real upload against a stub `aws` to check the keys, headers, prerelease
+handling, attaching wallpapers after a release, the grow-only release manifest
+and the manifest size limit, then installs from the result.
+`test/shell.d/wallpapers-release-guard-test.sh` runs
+`tools/wallpapers-check-tag.sh` against a scratch remote (tags on and off
+`main`, moved, local, malformed and missing) and checks that the workflow only
+runs from `main` and checks the tag before any secret. It also checks that a theme switch and `maitri theme
 bg next` put the theme's own wallpaper ahead of downloaded ones.
