@@ -29,12 +29,14 @@ are maitri's own themes. From a theme cloned by `maitri theme install`, maitri
 drops only what runs code: any `*.lua` (Hyprland requires a theme's
 `hyprland.lua` and `gum_env.lua` at login, Neovim loads `neovim.lua` at startup),
 the terminal configs `alacritty.toml`, `foot.ini`, `ghostty.conf` and
-`kitty.conf` (each names the program the terminal launches), and `vscode.json`
-(names a VS Code extension to install). Those are regenerated from `colors.toml`
+`kitty.conf` (each names the program the terminal launches), `vscode.json`
+(names a VS Code extension to install) and `emacs-theme.el` (Elisp Emacs runs
+when it loads the theme). Those are regenerated from `colors.toml`
 through `$MAITRI_PATH/default/themed/*.tpl`, and named on stderr.
 
 Everything else a cloned theme ships is kept, including `btop.theme`,
-`helix.toml`, `icons.theme`, `keyboard.rgb` and `shell.toml`.
+`helix.toml`, `icons.theme`, `keyboard.rgb`, `shell.toml` and the Zed and
+JetBrains themes (`zed.json`, `jetbrains.icls`), which are only colour.
 maitri tells a cloned theme from the user's own by the `.git` directory a clone
 leaves behind.
 

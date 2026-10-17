@@ -65,11 +65,12 @@ instead of racing.
 - any `*.lua` — Hyprland `require`s a theme's `hyprland.lua` and `gum_env.lua` at login, and Neovim loads its `neovim.lua` at startup
 - `alacritty.toml`, `foot.ini`, `ghostty.conf`, `kitty.conf` — each names the program the terminal launches
 - `vscode.json` — names the extension `maitri-theme-set-vscode` installs, and a VS Code extension is arbitrary JavaScript
+- `emacs-theme.el` — Elisp, which Emacs runs when it loads the theme
 - `herdr.toml` — `maitri-theme-set-herdr` splices it into herdr's own `config.toml`, which runs commands
 
-Symlinks are dropped with them, at any depth; in a cloned theme they point wherever the theme author chose. Everything a cloned theme ships that is colour is kept, including files maitri would otherwise have generated — `btop.theme`, `helix.toml`, `shell.toml`, `icons.theme`, `keyboard.rgb` and the rest — so a theme can still say exactly how it wants each app to look. What is dropped gets generated from `default/themed/*.tpl` instead, and is named on stderr.
+Symlinks are dropped with them, at any depth; in a cloned theme they point wherever the theme author chose. Everything a cloned theme ships that is colour is kept, including files maitri would otherwise have generated — `btop.theme`, `helix.toml`, `shell.toml`, `zed.json`, `jetbrains.icls`, `icons.theme`, `keyboard.rgb` and the rest — so a theme can still say exactly how it wants each app to look. What is dropped gets generated from `default/themed/*.tpl` instead, and is named on stderr.
 
-A denylist is only right while it is maintained. Adding a template for another terminal, or for another editor that loads Lua, means adding it to `INSTALLED_THEME_DENIED` in `bin/maitri-theme-set`; `test/shell.d/theme-staging-test.sh` fails on any `default/themed/*.tpl` whose output is recorded as neither code nor colour, so a new template cannot be added without that decision being made.
+A denylist is only right while it is maintained. Adding a template for another terminal, or for another editor whose theme file runs code (Neovim's Lua, Emacs' Elisp; Zed and JetBrains only read colours), means adding it to `INSTALLED_THEME_DENIED` in `bin/maitri-theme-set`; `test/shell.d/theme-staging-test.sh` fails on any `default/themed/*.tpl` whose output is recorded as neither code nor colour, so a new template cannot be added without that decision being made.
 
 A theme predating `colors.toml` is not left without a palette: its `alacritty.toml` is read through `maitri-theme-colors-from-alacritty` into a scratch directory and only the resulting `colors.toml` is staged, so the colors survive and the terminal config does not.
 
@@ -460,6 +461,31 @@ For a gradient it renders:
 ```lua
 local active_border_color = { colors = { "rgba(33ccffee)", "rgba(00ff99ee)" }, angle = 45 }
 ```
+
+## Zed, JetBrains and Emacs
+
+Each editor gets a theme rendered from `colors.toml`, installed by its own
+`maitri-theme-set-*` hook only when that editor is on the machine. None of the
+hooks touch the editor's own settings, so pick the theme once:
+
+- **Zed** — `maitri-theme-set-zed` writes `~/.config/zed/themes/maitri.json`
+  (under `XDG_CONFIG_HOME` when it's set), and Zed reloads it live. Set
+  `"theme": "maitri"` in Zed's `settings.json`.
+- **JetBrains** — `maitri-theme-set-jetbrains` copies `maitri.icls` into
+  `colors/` in every versioned IDE config dir under `~/.config/JetBrains/` (and
+  Android Studio's under `~/.config/Google/`), with a light parent scheme on
+  light themes. Pick `maitri` under Settings → Editor → Color Scheme. The IDE
+  reads the file at startup, so a theme change shows after a restart.
+- **Emacs** — `maitri-theme-set-emacs` installs `maitri-theme.el` into
+  `themes/` under the dir Emacs uses (`~/.emacs.d` when it or `~/.emacs`
+  exists, otherwise the XDG dir). Load it from your init file:
+
+  ```elisp
+  (add-to-list 'custom-theme-load-path (locate-user-emacs-file "themes"))
+  (load-theme 'maitri t)
+  ```
+
+  A running Emacs picks up new colours on the next `load-theme`.
 
 ## Neovim
 
