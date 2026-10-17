@@ -13,7 +13,8 @@ colors_line='^set -gx MAITRI_FZF_COLORS "--color=[a-z+-]+:(#[0-9A-Fa-f]{6}|-1)(,
 has_fzf=""
 has_bat=""
 maitri-cmd-present fzf && [[ -f $src ]] && has_fzf=1
-maitri-cmd-present bat && [[ -f $theme_dir/bat.tmTheme ]] && has_bat=1
+maitri-cmd-present bat && [[ -f $theme_dir/bat.tmTheme ]] && ! grep -q '{{' "$theme_dir/bat.tmTheme" &&
+  bat --list-themes --color=never 2>/dev/null | grep -qx maitri && has_bat=1
 [[ -n $has_fzf || -n $has_bat ]] || exit 0
 
 block=$(mktemp)
@@ -33,7 +34,8 @@ if [[ -n $has_fzf ]]; then
 fi
 
 # maitri-fish's vendor conf.d sets BAT_THEME, which bat puts ahead of its own
-# config file.
+# config file. It's only pointed at maitri once bat's cache has the theme, or
+# every bat call warns.
 if [[ -n $has_bat ]]; then
   echo "set -gx BAT_THEME maitri" >>"$block"
 fi

@@ -318,11 +318,30 @@ for app in lazygit delta fzf yazi; do
 done
 cat >"$apps/bat" <<'SH'
 #!/bin/bash
+cache="$HOME/.cache/bat"
 case $1 in
   --config-dir) echo "$HOME/.config/bat" ;;
   --config-file) echo "$HOME/.config/bat/config" ;;
-  cache) echo "$*" >>"$HOME/bat.log" ;;
+  --cache-dir) echo "$cache" ;;
+  --list-themes)
+    [[ ! -e $HOME/bat.stale ]] || exit 1
+    echo Monokai
+    [[ -f $cache/metadata.yaml && -f $HOME/.config/bat/themes/maitri.tmTheme ]] && echo maitri
+    ;;
+  cache)
+    echo "$*" >>"$HOME/bat.log"
+    case $2 in
+      --build)
+        [[ ! -e $HOME/bat.broken ]] || exit 1
+        mkdir -p "$cache"
+        : >"$cache/metadata.yaml"
+        rm -f "$HOME/bat.stale"
+        ;;
+      --clear) rm -rf "$cache" "$HOME/bat.stale" ;;
+    esac
+    ;;
 esac
+exit 0
 SH
 printf '#!/bin/bash\n[[ $2 == yazi ]]\n' >"$apps/pgrep"
 chmod +x "$apps"/*
@@ -534,6 +553,54 @@ run_hook "$home" maitri-theme-set-bat "$apps:$sandbox" || fail "maitri-theme-set
 ! grep -q 'minus-style' "$home/.config/git/config" 2>/dev/null || fail "an unbalanced quote never reaches git's config"
 grep -q "Skipping delta theme" "$home/hook.stderr" || fail "the bat hook says why it skipped the delta theme"
 pass "the hooks keep a rendered file's colours and drop everything else"
+
+home=$(new_home broken amethyst)
+touch "$home/bat.broken" "$home/bat.stale"
+mkdir -p "$home/.cache/bat" "$home/.config/bat" "$home/.config/fish"
+: >"$home/.cache/bat/metadata.yaml"
+printf -- '--style=numbers\n' >"$home/.config/bat/config"
+for hook in "${hooks[@]}"; do
+  run_hook "$home" "$hook" "$apps:$sandbox" || fail "$hook runs when bat can't build its cache"
+done
+! grep -q -- '--theme' "$home/.config/bat/config" || fail "bat's config never selects a theme bat couldn't build" "$(cat "$home/.config/bat/config")"
+! grep -q 'syntax-theme' "$home/.config/git/config" || fail "delta never selects a theme bat couldn't build" "$(cat "$home/.config/git/config")"
+! grep -q 'BAT_THEME' "$home/.config/fish/config.fish" || fail "fish never selects a theme bat couldn't build" "$(cat "$home/.config/fish/config.fish")"
+grep -q '^cache --clear$' "$home/bat.log" || fail "the bat hook clears a cache bat can no longer read"
+grep -q "bat could not build its theme cache" "$home/hook.stderr" || fail "the bat hook says the build failed" "$(cat "$home/hook.stderr")"
+
+rm "$home/bat.broken"
+for hook in maitri-theme-set-bat maitri-theme-set-fzf; do
+  run_hook "$home" "$hook" "$apps:$sandbox" || fail "$hook runs once bat builds again"
+done
+[[ $(head -n 3 "$home/.config/bat/config") == $'# >>> maitri theme (rewritten by maitri theme set) >>>\n--theme="maitri"\n# <<< maitri theme <<<' ]] ||
+  fail "bat's config selects maitri once the cache builds" "$(cat "$home/.config/bat/config")"
+grep -q 'set -gx BAT_THEME maitri' "$home/.config/fish/config.fish" || fail "fish selects maitri once the cache builds" "$(cat "$home/.config/fish/config.fish")"
+
+printf -- '# >>> maitri theme (rewritten by maitri theme set) >>>\n--style=plain\n--map-syntax=x:y\n' >"$home/.config/bat/config"
+touch "$home/bat.broken"
+run_hook "$home" maitri-theme-set-bat "$apps:$sandbox" || fail "maitri-theme-set-bat runs beside a block without its end marker"
+[[ $(<"$home/.config/bat/config") == $'# >>> maitri theme (rewritten by maitri theme set) >>>\n--style=plain\n--map-syntax=x:y' ]] ||
+  fail "a start marker without an end loses none of bat's settings" "$(cat "$home/.config/bat/config")"
+pass "a bat cache that won't build leaves bat, delta and fish on bat's own themes"
+
+home=$(new_home update amethyst)
+run_hook "$home" maitri-update-bat-cache "$apps:$sandbox" || fail "maitri-update-bat-cache exits cleanly without a cache"
+[[ ! -e $home/bat.log ]] || fail "maitri-update-bat-cache never builds a cache the user didn't have" "$(cat "$home/bat.log")"
+mkdir -p "$home/.cache/bat"
+: >"$home/.cache/bat/metadata.yaml"
+run_hook "$home" maitri-update-bat-cache "$apps:$sandbox" || fail "maitri-update-bat-cache exits cleanly with a current cache"
+[[ ! -e $home/bat.log ]] || fail "maitri-update-bat-cache leaves a cache bat can read" "$(cat "$home/bat.log")"
+touch "$home/bat.stale"
+output=$(run_hook "$home" maitri-update-bat-cache "$apps:$sandbox") || fail "maitri-update-bat-cache rebuilds a stale cache"
+[[ $(<"$home/bat.log") == "cache --build" && ! -e $home/bat.stale ]] || fail "maitri-update-bat-cache rebuilds a cache bat can't read" "$(cat "$home/bat.log")"
+: >"$home/bat.log"
+touch "$home/bat.stale" "$home/bat.broken"
+run_hook "$home" maitri-update-bat-cache "$apps:$sandbox" >/dev/null || fail "maitri-update-bat-cache exits cleanly when the rebuild fails"
+[[ $(<"$home/bat.log") == $'cache --build\ncache --clear' && ! -e $home/.cache/bat ]] || fail "maitri-update-bat-cache clears a cache it can't rebuild" "$(cat "$home/bat.log")"
+grep -q "bat couldn't rebuild its theme cache" "$home/hook.stderr" || fail "maitri-update-bat-cache says it cleared the cache" "$(cat "$home/hook.stderr")"
+run_hook "$home" maitri-update-bat-cache "$sandbox" || fail "maitri-update-bat-cache exits cleanly without bat"
+grep -qx '  maitri-update-bat-cache' "$ROOT/bin/maitri-update" || fail "maitri update rebuilds bat's cache after the packages update"
+pass "maitri update rebuilds a bat cache that a bat update left unreadable, and only then"
 
 if command -v bat >/dev/null 2>&1 && command -v delta >/dev/null 2>&1; then
   home=$(new_home real daybreak)

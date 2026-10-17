@@ -47,6 +47,7 @@ if [[ ${1:-} == "-y" ]] || maitri-update-confirm; then
   maitri-update-system-pkgs
   maitri-migrate
   maitri-hook post-update
+  maitri-update-bat-cache
   maitri-update-aur-pkgs
   maitri-update-mise
   maitri-update-orphan-pkgs

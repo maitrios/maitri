@@ -53,10 +53,13 @@ splice_block() {
 
 outside_block() {
   awk -v start="$block_start" -v end="$block_end" '
-    $0 == start { inside = 1; next }
-    $0 == end { inside = 0; next }
-    !inside { print }
-  ' "$1"
+    NR == FNR {
+      if ($0 == start && !s) s = FNR
+      else if ($0 == end && s && !e) e = FNR
+      next
+    }
+    !(e && FNR >= s && FNR <= e)
+  ' "$1" "$1"
 }
 
 # Written through rather than moved over, so a config symlinked from a dotfiles
@@ -84,6 +87,7 @@ if maitri-cmd-present bat && [[ -f $tmtheme ]]; then
       bat_theme_ready=1
     else
       echo "bat could not build its theme cache: $output" >&2
+      bat --list-themes >/dev/null 2>&1 || bat cache --clear >/dev/null 2>&1
     fi
 
     bat_config=$(bat --config-file)
@@ -95,6 +99,9 @@ if maitri-cmd-present bat && [[ -f $tmtheme ]]; then
         splice_block "$bat_config"
         write_spliced "$bat_config"
       fi
+    elif [[ -f $bat_config ]]; then
+      outside_block "$bat_config" >"$spliced"
+      write_spliced "$bat_config"
     fi
   fi
 fi

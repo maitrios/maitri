@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# maitri:summary=Rebuild bat's theme cache after a bat update made it unreadable
+# maitri:hidden=true
+
+maitri-cmd-present bat || exit 0
+[[ -f $(bat --cache-dir)/metadata.yaml ]] || exit 0
+
+# bat refuses a cache built by another minor release, and every bat call fails
+# until the cache is rebuilt.
+bat --list-themes >/dev/null 2>&1 && exit 0
+
+echo -e "\e[32m\nRebuild bat's theme cache\e[0m"
+if ! bat cache --build >/dev/null 2>&1; then
+  bat cache --clear >/dev/null 2>&1
+  echo "bat couldn't rebuild its theme cache, so it was cleared. bat uses its built-in themes until the next maitri theme set." >&2
+fi
+
+exit 0
