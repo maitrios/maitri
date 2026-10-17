@@ -258,7 +258,8 @@ run_hook "$strip_home" 2>/dev/null
 echo 'window { opacity: 0; }' >>"$strip_home/.local/state/maitri/current/theme/gtk.css"
 run_hook "$strip_home" 2>/dev/null
 ! grep -qF 'maitri theme' "$strip_home/.config/gtk-4.0/gtk.css" || fail "a theme that fails the filter drops the old block"
-grep -qxF 'label { color: red; }' "$strip_home/.config/gtk-4.0/gtk.css" || fail "dropping the block keeps the user's rules"
+[[ $(cat "$strip_home/.config/gtk-4.0/gtk.css") == 'label { color: red; }' ]] ||
+  fail "dropping the block leaves the user's file as it was" "$(cat -A "$strip_home/.config/gtk-4.0/gtk.css")"
 [[ ! -s $strip_home/.local/state/maitri/current/gtk-4.0.css ]] || fail "dropping the block empties the file the symlink hint imports"
 pass "a theme that fails the filter drops the previous theme's block"
 

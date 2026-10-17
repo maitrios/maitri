@@ -85,7 +85,7 @@ splice() {
   fi
 
   tmp=$(mktemp "$dir/.gtk.css.XXXXXX" 2>/dev/null) || { refuse "$file" "its directory can't be written to."; return; }
-  awk -v start="$BLOCK_START" -v end="$BLOCK_END" -v block="$block" '
+  awk -v start="$BLOCK_START" -v end="$BLOCK_END" -v block="$block" -v strip="$([[ -s $block ]] || echo 1)" '
     {
       all[NR] = $0
       text[NR] = $0
@@ -101,6 +101,7 @@ splice() {
 
       for (i = 1; i <= NR; i++) {
         if (ns && i >= starts[1] && i <= ends[1]) continue
+        if (strip && ns && i == ends[1] + 1 && text[i] ~ /^[[:space:]]*$/) continue
         lines[++n] = all[i]
         plain[n] = text[i]
         source = source plain[n] "\n"
