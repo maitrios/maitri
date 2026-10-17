@@ -89,6 +89,10 @@ mode = "dark"
 accent = "#7aa2f7"
 selection = "#292e42"
 muted = "#414868"
+border = "#5b6382"
+border_focus = "#4f6aa8"
+hint = "#7aa2f7"
+link = "#bb9af7"
 
 background = "#1a1b26"
 dark_background = "#13141c"
@@ -119,6 +123,28 @@ shell palette is loaded from:
   numbers, secondary labels. This is the key templates should use whenever the
   value ends up as glyphs a person reads. Falls back to `color8`, then
   `foreground`, so it always resolves.
+- `comment` — the same value as `dark_foreground`, under the name editors use.
+  Falls back to `dark_foreground`.
+- `selection` — the selection fill: a tint of `accent`, light enough that
+  `foreground` stays readable on it. Text on `selection` is `foreground` (or
+  `bright_foreground`). `accent` isn't a text color there: on daybreak it's
+  3.8:1. A theme with neither `selection` nor `selection_background` gets
+  `background` mixed 26% toward `accent` (or `blue`), and further until it
+  sits 1.5:1 off the background, so a selection is never plain grey.
+- `border` — neutral lines that need to be seen: input outlines, panel and
+  table edges. Unlike `muted` it clears 3:1 against `background`. Falls back to
+  `muted` moved toward `foreground` until it clears 3:1.
+- `border_focus` — the focused or floating border, a step of `accent` toward
+  `background` that clears 3:1. Falls back to `accent`.
+- `hint` — hint diagnostics. It's `accent` unless the accent sits near `red`,
+  `orange`, `cyan` or `green` (error, warning, info, ok), when it's the next
+  hue that doesn't. Falls back to `accent`, so a theme whose accent is orange,
+  red or cyan should set `hint` itself.
+- `link` — links, drawn underlined. It stays at least 60° of hue from
+  `accent` so a link never reads as a heading. Falls back to the first of
+  `blue`, `magenta`, `magenta` mixed half toward `red`, and `orange` that is
+  60° clear of the accent, the order the Neovim palette tries, moved toward
+  `foreground` until it clears 4.5:1.
 - `urgent` / `red` / `color1`
 
 Themes and user templates using the legacy short names remain supported.
@@ -144,6 +170,37 @@ in that ramp; maitri derives `selection_background = selection` and
 `selection_foreground = bright_foreground`. Use
 `maitri dev theme-preview [theme]` to inspect that ramp, including
 `dark_background`, `darker_background`, and a selected-text sample.
+
+### The hue model
+
+The first-party themes share one set of syntax hues, and each theme's accent
+takes the slot nearest to it. `test/shell.d/theme-hue-test.sh` holds every
+shipped theme to these rules (hue angles are HSL, the same measure the Neovim
+palette uses to keep links off the accent):
+
+- `red`, `orange`, `yellow`, `green`, `cyan`, `blue` and `magenta` sit at
+  355°, 25°, 56°, 125°, 172°, 220° and 270°, so no two are closer than 30°.
+  They're built at one OKLCH chroma (0.14) in a narrow lightness band, so no
+  hue shouts over the others. The slot the accent takes keeps the accent's
+  own chroma. Where sRGB can't reach that chroma (blue on
+  dark, cyan and yellow on light) it gets as close as it can, so the test
+  allows a spread of 0.03 on dark themes and 0.06 on daybreak.
+- The syntax hue nearest the accent *is* the accent: amethyst's and daybreak's
+  `magenta`, spark's `blue`, harbor's `cyan`, ember's `orange`, garnet's `red`.
+  Every other syntax hue is at least 30° from it, so the accent never sits a
+  few degrees off a code color. It shows up in each theme's code on purpose.
+- `link` is at least 60° from the accent and `hint` at least 40° from `red`,
+  `orange`, `cyan` and `green`. (Neovim's own guard on a `hint` is a distance
+  in RGB rather than hue, which every shipped theme clears by a wide margin.)
+- Every syntax color, `link`, `hint` and `dark_foreground` clears 4.5:1, and
+  `border` and `border_focus` clear 3:1. Daybreak, the light theme, uses the
+  same angles at its own lightness and is measured against
+  `dark_background`, the float surface, so text holds up there too.
+- The `bright_*` colors are the same hues, a step lighter on dark themes. On
+  daybreak they also clear 4.5:1, since terminals draw bold text in them.
+
+A user theme doesn't have to follow any of this. The fallbacks above fill in
+the new roles from the ones it already has.
 
 ## Template placeholders
 
@@ -394,8 +451,15 @@ own colorscheme from `default/nvim/maitri-theme` and hands it the theme's
 `colors.toml` values as `opts`. The colorscheme works out everything else from
 those roles in Lua: diff, search and selection tints, the heading ramp (H1 in
 `accent`, each lower level a step toward `foreground`, all bold), float and
-border colors, the lualine theme and `g:terminal_color_0..15`. It needs no
-roles beyond the ones above. Any text color (`accent`, `dark_foreground` and
+border colors, the lualine theme and `g:terminal_color_0..15`. It takes
+`selection` for Visual, `border_focus` for float borders, `border` for window
+separators, and `hint`, `link` and `comment` as they are, so Neovim and every
+other app draw them the same. A `link` within 60° of the accent, a `hint`
+too close to a diagnostic color, a `selection` under 1.3:1 against the
+background or a `border_focus` that's just the accent (its fallback) is
+replaced with what the colorscheme works
+out from the base roles.
+Any text color (`accent`, `dark_foreground` and
 the syntax colors) that falls under 4.5:1 against `background` is moved
 toward `foreground` until it clears that, so a user theme with a pale `orange`
 still reads. The terminal colors Neovim hands to `:terminal` stay exactly as
