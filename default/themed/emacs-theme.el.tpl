@@ -101,6 +101,7 @@
  '(font-lock-delimiter-face ((t (:foreground "{{ light_foreground }}"))))
  '(font-lock-misc-punctuation-face ((t (:foreground "{{ magenta }}"))))
  '(font-lock-warning-face ((t (:foreground "{{ orange }}" :weight bold))))
+ '(c-annotation-face ((t (:foreground "{{ green }}" :slant italic))))
 
  '(flymake-error ((t (:underline (:style wave :color "{{ red }}")))))
  '(flymake-warning ((t (:underline (:style wave :color "{{ orange }}")))))

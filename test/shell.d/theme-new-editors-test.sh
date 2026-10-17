@@ -129,7 +129,7 @@ def zed(theme, p, path):
     entry = doc["themes"][0]
     s = entry["style"]
     c.expect(entry["name"] == "maitri", "the Zed theme is not named maitri")
-    c.expect(entry["appearance"] == p["mode"], f"appearance is {entry['appearance']}, not {p['mode']}")
+    c.expect(entry["appearance"] in {"light", "dark"} and entry["appearance"] == p["mode"], f"appearance is {entry['appearance']}, not {p['mode']}")
     for key, value in s.items():
         if isinstance(value, str):
             c.expect(re.fullmatch(r"#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?", value), f"{key} is {value}")
@@ -180,6 +180,8 @@ def zed(theme, p, path):
     c.expect(syntax["type"].get("font_style") == "italic", "types are not italic")
     c.expect(syntax["comment"].get("font_style") == "italic", "comments are not italic")
     c.expect(syntax["variable.parameter"].get("font_style") == "italic", "parameters are not italic")
+    c.expect(syntax["attribute"].get("font_style") == "italic", "attributes are not italic")
+    c.role("syntax function.builtin", syntax["function.builtin"]["color"], "cyan")
     c.role("link_text", syntax["link_text"]["color"], "link")
     c.role("title", syntax["title"]["color"], "accent")
     c.expect(syntax["title"].get("font_weight", 0) >= 700, "headings are not bold")
@@ -227,6 +229,7 @@ def jetbrains(theme, p, path):
             c.floor(f"text on {name}", fg, values["BACKGROUND"])
         if "EFFECT_COLOR" in values:
             c.floor(f"{name} effect", values["EFFECT_COLOR"], bg, LINE)
+            c.expect("EFFECT_TYPE" in values, f"{name} has an effect colour but no effect type, so it draws a box")
     c.floor("braces on MATCHED_BRACE_ATTRIBUTES", attrs["DEFAULT_BRACES"]["FOREGROUND"], attrs["MATCHED_BRACE_ATTRIBUTES"]["BACKGROUND"])
     c.floor("line numbers", colors["LINE_NUMBERS_COLOR"], colors["GUTTER_BACKGROUND"])
     c.floor("the caret row's line number", colors["LINE_NUMBER_ON_CARET_ROW_COLOR"], row)
@@ -248,7 +251,9 @@ def jetbrains(theme, p, path):
     }
     for role, name in expected.items():
         c.role(name, attrs[name]["FOREGROUND"], SYNTAX[role])
-    for name in ("DEFAULT_LINE_COMMENT", "DEFAULT_BLOCK_COMMENT", "DEFAULT_PARAMETER"):
+    c.role("DEFAULT_PREDEFINED_SYMBOL", attrs["DEFAULT_PREDEFINED_SYMBOL"]["FOREGROUND"], "cyan")
+    for name in ("DEFAULT_LINE_COMMENT", "DEFAULT_BLOCK_COMMENT", "DEFAULT_PARAMETER", "DEFAULT_CLASS_REFERENCE",
+                 "DEFAULT_INTERFACE_NAME", "DEFAULT_METADATA"):
         c.expect(attrs[name].get("FONT_TYPE") == "2", f"{name} is not italic")
     c.role("ERRORS_ATTRIBUTES", attrs["ERRORS_ATTRIBUTES"]["EFFECT_COLOR"], "red")
     c.role("WARNING_ATTRIBUTES", attrs["WARNING_ATTRIBUTES"]["EFFECT_COLOR"], "orange")
@@ -302,7 +307,8 @@ def emacs(theme, p, path):
                 face[key] = m.group(2)
         face["lines"] = re.findall(r':color "(#[0-9A-Fa-f]{6})"', spec)
         faces[name] = face
-    c.expect(len(faces) > 100, f"only {len(faces)} faces parsed from maitri-theme.el")
+    face_lines = len(re.findall(r"^ '\(", source, re.M))
+    c.expect(len(faces) == face_lines, f"parsed {len(faces)} of {face_lines} faces in maitri-theme.el")
 
     def resolve(name, key):
         face = faces.get(name, {})
@@ -350,6 +356,9 @@ def emacs(theme, p, path):
         c.role(name, faces[name]["foreground"], SYNTAX[role])
     c.expect(faces["font-lock-type-face"].get("slant") == "italic", "types are not italic")
     c.expect(faces["font-lock-comment-face"].get("slant") == "italic", "comments are not italic")
+    c.role("font-lock-builtin-face", faces["font-lock-builtin-face"]["foreground"], "cyan")
+    c.role("c-annotation-face", faces["c-annotation-face"]["foreground"], "green")
+    c.expect(faces["c-annotation-face"].get("slant") == "italic", "attributes are not italic")
     c.role("region", faces["region"]["background"], "selection")
     c.role("link", faces["link"]["foreground"], "link")
     c.role("warning", faces["warning"]["foreground"], "orange")
@@ -397,7 +406,7 @@ fi
 sandbox="$test_tmp/sandbox-bin"
 apps="$test_tmp/app-bin"
 mkdir -p "$sandbox" "$apps"
-for tool in awk cp dirname mkdir sed; do
+for tool in awk cp dirname grep mkdir mktemp mv sed; do
   ln -s "$(command -v "$tool")" "$sandbox/$tool"
 done
 for app in zeditor emacs; do
@@ -408,7 +417,7 @@ done
 run_hook() {
   local home="$1" hook="$2" path="$3"
 
-  HOME="$home" MAITRI_PATH="$ROOT" PATH="$ROOT/bin:$path" "$BASH" "$ROOT/bin/$hook" 2>>"$home/hook.stderr"
+  env -u XDG_CONFIG_HOME HOME="$home" MAITRI_PATH="$ROOT" PATH="$ROOT/bin:$path" "$BASH" "$ROOT/bin/$hook" 2>>"$home/hook.stderr"
 }
 
 for theme in amethyst daybreak; do
@@ -425,7 +434,7 @@ for theme in amethyst daybreak; do
   [[ ! -s $home/hook.stderr ]] || fail "the editor hooks stay quiet when the editors are missing" "$(cat "$home/hook.stderr")"
 
   rendered="$home/.local/state/maitri/current/theme"
-  mkdir -p "$home/.config/JetBrains/IntelliJIdea2025.2" "$home/.config/JetBrains/PyCharm2025.1" "$home/.config/JetBrains/consentOptions"
+  mkdir -p "$home/.config/JetBrains/IntelliJIdea2025.2" "$home/.config/JetBrains/PyCharm2025.1" "$home/.config/JetBrains/consentOptions" "$home/.config/emacs"
   for hook in maitri-theme-set-zed maitri-theme-set-jetbrains maitri-theme-set-emacs; do
     run_hook "$home" "$hook" "$apps:$sandbox" || fail "$hook installs the $theme theme"
   done
@@ -447,9 +456,27 @@ for theme in amethyst daybreak; do
     fail "the JetBrains hook says a restart is needed" "$(cat "$home/hook.stderr")"
   grep -q "load-theme 'maitri" "$home/hook.stderr" || fail "the Emacs hook says how to pick up the theme" "$(cat "$home/hook.stderr")"
 
-  mkdir -p "$home/.emacs.d"
-  run_hook "$home" maitri-theme-set-emacs "$apps:$sandbox" || fail "maitri-theme-set-emacs installs into ~/.emacs.d"
-  [[ $(<"$rendered/emacs-theme.el") == "$(<"$home/.emacs.d/themes/maitri-theme.el")" ]] || fail "Emacs gets the $theme theme under ~/.emacs.d/themes when that dir exists"
+  touch "$home/.emacs"
+  run_hook "$home" maitri-theme-set-emacs "$apps:$sandbox" || fail "maitri-theme-set-emacs installs beside ~/.emacs"
+  [[ $(<"$rendered/emacs-theme.el") == "$(<"$home/.emacs.d/themes/maitri-theme.el")" ]] || fail "Emacs gets the $theme theme under ~/.emacs.d/themes when ~/.emacs exists"
 done
+
+home="$test_tmp/hooks-fresh"
+mkdir -p "$home/.local/state/maitri/current"
+cp -r "$test_tmp/amethyst/.local/state/maitri/current/next-theme" "$home/.local/state/maitri/current/theme"
+: >"$home/hook.stderr"
+run_hook "$home" maitri-theme-set-emacs "$apps:$sandbox" || fail "maitri-theme-set-emacs installs on a fresh home"
+[[ -f $home/.emacs.d/themes/maitri-theme.el && ! -e $home/.config/emacs ]] || fail "a fresh home gets ~/.emacs.d/themes, the dir Emacs falls back to"
+
+HOME="$home" XDG_CONFIG_HOME="$home/xdg" MAITRI_PATH="$ROOT" PATH="$ROOT/bin:$apps:$sandbox" "$BASH" "$ROOT/bin/maitri-theme-set-zed" ||
+  fail "maitri-theme-set-zed installs under XDG_CONFIG_HOME"
+[[ -f $home/xdg/zed/themes/maitri.json ]] || fail "Zed's theme follows XDG_CONFIG_HOME"
+[[ -z $(find "$home/xdg/zed" -name '.maitri-theme.*') ]] || fail "the Zed hook leaves no staging file behind"
+
+printf '{ "name": "{{ accent }}" }\n' >"$home/.local/state/maitri/current/theme/zed.json"
+rm -rf "$home/.config/zed"
+run_hook "$home" maitri-theme-set-zed "$apps:$sandbox" || fail "maitri-theme-set-zed skips a theme with unresolved colours"
+[[ ! -e $home/.config/zed/themes/maitri.json ]] || fail "Zed never gets a theme with unresolved colours"
+grep -q "unresolved colors" "$home/hook.stderr" || fail "the Zed hook says why it skipped"
 
 pass "the editor hooks install only for editors that are present and say when a restart is needed"

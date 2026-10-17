@@ -90,8 +90,7 @@
     </option>
     <option name="DEFAULT_PREDEFINED_SYMBOL">
       <value>
-        <option name="FOREGROUND" value="{{ blue_strip }}" />
-        <option name="FONT_TYPE" value="2" />
+        <option name="FOREGROUND" value="{{ cyan_strip }}" />
       </value>
     </option>
     <option name="DEFAULT_IDENTIFIER">
@@ -153,6 +152,7 @@
     <option name="DEFAULT_CLASS_REFERENCE">
       <value>
         <option name="FOREGROUND" value="{{ cyan_strip }}" />
+        <option name="FONT_TYPE" value="2" />
       </value>
     </option>
     <option name="DEFAULT_INTERFACE_NAME">
@@ -374,18 +374,21 @@
 
     <option name="SEARCH_RESULT_ATTRIBUTES">
       <value>
+        <option name="FOREGROUND" value="{{ bright_foreground_strip }}" />
         <option name="BACKGROUND" value="{{ mix_strip background green 32% }}" />
         <option name="ERROR_STRIPE_COLOR" value="{{ green_strip }}" />
       </value>
     </option>
     <option name="TEXT_SEARCH_RESULT_ATTRIBUTES">
       <value>
+        <option name="FOREGROUND" value="{{ bright_foreground_strip }}" />
         <option name="BACKGROUND" value="{{ mix_strip background green 32% }}" />
         <option name="ERROR_STRIPE_COLOR" value="{{ green_strip }}" />
       </value>
     </option>
     <option name="WRITE_SEARCH_RESULT_ATTRIBUTES">
       <value>
+        <option name="FOREGROUND" value="{{ bright_foreground_strip }}" />
         <option name="BACKGROUND" value="{{ mix_strip background green 32% }}" />
         <option name="ERROR_STRIPE_COLOR" value="{{ green_strip }}" />
       </value>

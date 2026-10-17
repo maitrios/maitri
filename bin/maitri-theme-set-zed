@@ -7,6 +7,15 @@ src="$HOME/.local/state/maitri/current/theme/zed.json"
 [[ -f $src ]] || exit 0
 maitri-cmd-present zeditor || maitri-cmd-present zed || exit 0
 
-themes_dir="$HOME/.config/zed/themes"
-mkdir -p "$themes_dir"
-cp "$src" "$themes_dir/maitri.json"
+if grep -q '{{' "$src"; then
+  echo "Skipping Zed theme: zed.json has unresolved colors." >&2
+  exit 0
+fi
+
+# Zed reloads anything in its themes dir as it changes, so the theme is staged
+# beside the dir and moved in whole rather than copied in place.
+zed_dir="${XDG_CONFIG_HOME:-$HOME/.config}/zed"
+mkdir -p "$zed_dir/themes"
+tmp=$(mktemp "$zed_dir/.maitri-theme.XXXXXX")
+cp "$src" "$tmp"
+mv "$tmp" "$zed_dir/themes/maitri.json"
