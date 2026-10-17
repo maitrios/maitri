@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Regenerate maitri's brand assets from logo.txt and the heart below.
+"""Regenerate maitri's brand assets from the heart below and assets/brand/wordmark.svg.
 
   tools/brand.py           rebuild every derived asset in place
   tools/brand.py --check   fail if a derived asset is stale or the wrong shape
@@ -7,7 +7,8 @@
 The heart is one bold line drawn from circles and the lines tangent to them,
 so HEART holds its whole geometry: the two lobes, the rounded point, the loop
 and the two free ends. The outline is the exact offset of that centre line,
-which keeps heart.svg, heart-glyph.svg and icon.svg on one path.
+which keeps heart.svg, heart-glyph.svg and icon.svg on one path. The wordmark
+comes from tools/wordmark.py.
 
 Needs rsvg-convert and ImageMagick (magick).
 """
@@ -15,6 +16,7 @@ Needs rsvg-convert and ImageMagick (magick).
 import hashlib
 import math
 import os
+import re
 import struct
 import subprocess
 import sys
@@ -35,9 +37,8 @@ GLYPH_COLOR = "#000000"
 TILE_TOP, TILE_BOTTOM = "#1D1729", "#0F0A18"
 ICON_SCALE = 0.88
 
-CELL_W, CELL_H = 10, 20
-SHADOW_DX, SHADOW_DY = 5, 6
-WORDMARK_WIDTH = 800
+LOCKUP_GAP = 0.32
+LOCKUP_WIDTH = 800
 ICON_SIZE = 256
 BOOT_HEART_SIZE = 360
 PREVIEW_SIZE = (1920, 1080)
@@ -68,55 +69,6 @@ def theme_colors(name):
 def themes():
     return sorted(d for d in os.listdir(path("themes"))
                   if os.path.isfile(path("themes", d, "colors.toml")))
-
-
-def mix(a, b, t):
-    ca = [int(a[i:i + 2], 16) for i in (1, 3, 5)]
-    cb = [int(b[i:i + 2], 16) for i in (1, 3, 5)]
-    return "#" + "".join("%02X" % round(x * (1 - t) + y * t) for x, y in zip(ca, cb))
-
-
-def wordmark_runs():
-    with open(path("logo.txt"), encoding="utf-8") as f:
-        lines = [line.rstrip("\n") for line in f if line.strip()]
-    runs = []
-    for row, line in enumerate(lines):
-        col = 0
-        while col < len(line):
-            if line[col] == "█":
-                start = col
-                while col < len(line) and line[col] == "█":
-                    col += 1
-                runs.append((start, row, col - start))
-            else:
-                col += 1
-    return runs
-
-
-def wordmark_svg(face, shadow):
-    runs = wordmark_runs()
-    cols = max(start + length for start, _, length in runs)
-    rows = max(row for _, row, _ in runs) + 1
-    width, height = cols * CELL_W + SHADOW_DX, rows * CELL_H + SHADOW_DY
-
-    def rects(dx, dy):
-        return "".join(
-            '<rect x="%d" y="%d" width="%d" height="%d"/>'
-            % (start * CELL_W + dx, row * CELL_H + dy, length * CELL_W, CELL_H)
-            for start, row, length in runs)
-
-    return (
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" width="%d" height="%d">\n'
-        '  <g fill="%s">%s</g>\n'
-        '  <g fill="%s">%s</g>\n'
-        '</svg>\n'
-        % (width, height, width, height,
-           shadow, rects(SHADOW_DX, SHADOW_DY), face, rects(0, 0)))
-
-
-def theme_wordmark(name):
-    colors = theme_colors(name)
-    return wordmark_svg(colors["accent"], mix(colors["accent"], colors["background"], 0.5))
 
 
 def fmt(value):
@@ -249,12 +201,42 @@ def icon_svg():
         % (TILE_TOP, TILE_BOTTOM, fmt(dy), fmt(ICON_SCALE), BRAND_COLOR, heart_path()))
 
 
+def wordmark():
+    svg = read_text("assets/brand/wordmark.svg")
+    box = [float(v) for v in re.search(r'viewBox="([^"]+)"', svg).group(1).split()]
+    return box, re.search(r' d="([^"]+)"', svg).group(1)
+
+
+def lockup_svg(fill):
+    (wx, wy, ww, wh), letters = wordmark()
+    x0, y0, x1, y1 = heart_box()
+    scale = wh / (y1 - y0)
+    heart_w = (x1 - x0) * scale
+    gap = LOCKUP_GAP * wh
+    width, height = heart_w + gap + ww, wh
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %s %s">\n'
+        '  <g fill="%s">\n'
+        '    <path transform="translate(%s %s) scale(%s)" d="%s"/>\n'
+        '    <path transform="translate(%s %s)" d="%s"/>\n'
+        '  </g>\n'
+        '</svg>\n'
+        % (fmt(width), fmt(height), fill,
+           fmt(-x0 * scale), fmt(-y0 * scale), ("%.6f" % scale).rstrip("0"), heart_path(),
+           fmt(heart_w + gap - wx), fmt(-wy), letters))
+
+
+def theme_lockup(name):
+    return lockup_svg(theme_colors(name)["accent"])
+
+
 def sources():
     return {
         "assets/brand/heart.svg": heart_svg(BRAND_COLOR),
         "assets/brand/heart-glyph.svg": heart_svg(GLYPH_COLOR),
         "assets/brand/icon.svg": icon_svg(),
-        "logo.svg": theme_wordmark(DEFAULT_THEME),
+        "assets/brand/lockup.svg": lockup_svg(BRAND_COLOR),
+        "logo.svg": theme_lockup(DEFAULT_THEME),
     }
 
 
@@ -295,7 +277,7 @@ def build():
 
     for name in themes():
         unlock = path("themes", name, "unlock.png")
-        render(theme_wordmark(name), unlock, WORDMARK_WIDTH)
+        render(theme_lockup(name), unlock, LOCKUP_WIDTH)
         colors = theme_colors(name)
         preview(colors["background"], colors["foreground"], unlock,
                 path("themes", name, "preview-unlock.png"))
@@ -327,7 +309,7 @@ def check():
 
     unlocks = {}
     for name in themes():
-        expect("themes/%s/unlock.png" % name, WORDMARK_WIDTH)
+        expect("themes/%s/unlock.png" % name, LOCKUP_WIDTH)
         expect("themes/%s/preview-unlock.png" % name, *PREVIEW_SIZE)
         if os.path.isfile(path("themes", name, "unlock.png")):
             unlocks.setdefault(digest(path("themes", name, "unlock.png")), []).append(name)
@@ -336,10 +318,10 @@ def check():
             problems.append("themes share one unlock.png: %s" % ", ".join(names))
 
     for file in ("default/plymouth/logo.png", "default/sddm/maitri/logo.png"):
-        expect(file, WORDMARK_WIDTH)
+        expect(file, LOCKUP_WIDTH)
         if os.path.isfile(path(file)) and digest(path(file)) != digest(
                 path("themes", DEFAULT_THEME, "unlock.png")):
-            problems.append("%s is not the %s wordmark" % (file, DEFAULT_THEME))
+            problems.append("%s is not the %s lockup" % (file, DEFAULT_THEME))
     expect("default/plymouth/preview-unlock.png", *PREVIEW_SIZE)
     expect("icon.png", ICON_SIZE, ICON_SIZE)
     expect("default/plymouth/logos/heart.png", BOOT_HEART_SIZE, BOOT_HEART_SIZE)
