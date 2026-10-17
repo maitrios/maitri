@@ -4,11 +4,10 @@
 #
 # Every UI surface (rows, hover, selection, borders, separators, scrollbars,
 # inputs, muted text) is set explicitly instead of being auto-derived.
-# Structural colors map to {{ selection }}, a visibly distinct shade in every
-# maitri palette, light or dark, so lines and borders stay legible.
-# De-emphasized text maps to the dark_foreground key, never muted: muted is the
-# ANSI color8 / divider shade and sits at 1.5-3.9:1 against the background in the
-# shipped palettes, well under the 4.5:1 needed to read it.
+# Lines use border (3:1 against the background) and border_focus; rows and
+# text highlights use selection, with foreground text on it, never accent.
+# Hovered rows are a light foreground wash so the cursor row stays distinct.
+# De-emphasized text is comment, never muted.
 [meta]
 name = "maitri"
 description = "maitri theme (generated from the active maitri palette)"
@@ -20,8 +19,15 @@ accent = "{{ accent }}"
 accent_foreground = "{{ background }}"
 background = "{{ background }}"
 foreground = "{{ foreground }}"
-secondary_background = "{{ selection }}"
-border = "{{ selection }}"
+secondary_background = "{{ lighter_background }}"
+border = "{{ border }}"
+
+[colors.main_window]
+border = "{{ border }}"
+footer = { background = "{{ background }}" }
+
+[colors.settings_window]
+border = "{{ border }}"
 
 [colors.accents]
 blue = "{{ blue }}"
@@ -33,48 +39,57 @@ red = "{{ red }}"
 yellow = "{{ yellow }}"
 cyan = "{{ cyan }}"
 
+[colors.shortcut]
+border = "{{ border }}"
+
+[colors.tooltip]
+background = "{{ background }}"
+foreground = "{{ foreground }}"
+border = "{{ border }}"
+
 [colors.text]
 default = "{{ foreground }}"
-muted = "{{ dark_foreground }}"
+muted = "{{ comment }}"
 danger = "{{ red }}"
 success = "{{ green }}"
-placeholder = "{{ dark_foreground }}"
-selection = { background = "{{ accent }}", foreground = "{{ background }}" }
+placeholder = "{{ comment }}"
+selection = { background = "{{ selection }}", foreground = "{{ foreground }}" }
 
 [colors.text.links]
-default = "{{ accent }}"
-visited = "{{ magenta }}"
+default = "{{ link }}"
+visited = "{{ mix link foreground 35% }}"
 
-# Input field borders use {{ accent }}: the input fill is secondary_background,
-# so a matching border would leave fields as featureless rectangles.
 [colors.input]
-border = "{{ accent }}"
-border_focus = "{{ accent }}"
+background = "{{ lighter_background }}"
+border = "{{ border }}"
+border_focus = "{{ border_focus }}"
 border_error = "{{ red }}"
 
 [colors.button.primary]
-background = "{{ selection }}"
+background = "{{ lighter_background }}"
 foreground = "{{ foreground }}"
-focus = { outline = "{{ accent }}" }
+hover = { background = "{{ mix lighter_background foreground 6% }}", foreground = "{{ foreground }}" }
+focus = { outline = "{{ border_focus }}" }
 
 [colors.list.item.hover]
-background = "{{ selection }}"
+background = "{{ mix background foreground 6% }}"
 foreground = "{{ foreground }}"
-secondary_foreground = "{{ dark_foreground }}"
+secondary_foreground = "{{ comment }}"
 
 [colors.list.item.selection]
 background = "{{ selection }}"
 foreground = "{{ bright_foreground }}"
 secondary_background = "{{ selection }}"
-secondary_foreground = "{{ bright_foreground }}"
+secondary_foreground = "{{ foreground }}"
 
 [colors.grid.item]
-background = "{{ selection }}"
-hover = { outline = "{{ accent }}" }
+background = "{{ lighter_background }}"
+hover = { outline = "{{ border_focus }}" }
 selection = { outline = "{{ accent }}" }
 
 [colors.scrollbars]
-background = "{{ selection }}"
+background = "{{ border }}"
+secondary_background = "{{ border }}"
 
 [colors.loading]
 bar = "{{ accent }}"

@@ -1,0 +1,87 @@
+#!/bin/bash
+
+# maitri:summary=Swap launcher icons for installed apps that have one in maitri's icon set
+
+set -e
+
+icon_dir="$MAITRI_PATH/default/icons"
+state_dir="$HOME/.local/state/maitri/icons"
+manifest="$state_dir/manifest"
+originals_dir="$state_dir/originals"
+user_dir="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+
+desktop_dirs=("$user_dir")
+IFS=: read -ra data_dirs <<<"${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+for data_dir in "${data_dirs[@]}"; do
+  desktop_dirs+=("$data_dir/applications")
+done
+
+mkdir -p "$user_dir" "$originals_dir"
+touch "$manifest"
+
+declare -A applied=()
+kept=""
+while IFS=$'\t' read -r id kind icon; do
+  [[ -n $id ]] || continue
+  if [[ -f $user_dir/$id ]] && grep -Fxq "Icon=$icon" "$user_dir/$id"; then
+    applied[$id]=1
+    kept+="$id"$'\t'"$kind"$'\t'"$icon"$'\n'
+  else
+    rm -f "$originals_dir/$id"
+  fi
+done <"$manifest"
+printf '%s' "$kept" >"$manifest"
+
+declare -A seen=()
+swapped=0
+
+for dir in "${desktop_dirs[@]}"; do
+  for desktop_file in "$dir"/*.desktop; do
+    [[ -f $desktop_file ]] || continue
+
+    id="${desktop_file##*/}"
+    [[ -z ${seen[$id]-} ]] || continue
+    seen[$id]=1
+    [[ -z ${applied[$id]-} ]] || continue
+
+    grep -Eq '^(NoDisplay|Hidden)=true' "$desktop_file" && continue
+
+    key="$(sed -n 's/^Icon=//p' "$desktop_file" | head -1)"
+    [[ -n $key && $key != */* ]] || continue
+
+    icon=""
+    for ext in png svg; do
+      if [[ -f $icon_dir/$key.$ext ]]; then
+        icon="$icon_dir/$key.$ext"
+        break
+      fi
+    done
+    [[ -n $icon ]] || continue
+
+    if [[ $dir == "$user_dir" ]]; then
+      cp -P "$desktop_file" "$originals_dir/$id"
+      kind="replaced"
+    else
+      kind="created"
+    fi
+
+    KEY="Icon=$key" ICON="Icon=$icon" awk '$0 == ENVIRON["KEY"] { $0 = ENVIRON["ICON"] } { print }' \
+      "$desktop_file" >"$user_dir/$id.tmp"
+    chmod --reference="$desktop_file" "$user_dir/$id.tmp"
+    mv "$user_dir/$id.tmp" "$user_dir/$id"
+
+    printf '%s\t%s\t%s\n' "$id" "$kind" "$icon" >>"$manifest"
+    echo "Swapped icon for $id"
+    swapped=$((swapped + 1))
+  done
+done
+
+if [[ ! -s $manifest ]]; then
+  rm -rf "$state_dir"
+  echo "No installed apps have an icon in maitri's set"
+  exit 0
+fi
+
+update-desktop-database "$user_dir" &>/dev/null || true
+
+(( swapped > 0 )) || echo "maitri icons are already in place"
