@@ -26,10 +26,10 @@
   }
 }
 
-/* Only the light and dark reader themes follow maitri; sepia, gray, contrast
-   and custom keep whatever the reader picked. */
+/* Only the reader theme matching the maitri theme's mode follows maitri, so
+   picking the other mode, sepia, gray, contrast or custom still works. */
 @-moz-document url-prefix("about:reader") {
-  body:is(.light, .dark) {
+  body.{{ mode }} {
     color-scheme: {{ mode }} !important;
     --main-background: {{ background }} !important;
     --main-foreground: {{ foreground }} !important;
@@ -56,68 +56,68 @@
     color: {{ foreground }} !important;
   }
 
-  body:is(.light, .dark) :is(.header > h1, .moz-reader-content h1) {
+  body.{{ mode }} :is(.header > h1, .moz-reader-content h1) {
     color: {{ accent }} !important;
     font-weight: bold !important;
   }
 
-  body:is(.light, .dark) .moz-reader-content h2 {
+  body.{{ mode }} .moz-reader-content h2 {
     color: {{ mix accent foreground 13% }} !important;
     font-weight: bold !important;
   }
 
-  body:is(.light, .dark) .moz-reader-content h3 {
+  body.{{ mode }} .moz-reader-content h3 {
     color: {{ mix accent foreground 26% }} !important;
     font-weight: bold !important;
   }
 
-  body:is(.light, .dark) .moz-reader-content h4 {
+  body.{{ mode }} .moz-reader-content h4 {
     color: {{ mix accent foreground 39% }} !important;
     font-weight: bold !important;
   }
 
-  body:is(.light, .dark) .moz-reader-content h5 {
+  body.{{ mode }} .moz-reader-content h5 {
     color: {{ mix accent foreground 52% }} !important;
     font-weight: bold !important;
   }
 
-  body:is(.light, .dark) .moz-reader-content h6 {
+  body.{{ mode }} .moz-reader-content h6 {
     color: {{ mix accent foreground 65% }} !important;
     font-weight: bold !important;
   }
 
-  body:is(.light, .dark) .moz-reader-content a:link {
+  body.{{ mode }} .moz-reader-content a:link {
     color: {{ link }} !important;
   }
 
-  body:is(.light, .dark) .moz-reader-content a:visited {
+  body.{{ mode }} .moz-reader-content a:visited {
     color: {{ mix link foreground 35% }} !important;
   }
 
-  body:is(.light, .dark) :is(.credits, .meta-data, .reader-estimated-time, .domain, figcaption, .wp-caption-text) {
+  body.{{ mode }} :is(.credits, .meta-data, .reader-estimated-time, .domain, figcaption, .wp-caption-text) {
     color: {{ comment }} !important;
   }
 
-  body:is(.light, .dark) .moz-reader-content code {
+  body.{{ mode }} .moz-reader-content code {
     color: {{ cyan }} !important;
   }
 
-  body:is(.light, .dark) .moz-reader-content pre {
+  body.{{ mode }} .moz-reader-content pre {
     background-color: {{ dark_background }} !important;
     border: 1px solid {{ border }} !important;
   }
 
-  body:is(.light, .dark) .moz-reader-content pre code {
+  body.{{ mode }} .moz-reader-content pre code {
     color: {{ foreground }} !important;
   }
 
-  body:is(.light, .dark) .moz-reader-content blockquote {
+  body.{{ mode }} .moz-reader-content blockquote {
     color: {{ light_foreground }} !important;
     font-style: italic !important;
     border-inline-start-color: {{ border }} !important;
   }
 
-  body:is(.light, .dark) .moz-reader-content hr {
+  body.{{ mode }} .moz-reader-content hr {
     border-color: {{ border }} !important;
   }
 }

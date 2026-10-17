@@ -1,9 +1,10 @@
 /* maitri Theme for Firefox and Zen */
 
-/* Each variable Firefox has renamed is set under both names, so builds from
-   before and after the rename, Zen included, both pick it up. */
-:root {
+/* Variables Firefox has since renamed are also set under their older names,
+   which Zen and Firefox ESR still read. */
+:root, .smartbar {
   color-scheme: {{ mode }} !important;
+  --toolbar-color-scheme: {{ mode }} !important;
 
   --toolbox-background-color: {{ dark_background }} !important;
   --toolbox-background-color-inactive: {{ dark_background }} !important;
@@ -107,6 +108,8 @@
   --newtab-text-primary-color: {{ foreground }} !important;
 
   --zen-primary-color: {{ accent }} !important;
+  --toolbox-textcolor: {{ foreground }} !important;
+  --toolbox-textcolor-inactive: {{ light_foreground }} !important;
   --zen-colors-primary: {{ mix dark_background accent 30% }} !important;
   --zen-colors-secondary: {{ lighter_background }} !important;
   --zen-colors-tertiary: {{ dark_background }} !important;
@@ -121,10 +124,26 @@
   --zen-urlbar-background: {{ lighter_background }} !important;
   --zen-main-browser-background: {{ dark_background }} !important;
   --zen-main-browser-background-toolbar: {{ dark_background }} !important;
+  --zen-main-browser-background-old: {{ dark_background }} !important;
+  --zen-main-browser-background-toolbar-old: {{ dark_background }} !important;
   --zen-themed-toolbar-bg: {{ dark_background }} !important;
   --zen-themed-toolbar-bg-transparent: {{ dark_background }} !important;
   --zen-toolbar-element-bg: {{ mix dark_background foreground 8% }} !important;
   --zen-toolbar-element-bg-hover: {{ mix dark_background foreground 12% }} !important;
+}
+
+/* Context menus redefine these on the popup itself, so the :root values never reach them. */
+:is(menupopup, panel) {
+  --panel-background-color: {{ dark_background }} !important;
+  --panel-text-color: {{ foreground }} !important;
+  --panel-border-color: {{ border }} !important;
+}
+
+/* Zen sets these inline on each space from the space's own gradient. */
+zen-workspace {
+  color-scheme: {{ mode }} !important;
+  --toolbox-textcolor: {{ foreground }} !important;
+  --zen-primary-color: {{ accent }} !important;
 }
 
 ::selection {
