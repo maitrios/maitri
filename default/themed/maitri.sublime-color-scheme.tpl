@@ -6,7 +6,7 @@
     "background": "{{ background }}",
     "foreground": "{{ foreground }}",
     "caret": "{{ bright_foreground }}",
-    "invisibles": "{{ mix muted comment 35% }}",
+    "invisibles": "{{ mix background comment 55% }}",
     "line_highlight": "{{ lighter_background }}",
     "selection": "{{ selection }}",
     "inactive_selection": "{{ mix background selection 60% }}",
@@ -26,10 +26,10 @@
     "find_highlight_foreground": "{{ background }}",
     "scroll_highlight": "{{ mix background green 32% }}",
     "scroll_selected_highlight": "{{ orange }}",
-    "rulers": "{{ muted }}",
-    "guide": "{{ muted }}",
-    "active_guide": "{{ border }}",
-    "stack_guide": "{{ muted }}",
+    "rulers": "{{ mix background muted 75% }}",
+    "guide": "{{ mix background muted 75% }}",
+    "active_guide": "{{ border_focus }}",
+    "stack_guide": "{{ mix background muted 75% }}",
     "minimap_border": "{{ border }}",
     "brackets_options": "underline",
     "brackets_foreground": "{{ accent }}",
@@ -104,23 +104,23 @@
     },
     {
       "name": "Keyword",
-      "scope": "keyword, keyword.control, keyword.operator, keyword.declaration, keyword.other, storage, storage.type, storage.modifier, keyword.control.import, keyword.control.directive, meta.preprocessor, punctuation.definition.directive, punctuation.definition.preprocessor",
+      "scope": "keyword, keyword.control, keyword.operator, keyword.declaration, keyword.other, storage, storage.type, storage.modifier, keyword.control.import, keyword.control.directive, punctuation.definition.directive, punctuation.definition.preprocessor",
       "foreground": "{{ magenta }}"
     },
     {
       "name": "Operator",
-      "scope": "keyword.operator.assignment, keyword.operator.arithmetic, keyword.operator.comparison, keyword.operator.logical, keyword.operator.ternary, punctuation.accessor, punctuation.separator.key-value",
+      "scope": "keyword.operator.assignment, keyword.operator.arithmetic, keyword.operator.comparison, keyword.operator.logical, keyword.operator.ternary",
       "foreground": "{{ magenta }}"
     },
     {
       "name": "Type",
-      "scope": "entity.name.type, entity.name.class, entity.name.struct, entity.name.enum, entity.name.union, entity.name.trait, entity.name.interface, entity.name.type.class, entity.name.type.interface, entity.name.type.enum, entity.other.inherited-class, support.type, support.class, storage.type.primitive, storage.type.built-in, storage.type.numeric, storage.type.string, storage.type.boolean, storage.type.byte, storage.type.rune, storage.type.uintptr, storage.type.error, support.type.primitive, support.type.builtin, entity.name.type.lifetime",
+      "scope": "entity.name.type, entity.name.class, entity.name.struct, entity.name.enum, entity.name.union, entity.name.trait, entity.name.interface, entity.name.type.class, entity.name.type.interface, entity.name.type.enum, entity.other.inherited-class, support.type, support.class, storage.type.primitive, storage.type.built-in, storage.type.numeric, storage.type.string, storage.type.boolean, storage.type.byte, storage.type.rune, storage.type.uintptr, storage.type.error, support.type.primitive, support.type.builtin, entity.name.type.lifetime, storage.type.generic, storage.type.java, storage.type.object.array.java",
       "foreground": "{{ cyan }}",
       "font_style": "italic"
     },
     {
       "name": "Type parameter",
-      "scope": "entity.name.type.parameter, storage.type.generic, entity.name.type.type-parameter",
+      "scope": "entity.name.type.parameter, entity.name.type.type-parameter",
       "foreground": "{{ magenta }}",
       "font_style": "italic"
     },
@@ -131,7 +131,7 @@
     },
     {
       "name": "Function",
-      "scope": "entity.name.function, meta.function-call, variable.function, support.function.any-method, entity.name.function.macro, support.function.macro, entity.name.command, entity.name.function.target",
+      "scope": "entity.name.function, meta.function-call.generic, variable.function, support.function.any-method, entity.name.function.macro, support.function.macro, entity.name.command, entity.name.function.target",
       "foreground": "{{ green }}"
     },
     {
@@ -141,12 +141,12 @@
     },
     {
       "name": "Constructor",
-      "scope": "entity.name.function.constructor, meta.class.instance.constructor, new.expr entity.name.type",
+      "scope": "entity.name.function.constructor",
       "foreground": "{{ cyan }}"
     },
     {
       "name": "Attribute",
-      "scope": "meta.decorator, entity.name.function.decorator, punctuation.decorator, meta.annotation, storage.type.annotation, punctuation.definition.annotation, meta.attribute, entity.name.type.attribute, entity.other.attribute-name",
+      "scope": "entity.name.function.decorator, punctuation.decorator, storage.type.annotation, punctuation.definition.annotation, entity.name.type.attribute, entity.other.attribute-name",
       "foreground": "{{ green }}",
       "font_style": "italic"
     },
@@ -186,7 +186,7 @@
     },
     {
       "name": "Punctuation",
-      "scope": "punctuation, meta.brace, meta.bracket, punctuation.definition.tag, punctuation.separator, punctuation.terminator, punctuation.section, punctuation.definition.block, punctuation.definition.parameters, punctuation.definition.array, punctuation.definition.dictionary",
+      "scope": "punctuation, meta.brace, meta.bracket, punctuation.definition.tag, punctuation.separator, punctuation.terminator, punctuation.section, punctuation.definition.block, punctuation.definition.parameters, punctuation.definition.array, punctuation.definition.dictionary, punctuation.accessor, punctuation.separator.key-value",
       "foreground": "{{ light_foreground }}"
     },
     {
@@ -202,13 +202,13 @@
     },
     {
       "name": "Heading",
-      "scope": "markup.heading, entity.name.section.markdown, punctuation.definition.heading.markdown, markup.heading.1, heading.1.markdown, markup.heading.1.markdown",
+      "scope": "markup.heading, entity.name.section.markdown, punctuation.definition.heading.markdown, markup.heading.1, heading.1.markdown, markup.heading.1.markdown, heading.1.markdown entity.name.section.markdown, heading.1.markdown punctuation.definition.heading.markdown, markup.heading.1.markdown entity.name.section.markdown, markup.heading.1.markdown punctuation.definition.heading, markup.heading.setext.1.markdown",
       "foreground": "{{ accent }}",
       "font_style": "bold"
     },
     {
       "name": "Heading 2",
-      "scope": "markup.heading.2, heading.2.markdown, markup.heading.2.markdown, heading.2.markdown entity.name.section.markdown, heading.2.markdown punctuation.definition.heading.markdown, markup.heading.2.markdown entity.name.section.markdown, markup.heading.2.markdown punctuation.definition.heading",
+      "scope": "markup.heading.2, heading.2.markdown, markup.heading.2.markdown, heading.2.markdown entity.name.section.markdown, heading.2.markdown punctuation.definition.heading.markdown, markup.heading.2.markdown entity.name.section.markdown, markup.heading.2.markdown punctuation.definition.heading, markup.heading.setext.2.markdown",
       "foreground": "{{ mix accent foreground 13% }}",
       "font_style": "bold"
     },
