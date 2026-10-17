@@ -366,7 +366,7 @@ fish_get() {
 home="$test_tmp/hooks-fish"
 stage_theme "$home" amethyst
 : >"$home/hook.stderr"
-run_hook "$home" maitri-theme-set-fish "$apps:$sandbox" || fail "maitri-theme-set-fish sets the amethyst colours"
+run_hook "$home" maitri-theme-set-fish "$apps:$sandbox:$PATH" || fail "maitri-theme-set-fish sets the amethyst colours"
 amethyst_green=$(awk -F'\t' '$1 == "green" { print substr($2, 2) }' "$test_tmp/amethyst/palette.tsv")
 amethyst_selection=$(awk -F'\t' '$1 == "selection" { print substr($2, 2) }' "$test_tmp/amethyst/palette.tsv")
 got=$(fish_get "$home" fish_color_command fish_pager_color_selected_background fish_color_valid_path)
@@ -378,22 +378,22 @@ fish_color_valid_path=--underline"
 first=$(grep -c '^SETUVAR fish_' "$home/.config/fish/fish_variables")
 (( first == $(grep -c '^set -U' "$home/.local/state/maitri/current/theme/fish.fish") )) || fail "fish gets every colour in fish.fish"
 
-run_hook "$home" maitri-theme-set-fish "$apps:$sandbox" || fail "maitri-theme-set-fish runs again"
+run_hook "$home" maitri-theme-set-fish "$apps:$sandbox:$PATH" || fail "maitri-theme-set-fish runs again"
 stage_theme "$home" daybreak
-run_hook "$home" maitri-theme-set-fish "$apps:$sandbox" || fail "maitri-theme-set-fish switches to daybreak"
+run_hook "$home" maitri-theme-set-fish "$apps:$sandbox:$PATH" || fail "maitri-theme-set-fish switches to daybreak"
 (( $(grep -c '^SETUVAR fish_' "$home/.config/fish/fish_variables") == first )) || fail "switching themes leaves the same set of fish colours"
 daybreak_green=$(awk -F'\t' '$1 == "green" { print substr($2, 2) }' "$test_tmp/daybreak/palette.tsv")
 [[ $(fish_get "$home" fish_color_command) == "fish_color_command=$daybreak_green" ]] || fail "fish follows the switch to daybreak" "$(fish_get "$home" fish_color_command)"
 
 mkdir -p "$home/.config/fish/conf.d"
 printf 'set --global fish_color_command red\n' >"$home/.config/fish/conf.d/fish_frozen_theme.fish"
-run_hook "$home" maitri-theme-set-fish "$apps:$sandbox" || fail "maitri-theme-set-fish runs beside a frozen theme"
+run_hook "$home" maitri-theme-set-fish "$apps:$sandbox:$PATH" || fail "maitri-theme-set-fish runs beside a frozen theme"
 grep -q "fish_frozen_theme.fish sets colours globally" "$home/hook.stderr" || fail "the fish hook says when a global colour hides the theme" "$(cat "$home/hook.stderr")"
 rm "$home/.config/fish/conf.d/fish_frozen_theme.fish"
 
 : >"$home/hook.stderr"
 printf 'set -U fish_color_command (touch %s/pwned)\n' "$home" >"$home/.local/state/maitri/current/theme/fish.fish"
-run_hook "$home" maitri-theme-set-fish "$apps:$sandbox" || fail "maitri-theme-set-fish skips a fish.fish that isn't colours"
+run_hook "$home" maitri-theme-set-fish "$apps:$sandbox:$PATH" || fail "maitri-theme-set-fish skips a fish.fish that isn't colours"
 [[ ! -e $home/pwned ]] || fail "a fish.fish that isn't colours never runs"
 [[ $(fish_get "$home" fish_color_command) == "fish_color_command=$daybreak_green" ]] || fail "a fish.fish that isn't colours changes nothing"
 grep -q "isn't a colour" "$home/hook.stderr" || fail "the fish hook says why it skipped" "$(cat "$home/hook.stderr")"
