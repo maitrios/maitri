@@ -444,9 +444,11 @@ those roles in Lua: diff, search and selection tints, the heading ramp (H1 in
 border colors, the lualine theme and `g:terminal_color_0..15`. It takes
 `selection` for Visual, `border_focus` for float borders, `border` for window
 separators, and `hint`, `link` and `comment` as they are, so Neovim and every
-other app draw them the same. A `link` within 60° of the accent or a `hint`
-too close to a diagnostic color is replaced with one the colorscheme picks,
-and a theme that sets none of them gets them worked out from the base roles.
+other app draw them the same. A `link` within 60° of the accent, a `hint`
+too close to a diagnostic color, a `selection` under 1.3:1 against the
+background or a `border_focus` that's just the accent (what the fallbacks give
+a theme that doesn't set them) is replaced with what the colorscheme works
+out from the base roles.
 Any text color (`accent`, `dark_foreground` and
 the syntax colors) that falls under 4.5:1 against `background` is moved
 toward `foreground` until it clears that, so a user theme with a pale `orange`

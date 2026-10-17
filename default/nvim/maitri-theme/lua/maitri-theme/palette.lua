@@ -118,6 +118,19 @@ function M.build(c, mode)
     end
   end
 
+  c = vim.tbl_extend("force", {}, c)
+  for _, key in ipairs({ "selection", "border", "border_focus", "hint", "link", "comment" }) do
+    if type(c[key]) ~= "string" or not c[key]:match("^#%x%x%x%x%x%x$") then
+      c[key] = nil
+    end
+  end
+  if c.selection and M.contrast(c.selection, c.background) < 1.3 then
+    c.selection = nil
+  end
+  if c.border_focus and c.border_focus:lower() == c.accent:lower() then
+    c.border_focus = nil
+  end
+
   local blend = M.blend
   local light = mode == "light"
 
