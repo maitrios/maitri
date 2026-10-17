@@ -151,10 +151,10 @@
         "list.dropBetweenBackground": "{{ border_focus }}",
         "list.highlightForeground": "{{ mix accent foreground 39% }}",
         "list.focusHighlightForeground": "{{ mix accent foreground 39% }}",
-        "list.invalidItemForeground": "{{ red }}",
-        "list.errorForeground": "{{ red }}",
-        "list.warningForeground": "{{ orange }}",
-        "list.deemphasizedForeground": "{{ comment }}",
+        "list.invalidItemForeground": "{{ readable red dark_background accent 30% }}",
+        "list.errorForeground": "{{ readable red dark_background accent 30% }}",
+        "list.warningForeground": "{{ readable orange dark_background accent 30% }}",
+        "list.deemphasizedForeground": "{{ readable comment dark_background accent 30% }}",
         "list.filterMatchBackground": "{{ mix background accent 16% }}",
         "list.filterMatchBorder": "{{ border_focus }}",
         "listFilterWidget.background": "{{ dark_background }}",
@@ -480,7 +480,7 @@
         "outputView.background": "{{ background }}",
         "outputViewStickyScroll.background": "{{ background }}",
         "statusBar.background": "{{ dark_background }}",
-        "statusBar.foreground": "{{ light_foreground }}",
+        "statusBar.foreground": "{{ readable light_foreground dark_background accent 30% }}",
         "statusBar.border": "{{ border }}",
         "statusBar.focusBorder": "{{ border_focus }}",
         "statusBar.debuggingBackground": "{{ orange }}",
@@ -673,16 +673,16 @@
         "welcomePage.progress.foreground": "{{ accent }}",
         "walkThrough.embeddedEditorBackground": "{{ dark_background }}",
         "walkthrough.stepTitle.foreground": "{{ bright_foreground }}",
-        "gitDecoration.addedResourceForeground": "{{ green }}",
-        "gitDecoration.modifiedResourceForeground": "{{ blue }}",
-        "gitDecoration.deletedResourceForeground": "{{ red }}",
-        "gitDecoration.renamedResourceForeground": "{{ cyan }}",
-        "gitDecoration.stageModifiedResourceForeground": "{{ blue }}",
-        "gitDecoration.stageDeletedResourceForeground": "{{ red }}",
-        "gitDecoration.untrackedResourceForeground": "{{ green }}",
-        "gitDecoration.ignoredResourceForeground": "{{ comment }}",
-        "gitDecoration.conflictingResourceForeground": "{{ orange }}",
-        "gitDecoration.submoduleResourceForeground": "{{ cyan }}",
+        "gitDecoration.addedResourceForeground": "{{ readable green dark_background accent 30% }}",
+        "gitDecoration.modifiedResourceForeground": "{{ readable blue dark_background accent 30% }}",
+        "gitDecoration.deletedResourceForeground": "{{ readable red dark_background accent 30% }}",
+        "gitDecoration.renamedResourceForeground": "{{ readable cyan dark_background accent 30% }}",
+        "gitDecoration.stageModifiedResourceForeground": "{{ readable blue dark_background accent 30% }}",
+        "gitDecoration.stageDeletedResourceForeground": "{{ readable red dark_background accent 30% }}",
+        "gitDecoration.untrackedResourceForeground": "{{ readable green dark_background accent 30% }}",
+        "gitDecoration.ignoredResourceForeground": "{{ readable comment dark_background accent 30% }}",
+        "gitDecoration.conflictingResourceForeground": "{{ readable orange dark_background accent 30% }}",
+        "gitDecoration.submoduleResourceForeground": "{{ readable cyan dark_background accent 30% }}",
         "settings.headerForeground": "{{ bright_foreground }}",
         "settings.modifiedItemIndicator": "{{ blue }}",
         "settings.dropdownBackground": "{{ background }}",
@@ -938,7 +938,8 @@
                 "string.quoted",
                 "string.template",
                 "punctuation.definition.string",
-                "string.unquoted"
+                "string.unquoted",
+                "storage.type.string.python"
             ],
             "settings": {
                 "foreground": "{{ yellow }}",
@@ -988,20 +989,6 @@
                 "keyword.control.directive",
                 "punctuation.definition.directive",
                 "punctuation.definition.preprocessor"
-            ],
-            "settings": {
-                "foreground": "{{ magenta }}",
-                "fontStyle": ""
-            }
-        },
-        {
-            "name": "Operator",
-            "scope": [
-                "keyword.operator.assignment",
-                "keyword.operator.arithmetic",
-                "keyword.operator.comparison",
-                "keyword.operator.logical",
-                "keyword.operator.ternary"
             ],
             "settings": {
                 "foreground": "{{ magenta }}",
@@ -1394,7 +1381,6 @@
                 "string.other.link.description",
                 "meta.link.inline.description",
                 "meta.link.reference.description",
-                "markup.underline.link.image",
                 "constant.other.reference.link"
             ],
             "settings": {
@@ -1407,7 +1393,8 @@
             "scope": [
                 "markup.underline.link",
                 "meta.link.inline markup.underline.link",
-                "markup.underline.link.markdown"
+                "markup.underline.link.markdown",
+                "markup.underline.link.image"
             ],
             "settings": {
                 "foreground": "{{ comment }}",

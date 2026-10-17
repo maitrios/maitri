@@ -6,6 +6,7 @@
     "background": "{{ background }}",
     "foreground": "{{ foreground }}",
     "caret": "{{ bright_foreground }}",
+    "block_caret": "{{ bright_foreground }}",
     "invisibles": "{{ mix background comment 55% }}",
     "line_highlight": "{{ lighter_background }}",
     "selection": "{{ selection }}",
@@ -32,6 +33,8 @@
     "stack_guide": "{{ mix background muted 75% }}",
     "minimap_border": "{{ border }}",
     "brackets_options": "underline",
+    "bracket_contents_options": "underline",
+    "bracket_contents_foreground": "{{ mix background foreground 65% }}",
     "brackets_foreground": "{{ accent }}",
     "tags_options": "stippled_underline",
     "tags_foreground": "{{ accent }}"
@@ -89,7 +92,7 @@
     },
     {
       "name": "String",
-      "scope": "string, string.quoted, string.template, punctuation.definition.string, string.unquoted",
+      "scope": "string, string.quoted, string.template, punctuation.definition.string, string.unquoted, storage.type.string.python",
       "foreground": "{{ yellow }}"
     },
     {
@@ -108,13 +111,8 @@
       "foreground": "{{ magenta }}"
     },
     {
-      "name": "Operator",
-      "scope": "keyword.operator.assignment, keyword.operator.arithmetic, keyword.operator.comparison, keyword.operator.logical, keyword.operator.ternary",
-      "foreground": "{{ magenta }}"
-    },
-    {
       "name": "Type",
-      "scope": "entity.name.type, entity.name.class, entity.name.struct, entity.name.enum, entity.name.union, entity.name.trait, entity.name.interface, entity.name.type.class, entity.name.type.interface, entity.name.type.enum, entity.other.inherited-class, support.type, support.class, storage.type.primitive, storage.type.built-in, storage.type.numeric, storage.type.string, storage.type.boolean, storage.type.byte, storage.type.rune, storage.type.uintptr, storage.type.error, support.type.primitive, support.type.builtin, entity.name.type.lifetime, storage.type.generic, storage.type.java, storage.type.object.array.java",
+      "scope": "entity.name.type, entity.name.class, entity.name.struct, entity.name.enum, entity.name.union, entity.name.trait, entity.name.interface, entity.name.type.class, entity.name.type.interface, entity.name.type.enum, entity.other.inherited-class, support.type, support.class, storage.type.primitive, storage.type.built-in, storage.type.numeric, storage.type.string, storage.type.boolean, storage.type.byte, storage.type.rune, storage.type.uintptr, storage.type.error, support.type.primitive, support.type.builtin, entity.name.type.lifetime, storage.type.generic, storage.type.java, storage.type.object.array.java, storage.type.rust, storage.type.go, storage.type.c",
       "foreground": "{{ cyan }}",
       "font_style": "italic"
     },
@@ -261,13 +259,13 @@
     },
     {
       "name": "Link text",
-      "scope": "string.other.link, string.other.link.title, string.other.link.description, meta.link.inline.description, meta.link.reference.description, markup.underline.link.image, constant.other.reference.link",
+      "scope": "string.other.link, string.other.link.title, string.other.link.description, meta.link.inline.description, meta.link.reference.description, constant.other.reference.link",
       "foreground": "{{ link }}",
       "font_style": "underline"
     },
     {
       "name": "Link url",
-      "scope": "markup.underline.link, meta.link.inline markup.underline.link, markup.underline.link.markdown",
+      "scope": "markup.underline.link, meta.link.inline markup.underline.link, markup.underline.link.markdown, markup.underline.link.image",
       "foreground": "{{ comment }}",
       "font_style": "underline"
     },
@@ -332,6 +330,21 @@
       "name": "Diff range",
       "scope": "meta.diff.range",
       "foreground": "{{ cyan }}"
+    },
+    {
+      "name": "Find-in-files line number",
+      "scope": "constant.numeric.line-number.find-in-files - match",
+      "foreground": "{{ blue }}"
+    },
+    {
+      "name": "Filename",
+      "scope": "entity.name.filename",
+      "foreground": "{{ yellow }}"
+    },
+    {
+      "name": "Error message",
+      "scope": "message.error",
+      "foreground": "{{ red }}"
     }
   ]
 }

@@ -55,6 +55,7 @@
 "special" = "magenta"
 
 # Markup
+# Helix has no per-level marker scope, so every marker takes the H1 colour.
 "markup.heading.marker" = { fg = "heading1", modifiers = ["bold"] }
 "markup.heading.1" = { fg = "heading1", modifiers = ["bold"] }
 "markup.heading.2" = { fg = "heading2", modifiers = ["bold"] }
@@ -121,7 +122,7 @@
 "ui.virtual.inlay-hint" = { fg = "comment", bg = "inlay", modifiers = ["italic"] }
 "ui.virtual.jump-label" = { fg = "orange", modifiers = ["bold"] }
 
-"ui.selection" = { bg = "selection" }
+"ui.selection" = { bg = "selection_secondary" }
 "ui.selection.primary" = { bg = "selection" }
 
 "ui.cursor" = { fg = "background", bg = "cursor" }
@@ -166,6 +167,7 @@ comment = "{{ comment }}"
 cursor = "{{ bright_foreground }}"
 accent = "{{ accent }}"
 selection = "{{ selection }}"
+selection_secondary = "{{ mix background selection 60% }}"
 guide = "{{ mix background muted 75% }}"
 border = "{{ border }}"
 hint = "{{ hint }}"

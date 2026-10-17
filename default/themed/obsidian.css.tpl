@@ -42,7 +42,7 @@
   --icon-color-focused: {{ accent }};
 
   /* Interactive */
-  --interactive-normal: {{ dark_background }};
+  --interactive-normal: {{ lighter_background }};
   --interactive-hover: {{ lighter_background }};
   --interactive-accent: {{ accent }};
   --interactive-accent-hover: {{ mix accent foreground 13% }};
@@ -79,7 +79,7 @@
   --link-color-hover: {{ link }};
   --link-external-color: {{ link }};
   --link-external-color-hover: {{ link }};
-  --link-unresolved-color: {{ link }};
+  --link-unresolved-color: {{ comment }};
   --link-decoration: underline;
   --link-external-decoration: underline;
 
@@ -157,7 +157,7 @@
 .cm-s-obsidian span.cm-builtin { color: {{ cyan }}; }
 .cm-s-obsidian span.cm-tag { color: {{ cyan }}; }
 .cm-s-obsidian span.cm-attribute { color: {{ green }}; font-style: italic; }
-.cm-s-obsidian span.cm-meta,
+.cm-s-obsidian span.cm-meta:not(.cm-hashtag),
 .cm-s-obsidian span.cm-qualifier { color: {{ magenta }}; }
 .cm-s-obsidian span.cm-bracket { color: {{ light_foreground }}; }
 

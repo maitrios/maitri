@@ -28,6 +28,15 @@ done
 
 (( ${#themes[@]} > 0 )) || fail "themes are rendered"
 
+no_accent="$test_tmp/no-accent/.local/state/maitri/current/next-theme"
+mkdir -p "$no_accent"
+grep -v '^accent' "$ROOT/themes/amethyst/colors.toml" >"$no_accent/colors.toml"
+HOME="$test_tmp/no-accent" MAITRI_PATH="$ROOT" PATH="$ROOT/bin:$PATH" bash "$ROOT/bin/maitri-theme-set-templates"
+for file in helix.toml vscode-theme.json maitri.sublime-color-scheme obsidian.css; do
+  ! grep -q '{{' "$no_accent/$file" || fail "a theme without accent leaves no placeholders in $file" "$(grep -n '{{' "$no_accent/$file")"
+done
+pass "a theme without accent renders every editor theme"
+
 python3 - "$test_tmp" "${themes[@]}" <<'PY'
 import json, re, sys, tomllib
 
@@ -70,6 +79,14 @@ def mix(a, b, amount):
     return "#%02x%02x%02x" % tuple(int(x * (1 - amount) + y * amount + 0.5) for x, y in zip(rgb(a), rgb(b)))
 
 
+def lift(color, target, surface, minimum=4.5):
+    for step in range(51):
+        lifted = mix(color, target, step / 50)
+        if contrast(lifted, surface) >= minimum:
+            return lifted
+    return lifted
+
+
 class Check:
     def __init__(self, theme, app, palette):
         self.theme, self.app, self.palette = theme, app, palette
@@ -94,10 +111,10 @@ class Check:
         if ratio < minimum:
             self.errors.append(f"{label}: {ratio:.2f}:1 against its surface, floor {minimum}:1")
 
-    def scopes(self, rules):
+    def scopes(self, rules, extra=()):
         p = self.palette
         heading = {f"H{n}": mix(p["accent"], p["foreground"], (n - 1) * 0.13) for n in range(1, 7)}
-        for stack, role in FIXTURES:
+        for stack, role in FIXTURES + list(extra):
             expected = heading.get(role) or p[role]
             got = resolve(rules, stack)
             self.expect(got and got.lower() == expected.lower(), f"{stack[-1]} under {stack[-2]} is {got}, expected {role}")
@@ -159,6 +176,24 @@ FIXTURES = [
     (["text.html.markdown", "markup.heading.2.markdown", "entity.name.section.markdown"], "H2"),
     (["text.html.markdown", "markup.heading.4.markdown", "punctuation.definition.heading.begin.markdown"], "H4"),
     (["text.html.markdown", "markup.heading.setext.2.markdown"], "H2"),
+    (["source.python", "string.quoted.single.python", "storage.type.string.python"], "yellow"),
+    (["source.go", "storage.type.string.go"], "cyan"),
+    (["text.html.markdown", "meta.image.inline.markdown", "markup.underline.link.image.markdown"], "comment"),
+]
+
+# Sublime's own syntaxes scope type names as plain storage.type.<lang>, while
+# VS Code's Rust grammar puts storage.type.rust on keywords such as mod and const.
+SUBLIME_FIXTURES = [
+    (["source.rust", "meta.generic.rust", "storage.type.rust"], "cyan"),
+    (["source.rust", "storage.type.impl.rust"], "magenta"),
+    (["source.rust", "storage.type.trait.rust"], "magenta"),
+    (["source.rust", "meta.function.rust", "storage.type.function.rust"], "magenta"),
+    (["source.go", "meta.type.go", "storage.type.go"], "cyan"),
+    (["source.c", "storage.type.c"], "cyan"),
+]
+
+VSCODE_FIXTURES = [
+    (["source.rust", "storage.type.rust"], "magenta"),
 ]
 
 
@@ -227,6 +262,7 @@ def helix(theme, p, path):
             c.floor(f"{scope} on the cursorline", fg, cursorline, minimum)
             c.floor(f"{scope} in a popup", fg, color(style("ui.popup")["bg"]), minimum)
     c.floor("text in a selection", p["foreground"], color(style("ui.selection")["bg"]))
+    c.floor("text in the primary selection", p["foreground"], color(style("ui.selection.primary")["bg"]))
     c.floor("text in the selected menu row", color(style("ui.menu.selected")["fg"]), color(style("ui.menu.selected")["bg"]))
     for kind in ("error", "warning", "info", "hint"):
         c.floor(f"diagnostic.{kind} underline", color(style(f"diagnostic.{kind}")["underline"]["color"]), bg, LINE)
@@ -241,7 +277,8 @@ def helix(theme, p, path):
     c.expect(color(doc["warning"]).lower() == p["orange"].lower(), "warning is not orange")
     c.expect(color(doc["hint"]).lower() == p["hint"].lower(), "hint is not the hint role")
     c.expect(color(style("ui.statusline.normal")["bg"]).lower() == p["accent"].lower(), "normal mode is not the accent")
-    c.expect(color(style("ui.selection")["bg"]).lower() == p["selection"].lower(), "selection is not the selection role")
+    c.expect(color(style("ui.selection.primary")["bg"]).lower() == p["selection"].lower(), "the primary selection is not the selection role")
+    c.expect(color(style("ui.selection")["bg"]).lower() != p["selection"].lower(), "secondary selections look like the primary one")
 
     headings = [style(f"markup.heading.{n}") for n in range(1, 7)]
     c.headings([color(h["fg"]) for h in headings], ["bold" in h.get("modifiers", []) for h in headings])
@@ -310,6 +347,7 @@ def vscode(theme, p, path):
         ("titleBar.activeForeground", "titleBar.activeBackground"),
         ("titleBar.inactiveForeground", "titleBar.inactiveBackground"),
         ("statusBar.foreground", "statusBar.background"),
+        ("statusBar.foreground", "statusBarItem.activeBackground"),
         ("statusBar.debuggingForeground", "statusBar.debuggingBackground"),
         ("statusBarItem.hoverForeground", "statusBarItem.hoverBackground"),
         ("statusBarItem.prominentForeground", "statusBarItem.prominentBackground"),
@@ -329,9 +367,6 @@ def vscode(theme, p, path):
         ("list.highlightForeground", "list.activeSelectionBackground"),
         ("list.focusHighlightForeground", "list.activeSelectionBackground"),
         ("list.highlightForeground", "list.hoverBackground"),
-        ("list.errorForeground", "sideBar.background"),
-        ("list.warningForeground", "sideBar.background"),
-        ("list.deemphasizedForeground", "sideBar.background"),
         ("button.foreground", "button.background"),
         ("button.foreground", "button.hoverBackground"),
         ("button.secondaryForeground", "button.secondaryBackground"),
@@ -390,9 +425,10 @@ def vscode(theme, p, path):
         ("terminal.foreground", "terminal.background"),
         ("terminal.foreground", "terminal.selectionBackground"),
     ]
+    rows = ("sideBar.background", "list.activeSelectionBackground", "list.inactiveSelectionBackground", "list.hoverBackground")
     for key in colors:
-        if key.startswith("gitDecoration."):
-            pairs.append((key, "sideBar.background"))
+        if key.startswith("gitDecoration.") or key in ("list.errorForeground", "list.warningForeground", "list.invalidItemForeground", "list.deemphasizedForeground"):
+            pairs.extend((key, row) for row in rows)
         if key.startswith("terminal.ansi") and key not in ("terminal.ansiBlack", "terminal.ansiWhite", "terminal.ansiBrightWhite"):
             pairs.append((key, "terminal.background"))
         if key.startswith(("editorError.f", "editorWarning.f", "editorInfo.f", "editorHint.f")):
@@ -430,12 +466,15 @@ def vscode(theme, p, path):
     c.expect(semantic["parameter"]["foreground"].lower() == p["orange"].lower(), "semantic parameter is not orange")
     for key, role in (
         ("editorError.foreground", "red"), ("editorWarning.foreground", "orange"), ("editorInfo.foreground", "cyan"),
-        ("editorHint.foreground", "hint"), ("textLink.foreground", "link"), ("list.warningForeground", "orange"),
+        ("editorHint.foreground", "hint"), ("textLink.foreground", "link"),
         ("statusBarItem.warningBackground", "orange"), ("editor.selectionBackground", "selection"),
         ("focusBorder", "border_focus"), ("editorGroup.border", "border"), ("panel.border", "border"),
         ("terminal.ansiBrightBlack", "comment"), ("editorGutter.modifiedBackground", "blue"),
     ):
         c.expect(colors[key].lower() == p[role].lower(), f"{key} is {colors[key]}, not {role}")
+    row = colors["list.activeSelectionBackground"]
+    for key, role in (("list.warningForeground", "orange"), ("list.errorForeground", "red"), ("gitDecoration.modifiedResourceForeground", "blue"), ("gitDecoration.addedResourceForeground", "green")):
+        c.expect(colors[key].lower() == lift(p[role], p["foreground"], row).lower(), f"{key} is {colors[key]}, not {role} lifted to 4.5:1 on a selected row")
     for fill, surface, minimum in (
         ("list.activeSelectionBackground", "sideBar.background", 1.2),
         ("list.inactiveSelectionBackground", "sideBar.background", 1.1),
@@ -447,7 +486,7 @@ def vscode(theme, p, path):
         ("editor.selectionBackground", "editor.background", 1.4),
     ):
         c.distinct(fill, colors[fill], colors[surface], minimum)
-    c.scopes([(t["scope"], t["settings"].get("foreground")) for t in doc["tokenColors"]])
+    c.scopes([(t["scope"], t["settings"].get("foreground")) for t in doc["tokenColors"]], VSCODE_FIXTURES)
     for key in ("list.hoverBackground", "list.activeSelectionBackground", "editor.lineHighlightBackground"):
         c.expect(colors[key].lower() != p["selection"].lower(), f"{key} reuses the selection fill")
 
@@ -499,7 +538,7 @@ def sublime(theme, p, path):
         c.expect(by_name[name]["foreground"].lower() == p[SYNTAX[role]].lower(), f"rule {name} is not {SYNTAX[role]}")
     c.expect(by_name["Deleted"]["foreground"].lower() == p["red"].lower(), "markup.deleted is not red")
     c.expect("background" not in by_name["Invalid"], "invalid paints a background")
-    c.scopes([([s.strip() for s in r["scope"].split(",")], r.get("foreground")) for r in doc["rules"]])
+    c.scopes([([s.strip() for s in r["scope"].split(",")], r.get("foreground")) for r in doc["rules"]], SUBLIME_FIXTURES)
 
     headings = [by_name["Heading"]] + [by_name[f"Heading {n}"] for n in range(2, 7)]
     c.headings([h["foreground"] for h in headings], ["bold" in h.get("font_style", "") for h in headings])
