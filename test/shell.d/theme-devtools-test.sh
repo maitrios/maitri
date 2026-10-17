@@ -68,6 +68,14 @@ def apart(app, label, a, b, floor=1.1):
     if contrast(norm(a), norm(b)) < floor:
         fail(f"{app} {label} does not stand out ({contrast(norm(a), norm(b)):.2f}:1)")
 
+def readable(key, surface):
+    start, target = norm(palette[key]).lstrip("#"), norm(palette["foreground"]).lstrip("#")
+    for step in range(51):
+        out = "#" + "".join(f"{int(int(start[i:i + 2], 16) + (int(target[i:i + 2], 16) - int(start[i:i + 2], 16)) * step / 50 + 0.5):02x}" for i in (0, 2, 4))
+        if contrast(out, norm(palette[surface])) >= 4.5:
+            break
+    return out
+
 heading2 = mix(palette["accent"], palette["foreground"], 0.13)
 heading3 = mix(palette["accent"], palette["foreground"], 0.26)
 
@@ -116,6 +124,8 @@ def herdr():
         check("herdr", f"{key} on panel_bg", t[key], panel, TEXT)
         check("herdr", f"{key} on sidebar_bg", t[key], sidebar, TEXT)
     check("herdr", "mauve on active_row_bg", t["mauve"], t["active_row_bg"], TEXT)
+    check("herdr", "mauve on selection_bg", t["mauve"], t["selection_bg"], TEXT)
+    check("herdr", "accent on selection_bg", t["accent"], t["selection_bg"], TEXT)
     check("herdr", "panel_bg on accent", panel, t["accent"], TEXT)
     check("herdr", "panel_bg on mauve", panel, t["mauve"], TEXT)
     check("herdr", "surface_dim on sidebar_bg", t["surface_dim"], sidebar, LINE)
@@ -126,8 +136,8 @@ def herdr():
     apart("herdr", "surface0 on panel_bg", t["surface0"], panel, 1.05)
     if norm(t["active_row_bg"]) == norm(t["selection_bg"]):
         fail("herdr active_row_bg reuses selection")
-    for key, role in (("surface_dim", "border"), ("selection_bg", "selection"), ("mauve", "hint"), ("peach", "orange"), ("red", "red"),
-                      ("overlay0", "comment"), ("text", "foreground"), ("accent", "accent")):
+    for key, role in (("surface_dim", "border"), ("selection_bg", "selection"), ("mauve", readable("hint", "selection")), ("peach", "orange"), ("red", "red"),
+                      ("overlay0", "comment"), ("text", "foreground"), ("accent", readable("accent", "selection"))):
         same("herdr", key, t[key], role)
 
 def pi():
