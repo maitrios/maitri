@@ -4,7 +4,7 @@
   "Background": "{{ background }}",
   "Foreground": "{{ foreground }}",
   "LightBlue": "{{ link }}",
-  "AccentBlue": "{{ blue }}",
+  "AccentBlue": "{{ accent }}",
   "AccentPurple": "{{ accent }}",
   "AccentCyan": "{{ cyan }}",
   "AccentGreen": "{{ green }}",

@@ -189,7 +189,7 @@ def gemini(theme, p, path):
         for key in ("Foreground", "Comment", "AccentGreen", "AccentRed", "AccentYellow", "AccentPurple"):
             c.floor(f"{key} on {fill}", doc[key], doc[fill])
     c.floor("DarkGray", doc["DarkGray"], doc["Background"], LINE)
-    for key, role in {"Background": "background", "Foreground": "foreground", "LightBlue": "link", "AccentPurple": "accent",
+    for key, role in {"Background": "background", "Foreground": "foreground", "LightBlue": "link", "AccentBlue": "accent", "AccentPurple": "accent",
                       "AccentYellow": "orange", "AccentRed": "red", "Comment": "comment", "DarkGray": "border"}.items():
         c.role(key, doc[key], role)
     c.report()
