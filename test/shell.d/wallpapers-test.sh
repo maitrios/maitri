@@ -420,3 +420,41 @@ fi
 grep -q "would drop" "$test_tmp/plan" || fail "the uploader says a rerun would drop files" "$(cat "$test_tmp/plan")"
 [[ ! -s $served.log ]] || fail "a refused rerun uploads nothing" "$(cat "$served.log")"
 pass "a rerun never drops files from a published release's manifest, and checks before uploading"
+
+stable_before=$(<"$served/channels/stable/manifest.json")
+for name in $'a\nb.jpg' 'a\b.jpg' $'a\tb.jpg'; do
+  odd="$test_tmp/odd"
+  rm -rf "$odd"
+  mkdir -p "$odd/amethyst"
+  image jpg 64 "$odd/amethyst/$name"
+  tar -cf "$test_tmp/odd.tar" -C "$odd" .
+  : >"$served.log"
+  if publish_release --tar "$test_tmp/odd.tar" v1.6.0; then
+    fail "a wallpaper whose name holds a control character or backslash is refused"
+  fi
+  grep -q "file names can't hold control characters or backslashes" "$test_tmp/plan" ||
+    fail "the uploader says why it refuses an odd file name" "$(cat "$test_tmp/plan")"
+  [[ ! -s $served.log ]] || fail "an odd file name uploads nothing" "$(cat "$served.log")"
+done
+[[ $(<"$served/channels/stable/manifest.json") == "$stable_before" ]] || fail "an odd file name leaves stable alone"
+grep -rq '\\' "$served/channels" "$served/releases" && fail "no manifest ever carries a backslash"
+pass "file names with a newline, backslash or other control character are refused before anything uploads"
+
+cp "$served/channels/stable/manifest.json" "$test_tmp/stable-before.json"
+python3 -I -c '
+import hashlib, json, sys
+manifest = json.load(open(sys.argv[1]))
+for i in range(6500):
+    sha256 = hashlib.sha256(str(i).encode()).hexdigest()
+    manifest["files"].append({"theme": "amethyst", "file": f"themes/amethyst/{sha256}.jpg", "sha256": sha256, "size": i})
+json.dump(manifest, open(sys.argv[1], "w"))' "$served/channels/stable/manifest.json"
+(( $(stat -c %s "$served/channels/stable/manifest.json") > 1048576 )) || fail "the test builds a stable manifest over 1 MiB"
+: >"$served.log"
+if publish_release --tar "$test_tmp/wallpapers.tar" v1.6.0; then
+  fail "a manifest over 1 MiB is refused"
+fi
+grep -q "more than maitri-update-wallpapers reads; nothing was uploaded" "$test_tmp/plan" ||
+  fail "the uploader says the manifest would be too big" "$(cat "$test_tmp/plan")"
+[[ ! -s $served.log ]] || fail "a manifest that is too big uploads nothing" "$(cat "$served.log")"
+cp "$test_tmp/stable-before.json" "$served/channels/stable/manifest.json"
+pass "the uploader validates the whole manifest, size included, before anything uploads"

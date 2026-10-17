@@ -50,7 +50,7 @@ while (( $# > 0 )); do
   esac
   shift
 done
-[[ $tag =~ ^v[0-9][0-9A-Za-z.+-]*$ ]] || die "$usage"
+[[ $tag =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || die "$usage"
 [[ $tag != *-* ]] || prerelease=1
 [[ -n $tar || -d $from ]] || die "no staging directory at $from"
 [[ -z $tar || -f $tar ]] || die "no tar at $tar"
@@ -60,6 +60,7 @@ base_url=${MAITRI_WALLPAPERS_URL:-https://maitri.cdn.k7.dev}
 file_cache="public, max-age=31536000, immutable"
 manifest_cache="public, max-age=60"
 max_size=$((64 * 1024 * 1024))
+max_manifest_size=1048576
 
 if (( dry_run == 0 )); then
   : "${R2_ACCESS_KEY_ID:?R2_ACCESS_KEY_ID is not set}"
@@ -120,15 +121,20 @@ put() {
   echo "uploaded $2" >&2
 }
 
-previous_release=""
-if get channels/stable/manifest.json "$work/stable.json"; then
+valid_manifest() {
   jq -e --argjson max "$max_size" '
     (.release | type == "string") and (.files | type == "array") and (.files | all(
-      type == "object" and (.theme | type == "string") and (.sha256 | type == "string")
+      type == "object" and (.theme | type == "string" and test("^[a-z0-9-]+$"))
+      and (.sha256 | type == "string" and test("^[0-9a-f]{64}$"))
       and (.size | type == "number" and . >= 0 and . <= $max and floor == .)
       and (.file | type == "string" and test("^themes/[a-z0-9-]+/[0-9a-f]{64}\\.(jpg|png|webp|avif)$"))
       and (. as $entry | $entry.file | startswith("themes/\($entry.theme)/\($entry.sha256)."))
-    ))' "$work/stable.json" >/dev/null ||
+    ))' "$1" >/dev/null
+}
+
+previous_release=""
+if get channels/stable/manifest.json "$work/stable.json"; then
+  valid_manifest "$work/stable.json" ||
     die "channels/stable/manifest.json is not a valid manifest; fix it before publishing over it"
   previous_release=$(jq -r '.release' "$work/stable.json")
 else
@@ -142,6 +148,8 @@ if [[ -n $tar ]]; then
   mkdir "$from"
   tar -xf "$tar" -C "$from" --no-same-owner --no-same-permissions || die "$tar could not be unpacked"
 fi
+
+unsafe_name='[[:cntrl:]\\]'
 
 image_type() {
   case $(od -An -tx1 -N12 "$1" | tr -d ' \n') in
@@ -165,6 +173,7 @@ for entry in "$from"/*; do
 
   for wallpaper in "$entry"/*; do
     [[ -f $wallpaper && ! -L $wallpaper ]] || die "$wallpaper: only plain image files go in a theme directory"
+    [[ ! ${wallpaper##*/} =~ $unsafe_name ]] || die "$wallpaper: file names can't hold control characters or backslashes"
     extension=${wallpaper##*.}
     extension=${extension,,}
     [[ $extension != "jpeg" ]] || extension=jpg
@@ -178,7 +187,8 @@ for entry in "$from"/*; do
 
     size=$(stat -c %s "$wallpaper")
     (( size > 0 && size <= max_size )) || die "$wallpaper: $size bytes, wallpapers are at most $max_size"
-    sha256=$(sha256sum "$wallpaper" | cut -d' ' -f1)
+    sha256=$(sha256sum <"$wallpaper" | cut -d' ' -f1)
+    [[ $sha256 =~ ^[0-9a-f]{64}$ ]] || die "$wallpaper: could not hash it"
     key="themes/$theme/$sha256.$extension"
 
     upload_files+=("$wallpaper")
@@ -192,6 +202,9 @@ done
 jq --arg release "$tag" --slurpfile added "$work/added.jsonl" \
   '{release: $release, files: (.files + $added | unique_by(.file) | sort_by(.theme, .file))}' \
   "$work/stable.json" >"$work/manifest.json"
+valid_manifest "$work/manifest.json" || die "the manifest for $tag would not be valid; nothing was uploaded"
+(( $(stat -c %s "$work/manifest.json") <= max_manifest_size )) ||
+  die "the manifest for $tag would be over $max_manifest_size bytes, more than maitri-update-wallpapers reads; nothing was uploaded"
 
 release_key="releases/$tag/manifest.json"
 write_release=1
