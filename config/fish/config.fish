@@ -20,6 +20,7 @@ if test "$MAITRI_PATH" != /usr/share/maitri
     fish_add_path --prepend "$MAITRI_PATH/bin"
 end
 fish_add_path --append "$HOME/.local/share/mise/shims" "$HOME/.local/bin"
+test -r "$HOME/.local/state/maitri/current/theme/glamour.json"; and set -gx GLAMOUR_STYLE "$HOME/.local/state/maitri/current/theme/glamour.json"; and set -gx GLOW_STYLE $GLAMOUR_STYLE # maitri:glamour-style
 
 if status is-interactive
     # maitri "Amethyst" syntax colors
