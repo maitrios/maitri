@@ -38,6 +38,15 @@ else
   desktop_dirs+=("/usr/local/share/applications" "/usr/share/applications")
 fi
 
+icons_manifest="$HOME/.local/state/maitri/icons/manifest"
+if [[ -s $icons_manifest ]]; then
+  icons_kind="$(awk -F'\t' -v id="$desktop_file_name" '$1 == id { print $2; exit }' "$icons_manifest")"
+  if [[ -n $icons_kind ]]; then
+    maitri-icons-restore "$desktop_file_name" >/dev/null
+    [[ $icons_kind == "created" ]] && rm -f "${user_desktop_dirs[0]}/$desktop_file_name"
+  fi
+fi
+
 desktop_file=""
 for dir in "${desktop_dirs[@]}"; do
   candidate="$dir/$desktop_file_name"

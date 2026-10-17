@@ -25,9 +25,9 @@ if status is-interactive
     # maitri "Amethyst" syntax colors
     set -g fish_color_command B08CFF
     set -g fish_color_param E6E9F0
-    set -g fish_color_quote 7DE38B
-    set -g fish_color_redirection C99BFF
-    set -g fish_color_error FF6E6E
+    set -g fish_color_quote 85DC8C
+    set -g fish_color_redirection B08CFF
+    set -g fish_color_error FD8993
     set -g fish_color_autosuggestion 8C7EA6
     set -g fish_color_comment 8C7EA6
 end

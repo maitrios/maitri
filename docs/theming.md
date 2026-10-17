@@ -126,18 +126,25 @@ shell palette is loaded from:
 - `comment` — the same value as `dark_foreground`, under the name editors use.
   Falls back to `dark_foreground`.
 - `selection` — the selection fill: a tint of `accent`, light enough that
-  `foreground` stays readable on it.
+  `foreground` stays readable on it. Text on `selection` is `foreground` (or
+  `bright_foreground`). `accent` isn't a text color there: on daybreak it's
+  3.8:1. A theme with neither `selection` nor `selection_background` gets
+  `background` mixed 26% toward `accent` (or `blue`), and further until it
+  sits 1.5:1 off the background, so a selection is never plain grey.
 - `border` — neutral lines that need to be seen: input outlines, panel and
   table edges. Unlike `muted` it clears 3:1 against `background`. Falls back to
-  `muted`.
+  `muted` moved toward `foreground` until it clears 3:1.
 - `border_focus` — the focused or floating border, a step of `accent` toward
   `background` that clears 3:1. Falls back to `accent`.
 - `hint` — hint diagnostics. It's `accent` unless the accent sits near `red`,
   `orange`, `cyan` or `green` (error, warning, info, ok), when it's the next
-  hue that doesn't. Falls back to `accent`.
-- `link` — links, drawn underlined. The first-party themes keep it at least
-  60° of hue from `accent` so a link never reads as a heading. Falls back to
-  `blue`.
+  hue that doesn't. Falls back to `accent`, so a theme whose accent is orange,
+  red or cyan should set `hint` itself.
+- `link` — links, drawn underlined. It stays at least 60° of hue from
+  `accent` so a link never reads as a heading. Falls back to the first of
+  `blue`, `magenta`, `magenta` mixed half toward `red`, and `orange` that is
+  60° clear of the accent, the order the Neovim palette tries, moved toward
+  `foreground` until it clears 4.5:1.
 - `urgent` / `red` / `color1`
 
 Themes and user templates using the legacy short names remain supported.
@@ -174,7 +181,8 @@ palette uses to keep links off the accent):
 - `red`, `orange`, `yellow`, `green`, `cyan`, `blue` and `magenta` sit at
   355°, 25°, 56°, 125°, 172°, 220° and 270°, so no two are closer than 30°.
   They're built at one OKLCH chroma (0.14) in a narrow lightness band, so no
-  hue shouts over the others. Where sRGB can't reach that chroma (blue on
+  hue shouts over the others. The slot the accent takes keeps the accent's
+  own chroma. Where sRGB can't reach that chroma (blue on
   dark, cyan and yellow on light) it gets as close as it can, so the test
   allows a spread of 0.03 on dark themes and 0.06 on daybreak.
 - The syntax hue nearest the accent *is* the accent: amethyst's and daybreak's
@@ -182,7 +190,8 @@ palette uses to keep links off the accent):
   Every other syntax hue is at least 30° from it, so the accent never sits a
   few degrees off a code color. It shows up in each theme's code on purpose.
 - `link` is at least 60° from the accent and `hint` at least 40° from `red`,
-  `orange`, `cyan` and `green`.
+  `orange`, `cyan` and `green`. (Neovim's own guard on a `hint` is a distance
+  in RGB rather than hue, which every shipped theme clears by a wide margin.)
 - Every syntax color, `link`, `hint` and `dark_foreground` clears 4.5:1, and
   `border` and `border_focus` clear 3:1. Daybreak, the light theme, uses the
   same angles at its own lightness and is measured against
@@ -447,8 +456,8 @@ border colors, the lualine theme and `g:terminal_color_0..15`. It takes
 separators, and `hint`, `link` and `comment` as they are, so Neovim and every
 other app draw them the same. A `link` within 60° of the accent, a `hint`
 too close to a diagnostic color, a `selection` under 1.3:1 against the
-background or a `border_focus` that's just the accent (what the fallbacks give
-a theme that doesn't set them) is replaced with what the colorscheme works
+background or a `border_focus` that's just the accent (its fallback) is
+replaced with what the colorscheme works
 out from the base roles.
 Any text color (`accent`, `dark_foreground` and
 the syntax colors) that falls under 4.5:1 against `background` is moved
@@ -466,6 +475,58 @@ the colorscheme by the spec's name, `maitri-theme`, so keep the name stable.
 To change the colorscheme for every theme, copy the template to
 `~/.config/maitri/themed/neovim.lua.tpl` and point its `dir` at your own copy
 of `default/nvim/maitri-theme`.
+
+## Launcher icons
+
+`default/icons/` holds maitri's launcher icons, one file per app, named after
+the `Icon=` key in that app's `.desktop` file (`vscode.png` for `Icon=vscode`,
+`Alacritty.png` for `Icon=Alacritty`). Icons are 256px PNGs with every
+ancillary chunk stripped; an SVG named the same way works too.
+
+The set is opt-in, from Style > App Icons in the menu or the commands:
+
+- `maitri-icons-set` walks the launchers the way the desktop resolves them: the
+  user dir (`$XDG_DATA_HOME/applications`, or `~/.local/share/applications`)
+  first, then each `$XDG_DATA_DIRS/applications`. It reads only the
+  `[Desktop Entry]` group. For every launcher the menu shows (no
+  `NoDisplay=true` or `Hidden=true` there) whose `Icon=` key has a file in
+  `default/icons/` (a trailing `.png`, `.svg` or `.xpm` on the key is ignored),
+  it points each `Icon=` line with that key at the file's absolute path. A
+  launcher in a system dir gets a copy in the user dir; one already in the user
+  dir is edited in place after its original is saved.
+- Running `maitri-icons-set` again swaps launchers installed since, and
+  launchers whose icon was put back by hand or by `maitri-refresh-applications`
+  (which runs it again itself when a swap is on). It also keeps each copy in
+  step with its system launcher: an app update refreshes the copy, and an app
+  that's gone takes its copy with it. A copy you edited is left as you wrote it;
+  if its app is gone, only its icon goes back. It writes the manifest after
+  every change, so a run cut short leaves nothing restore can't find, and it
+  stops without touching anything when `default/icons/` is missing.
+- `maitri-icons-restore` undoes every swap still in place and clears the
+  record. Given desktop file names (`maitri-icons-restore code`, with or
+  without `.desktop`), it undoes only those.
+- Removing a swapped app from the launcher's Remove action drops its swap
+  first, along with the copy even if you edited it, so the app itself is
+  uninstalled rather than just the icon override.
+
+The record lives in `~/.local/state/maitri/icons/`:
+
+- `manifest`: one tab-separated line per launcher it changed,
+  `<desktop file name>\t<created|replaced>\t<icon path>\t<sha256>`, where the
+  hash is of the launcher as `set` wrote it, or `-` when a copy from before the
+  hash column had already been edited. On its first run `set` hashes three-field
+  lines from before that column, comparing each copy with its system launcher.
+- `originals/<desktop file name>`: the user-dir launcher as it was before a
+  `replaced` swap.
+
+Restore only touches a launcher whose `Icon=` still points at the recorded
+icon path; anything else changed since is left as it is. When the launcher
+still matches its hash, it deletes a `created` copy and moves a `replaced`
+original back. When it was edited after the swap, or its original is missing,
+only the `Icon=` lines go back to the key, so the edits stay.
+
+The icon path is absolute, so a swap made under `maitri dev link` points at the
+checkout until it is restored and set again.
 
 ## Adding or overriding theme files
 
