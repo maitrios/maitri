@@ -168,14 +168,15 @@ in that ramp; maitri derives `selection_background = selection` and
 
 The first-party themes share one set of syntax hues, and each theme's accent
 takes the slot nearest to it. `test/shell.d/theme-hue-test.sh` holds every
-shipped theme to these rules (hue angles are HSL, the same angles the Neovim
-palette measures):
+shipped theme to these rules (hue angles are HSL, the same measure the Neovim
+palette uses to keep links off the accent):
 
 - `red`, `orange`, `yellow`, `green`, `cyan`, `blue` and `magenta` sit at
   355°, 25°, 56°, 125°, 172°, 220° and 270°, so no two are closer than 30°.
-  They share one OKLCH chroma (0.14 on dark themes) and a narrow lightness
-  band, so no hue shouts over the others. Where sRGB can't reach that chroma
-  (blue on dark, cyan and yellow on light) it gets as close as it can.
+  They're built at one OKLCH chroma (0.14) in a narrow lightness band, so no
+  hue shouts over the others. Where sRGB can't reach that chroma (blue on
+  dark, cyan and yellow on light) it gets as close as it can, so the test
+  allows a spread of 0.03 on dark themes and 0.06 on daybreak.
 - The syntax hue nearest the accent *is* the accent: amethyst's and daybreak's
   `magenta`, spark's `blue`, harbor's `cyan`, ember's `orange`, garnet's `red`.
   Every other syntax hue is at least 30° from it, so the accent never sits a
