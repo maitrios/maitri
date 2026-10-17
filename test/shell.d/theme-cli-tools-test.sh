@@ -671,6 +671,15 @@ run_hook "$home" maitri-theme-set-bat "$apps:$sandbox" || fail "maitri-theme-set
   fail "a start marker without an end loses none of bat's settings" "$(cat "$home/.config/bat/config")"
 pass "a bat cache that won't build leaves bat, delta and fish on bat's own themes"
 
+home=$(new_home crlf amethyst)
+mkdir -p "$home/.config/fish"
+printf '# >>> maitri theme (rewritten by maitri theme set) >>>\r\nset -gx MAITRI_FZF_COLORS "--color=fg:#000000"\r\n# <<< maitri theme <<<\r\n\r\nset -gx EDITOR nvim\r\n' >"$home/.config/fish/config.fish"
+run_hook "$home" maitri-theme-set-fzf "$apps:$sandbox" || fail "maitri-theme-set-fzf runs over a CRLF config.fish"
+(( $(grep -c '>>> maitri theme' "$home/.config/fish/config.fish") == 1 )) && ! grep -q '#000000' "$home/.config/fish/config.fish" &&
+  grep -q '#B08CFF' "$home/.config/fish/config.fish" && grep -q $'^set -gx EDITOR nvim\r$' "$home/.config/fish/config.fish" ||
+  fail "a CRLF config.fish gets its old block replaced" "$(cat -A "$home/.config/fish/config.fish")"
+pass "config.fish with CRLF line endings gets its block replaced in place"
+
 home=$(new_home update amethyst)
 run_hook "$home" maitri-update-bat-cache "$apps:$sandbox" || fail "maitri-update-bat-cache exits cleanly without a cache"
 [[ ! -e $home/bat.log ]] || fail "maitri-update-bat-cache never builds a cache the user didn't have" "$(cat "$home/bat.log")"
