@@ -431,8 +431,8 @@ The set is opt-in, from Style > App Icons in the menu or the commands:
   launcher in a system dir gets a copy in the user dir; one already in the user
   dir is edited in place after its original is saved.
 - Running `maitri-icons-set` again swaps launchers installed since, and
-  launchers whose icon was put back by hand or by `maitri-refresh-applications`.
-  It also keeps each copy in
+  launchers whose icon was put back by hand or by `maitri-refresh-applications`
+  (which runs it again itself when a swap is on). It also keeps each copy in
   step with its system launcher: an app update refreshes the copy, and an app
   that's gone takes its copy with it. A copy you edited is left as you wrote it.
 - `maitri-icons-restore` undoes every swap still in place and clears the
