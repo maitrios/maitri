@@ -1,0 +1,11 @@
+{
+  "model": "gemini-3-pro-image",
+  "size": "4K",
+  "aspect": "1:1",
+  "prompt": "Reference image 1 is the chosen draft. Keep its concept, proportions and composition, and redraw it as a finished logo master: precise geometry, perfectly even strokes, exact symmetry where the draft is symmetric, crisp vector-like edges at high resolution, flat solid colors only.  maitri is 'a kinder computer': an independent Linux distribution whose name means loving-kindness. The logo should feel warm, calm, friendly and trustworthy while staying modern and precise, and simple enough to read as a 16 pixel favicon and as a 1024 pixel boot logo. Reference image 1 is maitri's current app icon: the open heart on a rounded square tile. Reference image 2 is the heart itself. Design a stronger app icon and favicon that stays readable from 16 pixels to 1024 pixels. Do not draw any letters or words. A rounded square tile with a soft gradient from #B08CFF at top to #6E52C9 at the bottom and a white open heart, friendly and bright, still flat and vector-like. The tile sits on a plain solid #0F0A18 background. Flat vector logo artwork: solid fills, crisp clean edges, perfect symmetry where it makes sense, centered with a generous empty margin. No shading, no 3D, no bevel, no glow, no texture, no mockup, no photo, no extra text, no watermark, no signature. ",
+  "refs": [
+    "draft tile/4a",
+    "refs/icon.png",
+    "refs/heart-dark.png"
+  ]
+}

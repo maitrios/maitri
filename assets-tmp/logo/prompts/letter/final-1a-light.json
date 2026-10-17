@@ -1,0 +1,6 @@
+{
+  "model": "local recolor (ImageMagick, no model)",
+  "size": "4096",
+  "source": "finals/letter/1a-dark.jpg",
+  "steps": "grayscale, then a CLUT mapping background to #F5F5F5, shadow tones to #B3A6E6 and the mark to #644AC9"
+}

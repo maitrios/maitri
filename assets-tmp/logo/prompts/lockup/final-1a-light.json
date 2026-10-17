@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "size": "4K",
+  "aspect": "16:9",
+  "prompt": "Reference image 1 is a finished logo already laid out for a light background. Redraw it as a clean light-mode logo master. Keep every shape, proportion and position exactly as in reference 1; only clean the edges and set exact colors: the background is one flat #F5F5F5 from edge to edge with no bands, shadows, vignette or gradient; the main shapes are violet #644AC9; the darkest secondary tone becomes #3E2C8A and any pale secondary tone becomes #CFCFDE. maitri is 'a kinder computer': an independent Linux distribution whose name means loving-kindness. The logo should feel warm, calm, friendly and trustworthy while staying modern and precise, and simple enough to read as a 16 pixel favicon and as a 1024 pixel boot logo. Flat vector logo artwork: solid fills, crisp clean edges, perfect symmetry where it makes sense, centered with a generous empty margin. No shading, no 3D, no bevel, no glow, no texture, no mockup, no photo, no extra text, no watermark, no signature. The lettering is a placeholder; keep it exactly as in reference 1. ",
+  "refs": [
+    "refs/inverted/lockup-1a.png (local lightness inversion of the dark final)"
+  ]
+}

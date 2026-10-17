@@ -1,0 +1,9 @@
+{
+  "model": "gemini-nano-banana-2.1",
+  "size": "1K",
+  "aspect": "1:1",
+  "prompt": "maitri is 'a kinder computer': an independent Linux distribution whose name means loving-kindness. The logo should feel warm, calm, friendly and trustworthy while staying modern and precise, and simple enough to read as a 16 pixel favicon and as a 1024 pixel boot logo. Reference image 1 is maitri's current mark: an open heart drawn as one even, rounded stroke whose two lobes curl inward at the top and leave a small gap in the middle. Evolve this mark into a more distinctive, more crafted version of itself; do not copy it. A filled solid heart silhouette with the open heart's inward curls carved into it as a narrow negative-space line from the top centre, so it reads boldly at 16 pixels and still shows the curl. Colors: primary amethyst #B08CFF, optional light lilac #DBB6FF and deep violet #5F4B8B, on a plain solid #0F0A18 near-black background. Flat vector logo artwork: solid fills, crisp clean edges, perfect symmetry where it makes sense, centered with a generous empty margin. No shading, no 3D, no bevel, no glow, no texture, no mockup, no photo, no extra text, no watermark, no signature. ",
+  "refs": [
+    "refs/heart-dark.png"
+  ]
+}
