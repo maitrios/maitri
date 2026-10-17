@@ -487,26 +487,46 @@ The set is opt-in, from Style > App Icons in the menu or the commands:
 
 - `maitri-icons-set` walks the launchers the way the desktop resolves them: the
   user dir (`$XDG_DATA_HOME/applications`, or `~/.local/share/applications`)
-  first, then each `$XDG_DATA_DIRS/applications`. For every launcher shown in
-  the launcher (no `NoDisplay=true` or `Hidden=true`) whose `Icon=` key has a
-  file in `default/icons/`, it points each matching `Icon=` line at that file's
-  absolute path. A launcher in a system dir gets a copy in the user dir; one
-  already in the user dir is edited in place after its original is saved.
-  Running it again only picks up launchers it hasn't swapped yet.
-- `maitri-icons-restore` undoes every swap still in place and clears the record.
+  first, then each `$XDG_DATA_DIRS/applications`. It reads only the
+  `[Desktop Entry]` group. For every launcher the menu shows (no
+  `NoDisplay=true` or `Hidden=true` there) whose `Icon=` key has a file in
+  `default/icons/` (a trailing `.png`, `.svg` or `.xpm` on the key is ignored),
+  it points each `Icon=` line with that key at the file's absolute path. A
+  launcher in a system dir gets a copy in the user dir; one already in the user
+  dir is edited in place after its original is saved.
+- Running `maitri-icons-set` again swaps launchers installed since, and
+  launchers whose icon was put back by hand or by `maitri-refresh-applications`
+  (which runs it again itself when a swap is on). It also keeps each copy in
+  step with its system launcher: an app update refreshes the copy, and an app
+  that's gone takes its copy with it. A copy you edited is left as you wrote it;
+  if its app is gone, only its icon goes back. It writes the manifest after
+  every change, so a run cut short leaves nothing restore can't find, and it
+  stops without touching anything when `default/icons/` is missing.
+- `maitri-icons-restore` undoes every swap still in place and clears the
+  record. Given desktop file names (`maitri-icons-restore code`, with or
+  without `.desktop`), it undoes only those.
+- Removing a swapped app from the launcher's Remove action drops its swap
+  first, along with the copy even if you edited it, so the app itself is
+  uninstalled rather than just the icon override.
 
 The record lives in `~/.local/state/maitri/icons/`:
 
 - `manifest`: one tab-separated line per launcher it changed,
-  `<desktop file name>\t<created|replaced>\t<icon path>`.
+  `<desktop file name>\t<created|replaced>\t<icon path>\t<sha256>`, where the
+  hash is of the launcher as `set` wrote it, or `-` when a copy from before the
+  hash column had already been edited. On its first run `set` hashes three-field
+  lines from before that column, comparing each copy with its system launcher.
 - `originals/<desktop file name>`: the user-dir launcher as it was before a
   `replaced` swap.
 
 Restore only touches a launcher whose `Icon=` still points at the recorded
-icon path. It deletes a `created` copy and moves a `replaced` original back;
-anything changed since (by the user, an update or `maitri-refresh-applications`)
-is left as it is. Set drops those stale entries the same way the next time it
-runs.
+icon path; anything else changed since is left as it is. When the launcher
+still matches its hash, it deletes a `created` copy and moves a `replaced`
+original back. When it was edited after the swap, or its original is missing,
+only the `Icon=` lines go back to the key, so the edits stay.
+
+The icon path is absolute, so a swap made under `maitri dev link` points at the
+checkout until it is restored and set again.
 
 ## Adding or overriding theme files
 

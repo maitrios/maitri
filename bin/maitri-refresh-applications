@@ -10,6 +10,10 @@ if maitri-cmd-present alacritty; then
   cp "$MAITRI_PATH/default/alacritty/Alacritty.desktop" ~/.local/share/applications/
 fi
 
+if [[ -s ~/.local/state/maitri/icons/manifest ]]; then
+  maitri-icons-set >/dev/null
+fi
+
 if [[ -f "$MAITRI_PATH/install/user/mise.sh" ]]; then
   bash "$MAITRI_PATH/install/user/mise.sh"
 fi
