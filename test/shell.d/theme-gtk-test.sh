@@ -206,7 +206,7 @@ ln -s "$dotfiles/gtk-4.0" "$link_home/.config/gtk-4.0"
 run_hook "$link_home" 2>"$test_tmp/stderr"
 [[ $(cat "$dotfiles/gtk-3.css") == 'label { color: red; }' ]] || fail "a symlinked gtk.css is not written through"
 [[ ! -e $dotfiles/gtk-4.0/gtk.css ]] || fail "nothing is written into a symlinked GTK config dir"
-(( $(grep -c "is a symlink, so maitri left it alone" "$test_tmp/stderr") == 2 )) ||
+(( $(grep -c "so maitri left it alone" "$test_tmp/stderr") == 2 )) ||
   fail "the hook says how to follow the theme from a symlinked config" "$(cat "$test_tmp/stderr")"
 grep -qF "@import url(\"file://$link_home/.local/state/maitri/current/gtk-4.0.css\");" "$test_tmp/stderr" ||
   fail "the hint names the import line to add" "$(cat "$test_tmp/stderr")"
@@ -295,6 +295,60 @@ cmp -s "$gtk4" "$test_tmp/shape-before" || fail "a CRLF gtk.css gets one block h
 [[ $(sed -n 4p "$gtk4") == '/* >>> maitri theme (rewritten by maitri theme set) >>> */' ]] || fail "the block follows the prelude"
 [[ $(stat -c %a "$gtk4") == 600 ]] || fail "the hook keeps gtk.css's mode" "$(stat -c %a "$gtk4")"
 pass "the prelude stays whole, CRLF files stay at one block, and the file mode is kept"
+
+prelude_home="$test_tmp/prelude-home"
+render_theme amethyst "$prelude_home"
+mkdir -p "$prelude_home/.config/gtk-3.0"
+prelude="$prelude_home/.config/gtk-3.0/gtk.css"
+first_rule() { grep -nxF '/* >>> maitri theme (rewritten by maitri theme set) >>> */' "$prelude" | cut -d: -f1; }
+printf '/* header */ button {\n/* colour */\n  color: red;\n}\n' >"$prelude"
+run_hook "$prelude_home" 2>/dev/null
+(( $(first_rule) == 1 )) || fail "a comment closing mid-line before a rule puts the block above it" "$(cat "$prelude")"
+printf '/*\n  tweaks\n*/ window { background: red; }\nlabel { color: blue; }\n' >"$prelude"
+run_hook "$prelude_home" 2>/dev/null
+(( $(first_rule) == 1 )) || fail "a rule on the line a comment closes on puts the block above the comment" "$(cat "$prelude")"
+printf '/* mine */\n@import url(\n  "a;b.css");\n@charset "utf-8";\nlabel { color: blue; }\n' >"$prelude"
+run_hook "$prelude_home" 2>/dev/null
+(( $(first_rule) == 5 )) || fail "the block follows a prelude of comments and statements, quoted semicolons included" "$(cat "$prelude")"
+[[ $(tail -n 1 "$prelude") == 'label { color: blue; }' ]] || fail "the user's rule stays after the block"
+if /usr/bin/python3 -c 'import gi; gi.require_version("Gtk", "3.0")' 2>/dev/null; then
+  printf '/* header */ button {\n/* colour */\n  color: red;\n}\n' >"$prelude"
+  run_hook "$prelude_home" 2>/dev/null
+  /usr/bin/python3 - "$prelude" <<'PY' || fail "GTK 3 parses gtk.css with the block above a commented rule"
+import sys, gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk
+errors = []
+provider = Gtk.CssProvider()
+provider.connect("parsing-error", lambda _p, _section, error: errors.append(error.message))
+provider.load_from_path(sys.argv[1])
+sys.exit("\n".join(errors) if errors else 0)
+PY
+fi
+pass "the block never lands inside or after the user's rules"
+
+guard_home="$test_tmp/guard-home"
+render_theme amethyst "$guard_home"
+mkdir -p "$guard_home/.config/gtk-4.0"
+guarded="$guard_home/.config/gtk-4.0/gtk.css"
+printf 'label { color: red; }\n' >"$guarded"
+chmod 444 "$guarded"
+run_hook "$guard_home" 2>/dev/null && fail "the hook reports a read-only gtk.css"
+chmod 644 "$guarded"
+[[ $(cat "$guarded") == 'label { color: red; }' ]] || fail "a read-only gtk.css is left alone"
+broken_bin="$test_tmp/broken-awk"
+mkdir -p "$broken_bin"
+printf '#!/bin/bash\necho "/* partial"\nexit 2\n' >"$broken_bin/awk"
+chmod +x "$broken_bin/awk"
+HOME="$guard_home" XDG_CONFIG_HOME="$guard_home/.config" XDG_RUNTIME_DIR="$guard_home" MAITRI_PATH="$ROOT" \
+  PATH="$broken_bin:$ROOT/bin:$PATH" bash "$ROOT/bin/maitri-theme-set-gtk" 2>/dev/null && fail "the hook reports a failed rewrite"
+[[ $(cat "$guarded") == 'label { color: red; }' ]] || fail "a failed rewrite leaves gtk.css as it was"
+[[ -z $(find "$guard_home/.config/gtk-4.0" -name '.gtk.css.*') ]] || fail "a failed rewrite leaves no staging file"
+ln "$guarded" "$test_tmp/hard-link.css"
+run_hook "$guard_home" 2>"$test_tmp/stderr"
+[[ $(cat "$guarded") == 'label { color: red; }' ]] || fail "a hard-linked gtk.css is left alone"
+grep -q "hard link" "$test_tmp/stderr" || fail "the hook says why it left a hard-linked gtk.css alone"
+pass "a read-only, failed or hard-linked rewrite never touches gtk.css"
 
 skip_home="$test_tmp/skip-home"
 render_theme amethyst "$skip_home"
