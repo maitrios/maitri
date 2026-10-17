@@ -78,7 +78,7 @@ awk -v start="$block_start" -v end="$block_end" -v theme="$theme" '
 
   {
     all[NR] = $0
-    if (trimmed($0) == start && !s) s = NR
+    if (trimmed($0) == start && !e) s = NR
     else if (trimmed($0) == end && s && !e) e = NR
   }
 

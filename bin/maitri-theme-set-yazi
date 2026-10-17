@@ -33,7 +33,7 @@ flock 9
 # below, so a [flavor] after it counts as theirs.
 if awk -v start="$block_start" -v end="$block_end" '
   NR == FNR {
-    if ($0 == start && !s) s = FNR
+    if ($0 == start && !e) s = FNR
     else if ($0 == end && s && !e) e = FNR
     next
   }
@@ -73,7 +73,7 @@ awk -v start="$block_start" -v end="$block_end" -v block="$block" '
   }
 
   NR == FNR {
-    if ($0 == start && !s) s = FNR
+    if ($0 == start && !e) s = FNR
     else if ($0 == end && s && !e) e = FNR
     next
   }

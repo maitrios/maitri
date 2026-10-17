@@ -517,6 +517,36 @@ printf -- '--theme-dark="ansi"\n--theme-light="GitHub"\n' >"$home/.config/bat/co
 run_hook "$home" maitri-theme-set-bat "$apps:$sandbox" || fail "maitri-theme-set-bat runs beside per-mode themes"
 [[ $(<"$home/.config/bat/config") == $'--theme-dark="ansi"\n--theme-light="GitHub"' ]] || fail "bat keeps the user's own --theme-dark and --theme-light" "$(cat "$home/.config/bat/config")"
 
+home=$(new_home twice amethyst)
+config="$home/.config"
+mkdir -p "$config/bat" "$config/git" "$config/fish" "$config/lazygit" "$config/yazi"
+marker='# >>> maitri theme (rewritten by maitri theme set) >>>'
+printf '%s\n# my note\n\n--style=plain\n' "$marker" >"$config/bat/config"
+printf '%s\n[user]\n\tname = me\n' "$marker" >"$config/git/config"
+printf '%s\n# my note\nset -gx MINE 1\n' "$marker" >"$config/fish/config.fish"
+printf '  %s\ncustomCommands:\n  - key: x\ngui:\n  showIcons: true\n' "$marker" >"$config/lazygit/config.yml"
+printf '%s\n[mgr]\nratio = [1, 2, 3]\n' "$marker" >"$config/yazi/theme.toml"
+for pass in first second; do
+  for hook in "${hooks[@]}"; do
+    run_hook "$home" "$hook" "$apps:$sandbox" || fail "$hook runs beside a start marker without an end ($pass run)"
+  done
+done
+for line in '# my note' '--style=plain'; do
+  grep -qxF -- "$line" "$config/bat/config" || fail "bat keeps $line past a dangling start marker" "$(cat "$config/bat/config")"
+done
+grep -qxF $'\tname = me' "$config/git/config" || fail "git keeps the user's settings past a dangling start marker" "$(cat "$config/git/config")"
+grep -qxF 'set -gx MINE 1' "$config/fish/config.fish" && grep -qxF '# my note' "$config/fish/config.fish" ||
+  fail "config.fish keeps the user's lines past a dangling start marker" "$(cat "$config/fish/config.fish")"
+grep -qxF '  - key: x' "$config/lazygit/config.yml" && grep -qxF '  showIcons: true' "$config/lazygit/config.yml" ||
+  fail "lazygit keeps the user's settings past a dangling start marker" "$(cat "$config/lazygit/config.yml")"
+grep -qxF 'ratio = [1, 2, 3]' "$config/yazi/theme.toml" && grep -qxF 'dark = "maitri"' "$config/yazi/theme.toml" ||
+  fail "yazi keeps the user's tables past a dangling start marker" "$(cat "$config/yazi/theme.toml")"
+for file in "$config/bat/config" "$config/git/config" "$config/fish/config.fish" "$config/lazygit/config.yml" "$config/yazi/theme.toml"; do
+  (( $(grep -c '# <<< maitri theme <<<' "$file") == 1 )) || fail "a second run leaves one block in $(basename "$file")" "$(cat "$file")"
+done
+python3 -c 'import sys, tomllib; tomllib.load(open(sys.argv[1], "rb"))' "$config/yazi/theme.toml" || fail "yazi's theme.toml still parses"
+pass "a start marker without an end loses no user lines, however many times the hooks run"
+
 home=$(new_home dangling amethyst)
 mkdir -p "$home/.config/yazi"
 printf '# >>> maitri theme (rewritten by maitri theme set) >>>\n[flavor]\ndark = "mine"\n' >"$home/.config/yazi/theme.toml"

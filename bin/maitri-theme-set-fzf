@@ -66,7 +66,7 @@ awk -v start="$block_start" -v end="$block_end" -v block="$block" '
   }
 
   NR == FNR {
-    if ($0 == start && !s) s = FNR
+    if ($0 == start && !e) s = FNR
     else if ($0 == end && s && !e) e = FNR
     if (!first && $0 ~ /^[[:space:]]*$/) gap = FNR
     else if (!first && $0 !~ /^[[:space:]]*#/) first = FNR
