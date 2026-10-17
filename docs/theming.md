@@ -387,6 +387,31 @@ For a gradient it renders:
 local active_border_color = { colors = { "rgba(33ccffee)", "rgba(00ff99ee)" }, angle = 45 }
 ```
 
+## Neovim
+
+`default/themed/neovim.lua.tpl` renders a Lazy plugin spec that loads maitri's
+own colorscheme from `default/nvim/maitri-theme` and hands it the theme's
+`colors.toml` values as `opts`. The colorscheme works out everything else from
+those roles in Lua: diff, search and selection tints, the heading ramp (H1 in
+`accent`, each lower level a step toward `foreground`, all bold), float and
+border colors, the lualine theme and `g:terminal_color_0..15`. It needs no
+roles beyond the ones above. Any text color (`accent`, `dark_foreground` and
+the syntax colors) that falls under 4.5:1 against `background` is moved
+toward `foreground` until it clears that, so a user theme with a pale `orange`
+still reads. The terminal colors Neovim hands to `:terminal` stay exactly as
+the theme sets them. When `accent` sits close to `red`, `orange`, `cyan` or
+`green`, diagnostic hints use `magenta` (or `blue`) instead, and lualine's
+other modes step off any hue that matches the accent, so a hint never looks
+like a warning.
+
+`~/.config/nvim/lua/plugins/theme.lua` links to the rendered file, and the
+`theme-hotreload` plugin swaps it when the theme changes. That reload finds
+the colorscheme by the spec's name, `maitri-theme`, so keep the name stable.
+
+To change the colorscheme for every theme, copy the template to
+`~/.config/maitri/themed/neovim.lua.tpl` and point its `dir` at your own copy
+of `default/nvim/maitri-theme`.
+
 ## Adding or overriding theme files
 
 - Add palette values to `themes/<name>/colors.toml`.
