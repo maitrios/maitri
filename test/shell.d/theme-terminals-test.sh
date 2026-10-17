@@ -112,17 +112,23 @@ def checks():
     check("btop", "followed_fg", b["followed_fg"], b["followed_bg"], TEXT)
     for key in ("proc_pause_bg", "proc_follow_bg", "proc_banner_bg"):
         check("btop", f"banner on {key}", b["proc_banner_fg"], b[key], TEXT)
-    for key in ("cpu_box", "mem_box", "net_box", "proc_box", "div_line", "meter_bg"):
+    for key in ("cpu_box", "mem_box", "net_box", "proc_box", "div_line"):
         check("btop", key, b[key], bg, LINE)
     for key in sorted(b):
         if re.search(r"_(start|mid|end)$", key):
             check("btop", key, b[key], bg, LINE)
+        if key.endswith("_start"):
+            check("btop", f"{key} on meter_bg", b[key], b["meter_bg"], LINE)
     syntax = {palette[h] for h in ("green", "yellow", "blue", "magenta", "cyan") if palette[h] != palette["accent"]}
     for key in ("cpu_box", "mem_box", "net_box", "proc_box", "div_line", "meter_bg", "title", "selected_fg", "hi_fg"):
         if b[key] in syntax:
             fail(f"btop {key} is a syntax hue")
     if b["temp_mid"] != palette["orange"] or b["temp_end"] != palette["red"]:
         fail("btop temperature does not warn in orange and end in red")
+    if b["temp_start"] in (b["temp_mid"], b["temp_end"]):
+        fail("btop temperature starts at its warning or critical colour")
+    if b["temp_start"] != palette["comment"]:
+        fail("btop temperature does not start at comment")
     if "gradient_color_0" in b:
         fail("btop.theme sets gradient_color keys btop does not read")
 

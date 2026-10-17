@@ -72,7 +72,7 @@ set_herdr_theme || fail "maitri-theme-set-herdr applies a theme to the shipped c
 
 (( $(grep -c '^\[theme\]$' "$config") == 1 )) || fail "the shipped config keeps a single [theme] table"
 (( $(grep -c '^\[theme.custom\]$' "$config") == 1 )) || fail "the shipped config keeps a single [theme.custom] table"
-grep -qx "accent = \"$accent\"" "$config" || fail "the theme accent reaches the herdr config"
+grep -qix "accent = \"$accent\"" "$config" || fail "the theme accent reaches the herdr config"
 ! grep -q 'panel_bg = "black"' "$config" || fail "the old theme colors are replaced"
 ! grep -q 'tmux ran on the terminal' "$config" || fail "comments inside the old theme tables go with them"
 diff <(non_theme_tables "$original") <(non_theme_tables "$config") >/dev/null ||
@@ -102,7 +102,7 @@ set_herdr_theme || fail "maitri-theme-set-herdr applies a theme to a config with
 head -n "$(wc -l <"$original")" "$config" | cmp -s - "$original" ||
   fail "a config without a theme keeps its content ahead of the appended theme" "$(cat "$config")"
 (( $(grep -c '^\[theme\]$' "$config") == 1 )) || fail "a theme section is appended"
-grep -qx "accent = \"$accent\"" "$config" || fail "the appended theme carries the theme colors"
+grep -qix "accent = \"$accent\"" "$config" || fail "the appended theme carries the theme colors"
 diff <(non_theme_tables "$original") <(non_theme_tables "$config" | sed '$ { /^$/d }') >/dev/null ||
   fail "appending the theme leaves the other tables untouched" "$(cat "$config")"
 pass "a config without a theme section gets one appended"

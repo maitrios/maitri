@@ -229,7 +229,10 @@ tab strips, etc.) around four states: `normal`, `hover-cursor`, `focus`,
 and `selected`. State colors and border tokens accept palette roles
 (`foreground`, `accent`, `urgent`, `background`) or hex strings; border
 values may also be gradients. Fill alpha applies to the state color;
-border alpha applies to the state's border token.
+border alpha applies to the state's border token. The `Style.*BorderFor`
+helpers plugins call (`normalBorderFor`, `hoverBorderFor`, `focusBorderFor`,
+`selectedBorderFor`) resolve through `Border.controlSpec`, so they draw the
+same border token at the same alpha.
 
 Surfaces like `[menu]`, `[launcher]`, and `[image-picker]` define
 their own `selected-*` tokens and do **not** inherit from `[controls]`.

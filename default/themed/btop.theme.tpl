@@ -23,7 +23,7 @@ theme[inactive_fg]="{{ comment }}"
 theme[graph_text]="{{ light_foreground }}"
 
 # Background color of the percentage meters
-theme[meter_bg]="{{ border }}"
+theme[meter_bg]="{{ lighter_background }}"
 
 # Misc colors for processes box including mini cpu graphs, details memory graph and details status text
 theme[proc_misc]="{{ light_foreground }}"
@@ -37,13 +37,13 @@ theme[proc_box]="{{ border_focus }}"
 # Box divider line and small boxes line color
 theme[div_line]="{{ border }}"
 
-# Temperature graph color, warning in orange and critical in red
-theme[temp_start]="{{ accent }}"
+# Temperature graph color, neutral when cool, warning in orange and critical in red
+theme[temp_start]="{{ comment }}"
 theme[temp_mid]="{{ orange }}"
 theme[temp_end]="{{ red }}"
 
 # CPU graph colors
-theme[cpu_start]="{{ border_focus }}"
+theme[cpu_start]="{{ mix border_focus accent 20% }}"
 theme[cpu_mid]="{{ accent }}"
 theme[cpu_end]="{{ mix accent foreground 50% }}"
 
@@ -63,12 +63,12 @@ theme[available_mid]="{{ light_foreground }}"
 theme[available_end]="{{ foreground }}"
 
 # Mem/Disk used meter
-theme[used_start]="{{ border_focus }}"
+theme[used_start]="{{ mix border_focus accent 20% }}"
 theme[used_mid]="{{ accent }}"
 theme[used_end]="{{ mix accent foreground 50% }}"
 
 # Download graph colors
-theme[download_start]="{{ border_focus }}"
+theme[download_start]="{{ mix border_focus accent 20% }}"
 theme[download_mid]="{{ accent }}"
 theme[download_end]="{{ mix accent foreground 50% }}"
 
@@ -78,7 +78,7 @@ theme[upload_mid]="{{ light_foreground }}"
 theme[upload_end]="{{ foreground }}"
 
 # Process box color gradient for threads, mem and cpu usage
-theme[process_start]="{{ border_focus }}"
+theme[process_start]="{{ mix border_focus accent 20% }}"
 theme[process_mid]="{{ accent }}"
 theme[process_end]="{{ mix accent foreground 50% }}"
 

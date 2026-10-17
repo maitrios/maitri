@@ -102,6 +102,15 @@ class Check:
         if not same(got, self.p[role]):
             self.errors.append(f"{label} is {got}, expected {role} {self.p[role]}")
 
+    def lifted(self, label, got, role, surface):
+        expected = self.p[role]
+        for step in range(51):
+            expected = "#%02x%02x%02x" % tuple(int(a + (b - a) * step / 50 + 0.5) for a, b in zip(rgb(self.p[role]), rgb(self.p["foreground"])))
+            if contrast(expected, surface) >= TEXT:
+                break
+        if not same(got, expected):
+            self.errors.append(f"{label} is {got}, expected {role} lifted to {expected} on {surface}")
+
     def expect(self, condition, message):
         if not condition:
             self.errors.append(message)
@@ -147,7 +156,7 @@ def zed(theme, p, path):
     for key in text:
         for surface in surfaces:
             c.floor(f"{key} on {surface}", s[key], s[surface])
-    for key in ["text", "text.muted", "text.accent", "icon", "icon.muted", "icon.accent"]:
+    for key in ["text", "text.muted", "text.accent", "icon", "icon.muted", "icon.accent"] + statuses + [k for k in s if k.startswith("version_control.")]:
         for row in ["element.selected", "element.active", "ghost_element.selected", "ghost_element.active"]:
             c.floor(f"{key} on {row}", s[key], s[row])
     for status in statuses:
@@ -185,9 +194,9 @@ def zed(theme, p, path):
     c.role("link_text", syntax["link_text"]["color"], "link")
     c.role("title", syntax["title"]["color"], "accent")
     c.expect(syntax["title"].get("font_weight", 0) >= 700, "headings are not bold")
-    c.role("hint", s["hint"], "hint")
-    c.role("warning", s["warning"], "orange")
-    c.role("error", s["error"], "red")
+    c.lifted("hint", s["hint"], "hint", s["element.selected"])
+    c.lifted("warning", s["warning"], "orange", s["element.selected"])
+    c.lifted("error", s["error"], "red", s["element.selected"])
     c.role("border", s["border"], "border")
     c.role("focused border", s["border.focused"], "border_focus")
     c.role("selection", s["players"][0]["selection"], "selection")
@@ -341,7 +350,7 @@ def emacs(theme, p, path):
         c.floor(f"{name} in the mode line", resolve(name, "foreground"), mode_line)
     for name in ("completions-common-part", "completions-first-difference", "completions-annotations",
                  "orderless-match-face-0", "orderless-match-face-1", "orderless-match-face-2", "orderless-match-face-3",
-                 "company-tooltip-common"):
+                 "company-tooltip-common", "error", "warning", "success"):
         c.floor(f"{name} on the selected candidate", resolve(name, "foreground"), selected)
     c.floor("braces on show-paren-match", faces["font-lock-bracket-face"]["foreground"], faces["show-paren-match"]["background"])
 
@@ -361,8 +370,9 @@ def emacs(theme, p, path):
     c.expect(faces["c-annotation-face"].get("slant") == "italic", "attributes are not italic")
     c.role("region", faces["region"]["background"], "selection")
     c.role("link", faces["link"]["foreground"], "link")
-    c.role("warning", faces["warning"]["foreground"], "orange")
-    c.role("error", faces["error"]["foreground"], "red")
+    c.lifted("warning", faces["warning"]["foreground"], "orange", selected)
+    c.lifted("error", faces["error"]["foreground"], "red", selected)
+    c.lifted("success", faces["success"]["foreground"], "green", selected)
     c.role("vertical-border", faces["vertical-border"]["foreground"], "border")
     c.role("line-number", faces["line-number"]["foreground"], "comment")
     c.expect(same(faces["flymake-note"]["lines"][0], p["hint"]), "flymake notes are not the hint role")
@@ -480,3 +490,15 @@ run_hook "$home" maitri-theme-set-zed "$apps:$sandbox" || fail "maitri-theme-set
 grep -q "unresolved colors" "$home/hook.stderr" || fail "the Zed hook says why it skipped"
 
 pass "the editor hooks install only for editors that are present and say when a restart is needed"
+
+for doc in docs/theming.md default/agents/skills/maitri/theming.md bin/maitri-theme-set; do
+  for editor in Zed JetBrains Emacs; do
+    grep -q "$editor" "$ROOT/$doc" || fail "$doc names $editor"
+  done
+done
+! grep -q "editor that loads Lua" "$ROOT/docs/theming.md" "$ROOT/bin/maitri-theme-set" ||
+  fail "the denylist wording covers editors whose themes run code, not only Lua"
+grep -q '"theme": "maitri"' "$ROOT/docs/theming.md" || fail "the theming docs say how to pick the theme in Zed"
+grep -q "(load-theme 'maitri t)" "$ROOT/docs/theming.md" || fail "the theming docs say how to load the theme in Emacs"
+grep -q 'emacs-theme.el' "$ROOT/default/agents/skills/maitri/theming.md" || fail "the theming skill lists emacs-theme.el as dropped from a cloned theme"
+pass "the theming docs name Zed, JetBrains and Emacs and how to use each"

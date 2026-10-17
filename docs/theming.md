@@ -65,13 +65,14 @@ instead of racing.
 - any `*.lua` — Hyprland `require`s a theme's `hyprland.lua` and `gum_env.lua` at login, and Neovim loads its `neovim.lua` at startup
 - `alacritty.toml`, `foot.ini`, `ghostty.conf`, `kitty.conf` — each names the program the terminal launches
 - `vscode.json` — names the extension `maitri-theme-set-vscode` installs, and a VS Code extension is arbitrary JavaScript
+- `emacs-theme.el` — Elisp, which Emacs runs when it loads the theme
 - `herdr.toml` — `maitri-theme-set-herdr` splices it into herdr's own `config.toml`, which runs commands
 
 A theme's `gtk.css` is kept, but `maitri-theme-set-gtk` only splices it into the user's GTK config when every line is an `@define-color name #RRGGBB;`, a comment or blank; otherwise GTK apps drop back to their own look. With the `skip-gtk-theme-changes` toggle on, `maitri-theme-set-gtk` leaves GTK alone and the colours of the last theme it applied stay in place. It rewrites gtk.css by moving a new copy into place, which keeps the file's mode but not ACLs or extended attributes; a symlinked or hard-linked gtk.css is left alone with a hint instead.
 
-Symlinks are dropped with them, at any depth; in a cloned theme they point wherever the theme author chose. Everything a cloned theme ships that is colour is kept, including files maitri would otherwise have generated — `btop.theme`, `helix.toml`, `shell.toml`, `icons.theme`, `keyboard.rgb` and the rest — so a theme can still say exactly how it wants each app to look. What is dropped gets generated from `default/themed/*.tpl` instead, and is named on stderr.
+Symlinks are dropped with them, at any depth; in a cloned theme they point wherever the theme author chose. Everything a cloned theme ships that is colour is kept, including files maitri would otherwise have generated — `btop.theme`, `helix.toml`, `shell.toml`, `zed.json`, `jetbrains.icls`, `icons.theme`, `keyboard.rgb` and the rest — so a theme can still say exactly how it wants each app to look. What is dropped gets generated from `default/themed/*.tpl` instead, and is named on stderr.
 
-A denylist is only right while it is maintained. Adding a template for another terminal, or for another editor that loads Lua, means adding it to `INSTALLED_THEME_DENIED` in `bin/maitri-theme-set`; `test/shell.d/theme-staging-test.sh` fails on any `default/themed/*.tpl` whose output is recorded as neither code nor colour, so a new template cannot be added without that decision being made.
+A denylist is only right while it is maintained. Adding a template for another terminal, or for another editor whose theme file runs code (Neovim's Lua, Emacs' Elisp; Zed and JetBrains only read colours), means adding it to `INSTALLED_THEME_DENIED` in `bin/maitri-theme-set`; `test/shell.d/theme-staging-test.sh` fails on any `default/themed/*.tpl` whose output is recorded as neither code nor colour, so a new template cannot be added without that decision being made.
 
 A theme predating `colors.toml` is not left without a palette: its `alacritty.toml` is read through `maitri-theme-colors-from-alacritty` into a scratch directory and only the resulting `colors.toml` is staged, so the colors survive and the terminal config does not.
 
@@ -125,7 +126,10 @@ shell palette is loaded from:
   value ends up as glyphs a person reads. Falls back to `color8`, then
   `foreground`, so it always resolves.
 - `comment` — the same value as `dark_foreground`, under the name editors use.
-  Falls back to `dark_foreground`.
+  Falls back to `dark_foreground` moved toward `foreground` until it clears
+  4.5:1, so a theme with only `color0` to `color15` doesn't get a `color8`
+  comment at 2:1. When `foreground` itself is under 4.5:1, the fallback stops
+  at `foreground`, so comments are never louder than body text.
 - `selection` — the selection fill: a tint of `accent`, light enough that
   `foreground` stays readable on it. Text on `selection` is `foreground` (or
   `bright_foreground`). `accent` isn't a text color there: on daybreak it's
@@ -136,7 +140,12 @@ shell palette is loaded from:
   table edges. Unlike `muted` it clears 3:1 against `background`. Falls back to
   `muted` moved toward `foreground` until it clears 3:1.
 - `border_focus` — the focused or floating border, a step of `accent` toward
-  `background` that clears 3:1. Falls back to `accent`.
+  `background` that clears 3:1. Falls back to `background` mixed 60% toward
+  `accent`, then moved back toward `accent` until it clears 3:1, the same
+  step the Neovim palette takes. If that lands within 1.3:1 of the accent
+  (an accent that only just clears 3:1 itself), it steps the other way, from
+  the accent toward black on a light background or white on a dark one,
+  until it sits 1.3:1 off the accent.
 - `hint` — hint diagnostics. It's `accent` unless the accent sits near `red`,
   `orange`, `cyan` or `green` (error, warning, info, ok), when it's the next
   hue that doesn't. Falls back to `accent`, so a theme whose accent is orange,
@@ -463,6 +472,33 @@ For a gradient it renders:
 local active_border_color = { colors = { "rgba(33ccffee)", "rgba(00ff99ee)" }, angle = 45 }
 ```
 
+## Zed, JetBrains and Emacs
+
+Each editor gets a theme rendered from `colors.toml`, installed by its own
+`maitri-theme-set-*` hook only when that editor is on the machine. None of the
+hooks touch the editor's own settings, so pick the theme once:
+
+- **Zed** — `maitri-theme-set-zed` writes `~/.config/zed/themes/maitri.json`
+  (under `XDG_CONFIG_HOME` when it's set), and Zed reloads it live. Set
+  `"theme": "maitri"` in Zed's `settings.json`.
+- **JetBrains** — `maitri-theme-set-jetbrains` copies `maitri.icls` into
+  `colors/` in every versioned IDE config dir under `~/.config/JetBrains/` (and
+  Android Studio's under `~/.config/Google/`), with a light parent scheme on
+  light themes. Pick `maitri` under Settings → Editor → Color Scheme. The IDE
+  reads the file at startup, so a theme change shows after a restart.
+- **Emacs** — `maitri-theme-set-emacs` installs `maitri-theme.el` into
+  `themes/` under the dir Emacs uses: the XDG dir (`~/.config/emacs`) when it
+  exists and none of `~/.emacs.d`, `~/.emacs` or `~/.emacs.el` do, otherwise
+  `~/.emacs.d`, so a fresh machine gets `~/.emacs.d`. Load it from your init
+  file:
+
+  ```elisp
+  (add-to-list 'custom-theme-load-path (locate-user-emacs-file "themes"))
+  (load-theme 'maitri t)
+  ```
+
+  A running Emacs picks up new colours on the next `load-theme`.
+
 ## Neovim
 
 `default/themed/neovim.lua.tpl` renders a Lazy plugin spec that loads maitri's
@@ -475,7 +511,7 @@ the theme's `selection` for Visual, `border_focus` for float borders, `border`
 for window separators, and `hint`, `link` and `comment`, so Neovim and the
 other apps begin from the same values. A `link` within 60° of the accent, a
 `hint` too close to a diagnostic color, a `selection` under 1.3:1 against the
-background or a `border_focus` that's just the accent (its fallback) is
+background or a `border_focus` that's just the accent is
 replaced with what the colorscheme works out from the base roles, and any of
 them that falls under its floor on Neovim's own surfaces is moved as described
 below, so on dark themes `comment` reads a shade lighter in Neovim than
