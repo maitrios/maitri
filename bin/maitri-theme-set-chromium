@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # maitri:summary=Color Helium, Chromium and Chrome profiles from the current maitri theme
-# maitri:args=[--when-closed [<user data dir> <pid>]...]
+# maitri:args=[--when-closed]
 # maitri:hidden=true
 
 THEME_DIR="$HOME/.local/state/maitri/current/theme"
@@ -10,6 +10,7 @@ STATE_DIR="$HOME/.local/state/maitri"
 WRITTEN_COLORS="$STATE_DIR/chromium-theme-colors"
 APPLY_LOCK="$STATE_DIR/chromium-theme.lock"
 WAITER_LOCK="$STATE_DIR/chromium-theme-waiter.lock"
+HOLDERS="$STATE_DIR/chromium-theme-holders"
 
 BROWSERS=(
   "Helium|helium helium-browser|$HOME/.config/net.imput.helium $HOME/.config/helium"
@@ -90,13 +91,14 @@ try:
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump(prefs, f, separators=(",", ":"))
     os.chmod(tmp, os.stat(preferences_path).st_mode & 0o777)
-    if color not in written:
-        with open(written_path, "a", encoding="utf-8") as f:
-            f.write(color + "\n")
     os.replace(tmp, preferences_path)
 except OSError:
     os.unlink(tmp)
     sys.exit(2)
+
+if color not in written:
+    with open(written_path, "a", encoding="utf-8") as f:
+        f.write(color + "\n")
 PY
 )
 
@@ -128,25 +130,24 @@ installed_roots() {
   done
 }
 
-# A running browser holds Preferences in memory and writes them back on exit.
-# Its SingletonLock names the process, and a lock left behind by a crash names
-# one that no longer exists. Prints that process, or "elsewhere" for a browser
-# running on another host over a shared home.
+# A running browser holds Preferences in memory and writes them back on exit,
+# after it has already dropped its SingletonLock, and a crash leaves a lock
+# naming a process that is gone or reused. So a browser counts as open while
+# any process has a file open inside its user data dir. Prints that process,
+# or "elsewhere" for a lock taken on another host over a shared home.
 root_holder() {
-  local target host pid
+  local target fd
 
-  target=$(readlink "$1/SingletonLock" 2>/dev/null) || return 1
-  host=${target%-*}
-  pid=${target##*-}
-  [[ $pid =~ ^[0-9]+$ ]] || return 1
-
-  if [[ $host != "$(uname -n)" ]]; then
+  target=$(readlink "$1/SingletonLock" 2>/dev/null)
+  if [[ $target =~ -[0-9]+$ && ${target%-*} != "$(uname -n)" ]]; then
     echo elsewhere
-  elif kill -0 "$pid" 2>/dev/null; then
-    echo "$pid"
-  else
-    return 1
+    return 0
   fi
+
+  fd=$(find /proc/[0-9]*/fd -maxdepth 1 -lname "$1/*" -print -quit 2>/dev/null)
+  [[ -n $fd ]] || return 1
+  fd=${fd#/proc/}
+  echo "${fd%%/*}"
 }
 
 root_open() {
@@ -177,13 +178,33 @@ apply_root() {
 
   mkdir -p "$STATE_DIR"
   (
-    flock -w 10 8 || exit 0
+    flock -w 10 8 || exit 1
     color=$(theme_color) || exit 0
-    root_open "$root" && exit 0
+    root_open "$root" && exit 1
 
     while IFS= read -r preferences; do
       python3 -c "$apply_py" apply "$preferences" "$color" "$WRITTEN_COLORS"
     done < <(profiles "$root")
+    exit 0
+  ) 8>"$APPLY_LOCK"
+}
+
+# Each run that finds a browser open records it here, so a waiter that is
+# already running learns about it even if the browser closes between polls.
+record_holder() {
+  mkdir -p "$STATE_DIR"
+  (
+    flock -w 10 8 || exit 0
+    printf '%s\t%s\n' "$1" "$2" >>"$HOLDERS"
+  ) 8>"$APPLY_LOCK"
+}
+
+take_holders() {
+  (
+    flock -w 10 8 || exit 0
+    [[ -f $HOLDERS ]] || exit 0
+    cat "$HOLDERS"
+    rm -f "$HOLDERS"
   ) 8>"$APPLY_LOCK"
 }
 
@@ -191,24 +212,21 @@ wait_until_closed() {
   local -A holders=()
   local name root color waiting pid
 
-  while (( $# >= 2 )); do
-    holders[$1]=$2
-    shift 2
-  done
-
   mkdir -p "$STATE_DIR"
   exec 9>"$WAITER_LOCK"
   flock -w 10 9 || exit 0
 
   while (( SECONDS < 86400 )); do
+    while IFS=$'\t' read -r root pid; do
+      [[ -n $root ]] && holders[$root]=$pid
+    done < <(take_holders)
+
     color=$(theme_color) || exit 0
     waiting=0
 
     while IFS=$'\t' read -r name root; do
       root_needs_color "$color" "$root" || continue
 
-      # Chromium removes its lock before its last write of Preferences, so a
-      # browser seen open stays open until its process is gone.
       if pid=$(root_holder "$root"); then
         holders[$root]=$pid
         waiting=1
@@ -216,33 +234,31 @@ wait_until_closed() {
         waiting=1
       else
         unset "holders[$root]"
-        apply_root "$root"
+        apply_root "$root" || waiting=1
       fi
     done < <(installed_roots)
 
-    (( waiting )) || exit 0
+    (( waiting )) || [[ -s $HOLDERS ]] || exit 0
     sleep 2
   done
 }
 
 if [[ ${1:-} == "--when-closed" ]]; then
-  shift
-  wait_until_closed "$@"
+  wait_until_closed
   exit 0
 fi
 
 color=$(theme_color) || exit 0
 open=()
-holders=()
 
 while IFS=$'\t' read -r name root; do
   root_needs_color "$color" "$root" || continue
 
   if pid=$(root_holder "$root"); then
     open+=("$name")
-    holders+=("$root" "$pid")
+    record_holder "$root" "$pid"
   else
-    apply_root "$root"
+    apply_root "$root" || { open+=("$name"); record_holder "$root" ""; }
   fi
 done < <(installed_roots)
 
@@ -252,4 +268,4 @@ for name in $(printf '%s\n' "${open[@]}" | sort -u); do
   echo "$name is open, so it picks up the new theme once it's closed and started again." >&2
 done
 
-setsid -f "$0" --when-closed "${holders[@]}" </dev/null >/dev/null 2>&1
+setsid -f "$0" --when-closed </dev/null >/dev/null 2>&1
