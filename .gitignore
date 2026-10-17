@@ -9,3 +9,7 @@ __pycache__/
 # ISO builds
 /release/
 /iso/release/
+
+# Wallpapers are staged for upload, never committed (docs/wallpapers.md)
+/wallpapers/*
+!/wallpapers/README.md

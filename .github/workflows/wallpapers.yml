@@ -1,0 +1,63 @@
+name: Wallpapers
+
+# Publishes the wallpapers attached to a release as wallpapers.tar, and points
+# the stable manifest that `maitri update` installs from at that release. A
+# release without the tar carries the current wallpapers forward. Runs on the
+# published release rather than the tag push: RELEASING.md pushes the tag
+# before the packages reach stable, and the wallpapers should land with them.
+# See docs/wallpapers.md.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag (vX.Y.Z) to publish wallpapers for
+        required: true
+      dry_run:
+        description: Only report what would be uploaded
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wallpapers
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: startsWith(github.event.release.tag_name || inputs.tag, 'v')
+    runs-on: ubuntu-latest
+    environment: release
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - name: Check out maitri
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+
+      - name: Fetch the release's wallpapers
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          assets=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')
+          if grep -qx wallpapers.tar <<<"$assets"; then
+            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern wallpapers.tar --dir "$RUNNER_TEMP"
+            tar -xf "$RUNNER_TEMP/wallpapers.tar" -C wallpapers --no-same-owner --no-same-permissions
+            find wallpapers -mindepth 1 -not -name README.md -print
+          else
+            echo "$TAG has no wallpapers.tar; carrying the current wallpapers forward"
+          fi
+
+      - name: Publish
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
+        run: tools/wallpapers-upload.sh ${DRY_RUN:+--dry-run} "$TAG"
