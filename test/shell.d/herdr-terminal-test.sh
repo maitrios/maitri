@@ -56,9 +56,29 @@ for line in "Exec=/usr/bin/ghostty" "X-TerminalArgExec=-e" "X-TerminalArgAppId=-
 done
 pass "ghostty.desktop keeps every launch in its own instance"
 
-grep -qx "o.window(\"org.maitri.herdr\", { scroll_touchpad = 0.2 })" "$ROOT/default/hypr/apps/herdr.lua" ||
-  fail "herdr's window scrolls at ghostty's touchpad speed"
-pass "herdr's window scrolls at ghostty's touchpad speed"
+require_command lua
+lua_bin=$(command -v lua)
+
+herdr_scroll() {
+  PATH="$1" MAITRI_PATH="$ROOT" "$lua_bin" <<'LUA'
+package.path = os.getenv("MAITRI_PATH") .. "/?.lua;" .. package.path
+hl = { config = function() end }
+require("default.hypr.helpers")
+local scroll = {}
+o.window = function(class, rule)
+  if type(class) == "string" then
+    scroll[class] = rule.scroll_touchpad
+  end
+end
+require("default.hypr.input")
+print(scroll["org.maitri.herdr"] == scroll["com.mitchellh.ghostty"] and "ghostty" or
+  scroll["org.maitri.herdr"] == scroll["(Alacritty|kitty|foot)"] and "foot" or tostring(scroll["org.maitri.herdr"]))
+LUA
+}
+
+[[ $(herdr_scroll "$ghostty_bin") == "ghostty" ]] || fail "herdr's window scrolls at ghostty's touchpad speed" "$(herdr_scroll "$ghostty_bin")"
+[[ $(herdr_scroll "$stub_bin") == "foot" ]] || fail "herdr's fallback window scrolls at foot's touchpad speed" "$(herdr_scroll "$stub_bin")"
+pass "herdr's window scrolls at the speed of the terminal it runs in"
 
 maitri_path="$test_dir/maitri"
 mkdir -p "$maitri_path/default" "$maitri_path/config"
