@@ -10,53 +10,148 @@ manifest="$state_dir/manifest"
 originals_dir="$state_dir/originals"
 user_dir="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
 
-desktop_dirs=("$user_dir")
+system_dirs=()
 IFS=: read -ra data_dirs <<<"${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
 for data_dir in "${data_dirs[@]}"; do
-  desktop_dirs+=("$data_dir/applications")
+  system_dirs+=("$data_dir/applications")
 done
 
 mkdir -p "$user_dir" "$originals_dir"
 touch "$manifest"
 
-declare -A applied=()
-kept=""
-while IFS=$'\t' read -r id kind icon; do
+tmp=""
+trap '[[ -z $tmp ]] || rm -f "$tmp"' EXIT
+
+entry_fields() {
+  awk '
+    /^\[/ { in_entry = ($0 == "[Desktop Entry]"); next }
+    !in_entry { next }
+    /^[ \t]*(NoDisplay|Hidden|Icon)[ \t]*=/ {
+      name = $0; sub(/[ \t]*=.*/, "", name); sub(/^[ \t]*/, "", name)
+      value = $0; sub(/^[^=]*=[ \t]*/, "", value); sub(/[ \t]+$/, "", value)
+      if (name == "Icon") { if (icon == "") icon = value }
+      else if (value == "true") hidden = 1
+    }
+    END { printf "%d\t%s\n", hidden, icon }
+  ' "$1"
+}
+
+icon_for() {
+  local hidden raw key ext
+
+  IFS=$'\t' read -r hidden raw < <(entry_fields "$1")
+  (( hidden == 0 )) || return 1
+  [[ -n $raw && $raw != */* ]] || return 1
+
+  key="$raw"
+  [[ $key =~ \.(png|svg|xpm)$ ]] && key="${key%.*}"
+
+  # Icon= gets the absolute $MAITRI_PATH path, so a swap made under maitri dev link
+  # points at the checkout: https://github.com/k7lab/maitrios/issues/39
+  for ext in png svg; do
+    if [[ -f $icon_dir/$key.$ext ]]; then
+      printf '%s\t%s\n' "$icon_dir/$key.$ext" "$raw"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+write_override() {
+  local source="$1" id="$2" icon="$3" raw="$4"
+
+  tmp="$(mktemp "$state_dir/write.XXXXXX")"
+  RAW="$raw" ICON="$icon" awk '
+    /^[ \t]*Icon[ \t]*=/ {
+      value = $0; sub(/^[^=]*=[ \t]*/, "", value); sub(/[ \t]+$/, "", value)
+      if (value == ENVIRON["RAW"]) $0 = "Icon=" ENVIRON["ICON"]
+    }
+    { print }
+  ' "$source" >"$tmp"
+  chmod --reference="$source" "$tmp"
+  mv "$tmp" "$user_dir/$id"
+  tmp=""
+}
+
+file_hash() {
+  sha256sum <"$1" | cut -d' ' -f1
+}
+
+revert_icon() {
+  local file="$1" icon="$2" key
+
+  key="${icon##*/}"
+  key="${key%.*}"
+  tmp="$(mktemp "$state_dir/write.XXXXXX")"
+  ICON="Icon=$icon" KEY="Icon=$key" awk '$0 == ENVIRON["ICON"] { $0 = ENVIRON["KEY"] } { print }' "$file" >"$tmp"
+  chmod --reference="$file" "$tmp"
+  mv "$tmp" "$file"
+  tmp=""
+}
+
+declare -A source=()
+for dir in "${system_dirs[@]}"; do
+  for desktop_file in "$dir"/*.desktop; do
+    [[ -f $desktop_file ]] || continue
+    id="${desktop_file##*/}"
+    [[ -n ${source[$id]-} ]] || source[$id]="$desktop_file"
+  done
+done
+
+ids=()
+declare -A kinds=() icons=() hashes=()
+
+while IFS=$'\t' read -r id kind icon hash; do
   [[ -n $id ]] || continue
-  if [[ -f $user_dir/$id ]] && grep -Fxq "Icon=$icon" "$user_dir/$id"; then
-    applied[$id]=1
-    kept+="$id"$'\t'"$kind"$'\t'"$icon"$'\n'
-  else
+  desktop_file="$user_dir/$id"
+
+  if [[ ! -f $desktop_file ]] || ! grep -Fxq "Icon=$icon" "$desktop_file"; then
     rm -f "$originals_dir/$id"
+    continue
   fi
+
+  if [[ $kind == "created" ]]; then
+    unchanged=0
+    [[ -z $hash || $(file_hash "$desktop_file") == "$hash" ]] && unchanged=1
+
+    if [[ -z ${source[$id]-} ]] || ! fields="$(icon_for "${source[$id]}")"; then
+      if (( unchanged )); then
+        rm "$desktop_file"
+      else
+        revert_icon "$desktop_file" "$icon"
+      fi
+      echo "Dropped icon override for $id"
+      continue
+    fi
+
+    if (( unchanged )); then
+      IFS=$'\t' read -r icon raw <<<"$fields"
+      write_override "${source[$id]}" "$id" "$icon" "$raw"
+      hash="$(file_hash "$desktop_file")"
+    fi
+  fi
+
+  ids+=("$id")
+  kinds[$id]="$kind"
+  icons[$id]="$icon"
+  hashes[$id]="$hash"
 done <"$manifest"
-printf '%s' "$kept" >"$manifest"
 
 declare -A seen=()
 swapped=0
 
-for dir in "${desktop_dirs[@]}"; do
+for dir in "$user_dir" "${system_dirs[@]}"; do
   for desktop_file in "$dir"/*.desktop; do
     [[ -f $desktop_file ]] || continue
 
     id="${desktop_file##*/}"
     [[ -z ${seen[$id]-} ]] || continue
     seen[$id]=1
-    [[ -z ${applied[$id]-} ]] || continue
+    [[ -z ${kinds[$id]-} ]] || continue
 
-    grep -Eq '^(NoDisplay|Hidden)=true' "$desktop_file" && continue
-
-    key="$(sed -n 's/^Icon=//p' "$desktop_file" | head -1)"
-    [[ -n $key && $key != */* ]] || continue
-
-    icon=""
-    for ext in png svg; do
-      if [[ -f $icon_dir/$key.$ext ]]; then
-        icon="$icon_dir/$key.$ext"
-        break
-      fi
-    done
-    [[ -n $icon ]] || continue
+    fields="$(icon_for "$desktop_file")" || continue
+    IFS=$'\t' read -r icon raw <<<"$fields"
 
     if [[ $dir == "$user_dir" ]]; then
       cp -P "$desktop_file" "$originals_dir/$id"
@@ -65,22 +160,27 @@ for dir in "${desktop_dirs[@]}"; do
       kind="created"
     fi
 
-    KEY="Icon=$key" ICON="Icon=$icon" awk '$0 == ENVIRON["KEY"] { $0 = ENVIRON["ICON"] } { print }' \
-      "$desktop_file" >"$user_dir/$id.tmp"
-    chmod --reference="$desktop_file" "$user_dir/$id.tmp"
-    mv "$user_dir/$id.tmp" "$user_dir/$id"
+    write_override "$desktop_file" "$id" "$icon" "$raw"
 
-    printf '%s\t%s\t%s\n' "$id" "$kind" "$icon" >>"$manifest"
+    ids+=("$id")
+    kinds[$id]="$kind"
+    icons[$id]="$icon"
+    hashes[$id]="$(file_hash "$user_dir/$id")"
     echo "Swapped icon for $id"
     swapped=$((swapped + 1))
   done
 done
 
-if [[ ! -s $manifest ]]; then
+if (( ${#ids[@]} == 0 )); then
   rm -rf "$state_dir"
+  update-desktop-database "$user_dir" &>/dev/null || true
   echo "No installed apps have an icon in maitri's set"
   exit 0
 fi
+
+for id in "${ids[@]}"; do
+  printf '%s\t%s\t%s\t%s\n' "$id" "${kinds[$id]}" "${icons[$id]}" "${hashes[$id]}"
+done >"$manifest"
 
 update-desktop-database "$user_dir" &>/dev/null || true
 
