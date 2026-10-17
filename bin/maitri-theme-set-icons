@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# maitri:summary=Move swapped launcher icons to the current theme's variants
+# maitri:hidden=true
+
+[[ -s $HOME/.local/state/maitri/icons/manifest ]] || exit 0
+maitri-icons-set >/dev/null

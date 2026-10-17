@@ -16,10 +16,20 @@ theme_icons="$home/.local/share/icons/hicolor"
 icons="$ROOT/default/icons"
 
 for icon in "$icons"/*; do
+  if [[ -d $icon && ! -L $icon ]]; then
+    [[ -d $ROOT/themes/${icon##*/} ]] || fail "default/icons holds folders only for maitri themes" "$icon"
+    for variant in "$icon"/*; do
+      [[ -f $variant && ! -L $variant ]] || fail "a theme's icon folder holds only regular files" "$variant"
+      [[ $variant == *.png || $variant == *.svg ]] || fail "a theme's icon folder holds only png and svg icons" "$variant"
+      key="${variant##*/}"
+      [[ -f $icons/${key%.*}.png || -f $icons/${key%.*}.svg ]] || fail "every theme variant has a base icon" "$variant"
+    done
+    continue
+  fi
   [[ -f $icon && ! -L $icon ]] || fail "default/icons holds only regular files" "$icon"
   [[ $icon == *.png || $icon == *.svg ]] || fail "default/icons holds only png and svg icons" "$icon"
 done
-pass "default/icons holds png and svg files"
+pass "default/icons holds png and svg files, and per-theme folders of them"
 
 run_icons() {
   local command="$1"
@@ -388,3 +398,60 @@ run_icons restore
 cmp -s "$user_apps/slack.desktop" "$tmpdir/slack-original.desktop" || fail "a re-pointed replaced launcher still restores its original"
 grep -Fxq 'Icon=vscode' "$user_apps/code.desktop" || fail "a re-pointed edited copy still restores its icon"
 pass "set re-points swaps made with absolute icon paths, and restore still undoes them"
+
+reset_fixture
+maitri_path="$tmpdir/variants"
+mkdir -p "$maitri_path/default" "$home/.local/state/maitri/current"
+cp -r "$icons" "$maitri_path/default/icons"
+mkdir -p "$maitri_path/default/icons/ember"
+cp "$icons/vscode.png" "$maitri_path/default/icons/ember/vscode.png"
+printf 'ember art' >>"$maitri_path/default/icons/ember/vscode.png"
+printf '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"/>\n' >"$maitri_path/default/icons/ember/slack.svg"
+echo ember >"$home/.local/state/maitri/current/theme.name"
+run_icons set
+cmp -s "$maitri_path/default/icons/ember/vscode.png" "$theme_icons/256x256/apps/maitri-vscode.png" ||
+  fail "set uses the current theme's variant of an icon"
+cmp -s "$maitri_path/default/icons/ember/slack.svg" "$theme_icons/scalable/apps/maitri-slack.svg" ||
+  fail "a theme's svg variant goes to scalable/apps"
+cmp -s "$icons/firefox.png" "$theme_icons/256x256/apps/maitri-firefox.png" ||
+  fail "an icon with no variant for the theme uses the base icon"
+grep -Fxq "Icon=maitri-vscode" "$user_apps/code.desktop" || fail "a variant keeps the same icon name"
+pass "set picks the current theme's icon variants, falling back to the base set"
+
+cp -r "$user_apps" "$tmpdir/apps-ember"
+theme_set_icons() {
+  HOME="$home" XDG_DATA_HOME="" XDG_DATA_DIRS="$tmpdir/system:$tmpdir/second" \
+    MAITRI_PATH="$maitri_path" PATH="$ROOT/bin:$PATH" \
+    "$ROOT/bin/maitri-theme-set-icons" >"$tmpdir/out" 2>"$tmpdir/err" ||
+    fail "maitri-theme-set-icons exits cleanly" "$(cat "$tmpdir/err")"
+}
+echo daybreak >"$home/.local/state/maitri/current/theme.name"
+theme_set_icons
+cmp -s "$icons/vscode.png" "$theme_icons/256x256/apps/maitri-vscode.png" ||
+  fail "a theme without variants moves back to the base icons"
+cmp -s "$icons/slack.png" "$theme_icons/256x256/apps/maitri-slack.png" &&
+  [[ ! -e $theme_icons/scalable/apps/maitri-slack.svg ]] ||
+  fail "moving off an svg variant replaces its copy with the base png"
+diff -r "$tmpdir/apps-ember" "$user_apps" >/dev/null || fail "changing theme leaves the launchers alone"
+echo ember >"$home/.local/state/maitri/current/theme.name"
+theme_set_icons
+cmp -s "$maitri_path/default/icons/ember/vscode.png" "$theme_icons/256x256/apps/maitri-vscode.png" ||
+  fail "changing back to a theme with variants uses them again"
+echo '../ember' >"$home/.local/state/maitri/current/theme.name"
+theme_set_icons
+cmp -s "$icons/vscode.png" "$theme_icons/256x256/apps/maitri-vscode.png" ||
+  fail "a theme name that isn't a plain name never picks a variant folder"
+pass "the theme-set hook re-points the swapped icons to the new theme's variants"
+
+run_icons restore
+[[ -z $(find "$theme_icons" -name 'maitri-*' 2>/dev/null) ]] || fail "restore removes variant copies too"
+echo ember >"$home/.local/state/maitri/current/theme.name"
+theme_set_icons
+[[ ! -e $state && -z $(find "$theme_icons" -type f 2>/dev/null) ]] || fail "the theme-set hook does nothing when icons aren't applied"
+[[ ! -e $user_apps/code.desktop ]] || fail "the theme-set hook never swaps icons on its own"
+unset maitri_path
+pass "the theme-set hook is a no-op when icons aren't applied"
+
+grep -qxE '  maitri-theme-set-icons' "$ROOT/bin/maitri-theme-set" ||
+  fail "maitri-theme-set runs the icon hook with the other theme hooks"
+pass "maitri-theme-set runs the icon hook"
