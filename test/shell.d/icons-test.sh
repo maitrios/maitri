@@ -122,6 +122,10 @@ cp "$state/manifest" "$tmpdir/manifest-first"
 run_icons set
 cmp -s "$state/manifest" "$tmpdir/manifest-first" || fail "a second set leaves the manifest as it was" "$(cat "$state/manifest")"
 cmp -s "$state/originals/slack.desktop" "$tmpdir/slack-original.desktop" || fail "a second set keeps the real original"
+touch -d '2000-01-01' "$user_apps/code.desktop"
+run_icons set
+[[ $(stat -c %Y "$user_apps/code.desktop") == "$(date -d '2000-01-01' +%s)" ]] ||
+  fail "set leaves an up-to-date override untouched"
 pass "set is idempotent"
 
 sed -i 's/^Exec=code %F$/Exec=code --enable-features=new %F/' "$system_apps/code.desktop"
@@ -188,6 +192,19 @@ run_icons restore
 pass "manifests without hashes still set and restore"
 
 reset_fixture
+run_icons set
+sed -i 's/^Exec=code %F$/Exec=code --my-flag %F/' "$user_apps/code.desktop"
+awk -F'\t' -v OFS='\t' '{ print $1, $2, $3 }' "$state/manifest" >"$tmpdir/legacy" && mv "$tmpdir/legacy" "$state/manifest"
+run_icons set
+grep -Fxq 'Exec=code --my-flag %F' "$user_apps/code.desktop" || fail "set keeps a copy edited under a manifest without hashes"
+grep -Fxq "code.desktop"$'\t'"created"$'\t'"$icons/vscode.png"$'\t'"-" "$state/manifest" ||
+  fail "set marks a copy edited under a manifest without hashes" "$(cat "$state/manifest")"
+run_icons restore
+grep -Fxq 'Exec=code --my-flag %F' "$user_apps/code.desktop" || fail "restore keeps a copy edited under a manifest without hashes"
+grep -Fxq 'Icon=vscode' "$user_apps/code.desktop" || fail "restore reverts the icon of a copy edited under a manifest without hashes"
+pass "copies edited under a manifest without hashes keep their edits"
+
+reset_fixture
 data_home="$tmpdir/data"
 run_icons set
 grep -Fxq "Icon=$icons/vscode.png" "$data_home/applications/code.desktop" || fail "set writes overrides under XDG_DATA_HOME"
@@ -231,3 +248,57 @@ grep -Fxq 'echo Uninstalling Code...; sudo pacman -Rns code' "$tmpdir/remove.log
 grep -q '^code.desktop' "$state/manifest" && fail "launcher remove forgets the icon override"
 grep -q '^slack.desktop' "$state/manifest" || fail "launcher remove keeps the other swaps"
 pass "launcher remove uninstalls an app whose icon was swapped"
+
+reset_fixture
+mkdir -p "$tmpdir/abort-stubs"
+cat >"$tmpdir/abort-stubs/chmod" <<'SCRIPT'
+#!/bin/bash
+[[ $* == *gvim.desktop* ]] && exit 1
+exec /usr/bin/chmod "$@"
+SCRIPT
+/usr/bin/chmod +x "$tmpdir/abort-stubs/chmod"
+if HOME="$home" XDG_DATA_HOME="" XDG_DATA_DIRS="$tmpdir/system:$tmpdir/second" MAITRI_PATH="$ROOT" \
+  PATH="$tmpdir/abort-stubs:$ROOT/bin:$PATH" "$ROOT/bin/maitri-icons-set" >"$tmpdir/out" 2>"$tmpdir/err"; then
+  fail "set fails when a write fails"
+fi
+grep -q 'Swapped icon for code.desktop' "$tmpdir/out" || fail "the aborted set swapped some launchers first" "$(cat "$tmpdir/out")"
+for file in "$user_apps"/*.desktop; do
+  grep -Fq "Icon=$icons/" "$file" || continue
+  cut -f1 "$state/manifest" | grep -Fxq "${file##*/}" || fail "an aborted set records every override it wrote" "${file##*/}"
+done
+ls "$state" | grep -q '^write\.' && fail "an aborted set leaves no temp files behind"
+run_icons set
+run_icons restore
+leftover=$(ls -A "$user_apps" | grep -vxE 'slack\.desktop|Alacritty\.desktop|mimeinfo\.cache' || true)
+[[ -z $leftover ]] || fail "set and restore recover from an aborted set" "$leftover"
+pass "an aborted set leaves a manifest restore can finish"
+
+reset_fixture
+run_icons set
+sed -i 's/^Exec=code %F$/Exec=code --my-flag %F/' "$user_apps/code.desktop"
+rm "$system_apps/code.desktop"
+run_icons set
+grep -Fxq 'Exec=code --my-flag %F' "$user_apps/code.desktop" || fail "set keeps an edited copy of a removed app"
+grep -Fxq 'Icon=vscode' "$user_apps/code.desktop" || fail "set reverts the icon of an edited copy of a removed app"
+grep -q '^code.desktop' "$state/manifest" && fail "set forgets an edited copy of a removed app"
+[[ ! -e $state/originals/code.desktop ]] || fail "set does not adopt a dropped copy as a user launcher"
+pass "set drops an edited copy of a removed app without swapping it again"
+
+reset_fixture
+run_icons set
+sed -i "s|^Icon=$icons/vscode.png\$|Icon=vscode|" "$user_apps/code.desktop"
+run_icons set
+grep -q "^code.desktop"$'\t'"created"$'\t' "$state/manifest" || fail "a hand-reverted copy stays created" "$(cat "$state/manifest")"
+grep -Fxq "Icon=$icons/vscode.png" "$user_apps/code.desktop" || fail "set swaps a hand-reverted copy again"
+[[ ! -e $state/originals/code.desktop ]] || fail "set does not save its own copy as an original"
+pass "set swaps a hand-reverted copy again and keeps tracking it"
+
+cp "$state/manifest" "$tmpdir/manifest-before"
+if HOME="$home" XDG_DATA_HOME="" XDG_DATA_DIRS="$tmpdir/system:$tmpdir/second" MAITRI_PATH="$tmpdir/nowhere" \
+  PATH="$ROOT/bin:$PATH" "$ROOT/bin/maitri-icons-set" >"$tmpdir/out" 2>"$tmpdir/err"; then
+  fail "set fails without an icon set"
+fi
+cmp -s "$state/manifest" "$tmpdir/manifest-before" || fail "set without an icon set leaves the manifest alone"
+[[ -e $user_apps/code.desktop ]] || fail "set without an icon set leaves the overrides alone"
+pass "set refuses to run without an icon set"
+

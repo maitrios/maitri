@@ -16,6 +16,11 @@ for data_dir in "${data_dirs[@]}"; do
   system_dirs+=("$data_dir/applications")
 done
 
+if [[ ! -d $icon_dir ]]; then
+  echo "No icon set at $icon_dir" >&2
+  exit 1
+fi
+
 mkdir -p "$user_dir" "$originals_dir"
 touch "$manifest"
 
@@ -58,24 +63,32 @@ icon_for() {
   return 1
 }
 
-write_override() {
-  local source="$1" id="$2" icon="$3" raw="$4"
-
-  tmp="$(mktemp "$state_dir/write.XXXXXX")"
-  RAW="$raw" ICON="$icon" awk '
+render() {
+  RAW="$3" ICON="$2" awk '
     /^[ \t]*Icon[ \t]*=/ {
       value = $0; sub(/^[^=]*=[ \t]*/, "", value); sub(/[ \t]+$/, "", value)
       if (value == ENVIRON["RAW"]) $0 = "Icon=" ENVIRON["ICON"]
     }
     { print }
-  ' "$source" >"$tmp"
-  chmod --reference="$source" "$tmp"
-  mv "$tmp" "$user_dir/$id"
-  tmp=""
+  ' "$1"
 }
 
 file_hash() {
   sha256sum <"$1" | cut -d' ' -f1
+}
+
+write_override() {
+  local source="$1" id="$2" icon="$3" raw="$4"
+
+  tmp="$(mktemp "$state_dir/write.XXXXXX")"
+  render "$source" "$icon" "$raw" >"$tmp"
+  if [[ -f $user_dir/$id && ! -L $user_dir/$id ]] && cmp -s "$tmp" "$user_dir/$id"; then
+    rm "$tmp"
+  else
+    chmod --reference="$source" "$tmp"
+    mv "$tmp" "$user_dir/$id"
+  fi
+  tmp=""
 }
 
 revert_icon() {
@@ -90,6 +103,43 @@ revert_icon() {
   tmp=""
 }
 
+ids=()
+declare -A kinds=() icons=() hashes=()
+
+save_manifest() {
+  local id
+
+  tmp="$(mktemp "$state_dir/write.XXXXXX")"
+  for id in "${ids[@]}"; do
+    [[ -n ${kinds[$id]} ]] || continue
+    printf '%s\t%s\t%s\t%s\n' "$id" "${kinds[$id]}" "${icons[$id]}" "${hashes[$id]}"
+  done >"$tmp"
+  mv "$tmp" "$manifest"
+  tmp=""
+}
+
+record() {
+  [[ -n ${kinds[$1]+set} ]] || ids+=("$1")
+  kinds[$1]="$2"
+  icons[$1]="$3"
+  hashes[$1]="$4"
+  save_manifest
+}
+
+forget() {
+  kinds[$1]=""
+  rm -f "$originals_dir/$1"
+  save_manifest
+}
+
+while IFS=$'\t' read -r id kind icon hash; do
+  [[ -n $id && -z ${kinds[$id]+set} ]] || continue
+  ids+=("$id")
+  kinds[$id]="$kind"
+  icons[$id]="$icon"
+  hashes[$id]="$hash"
+done <"$manifest"
+
 declare -A source=()
 for dir in "${system_dirs[@]}"; do
   for desktop_file in "$dir"/*.desktop; do
@@ -99,47 +149,67 @@ for dir in "${system_dirs[@]}"; do
   done
 done
 
-ids=()
-declare -A kinds=() icons=() hashes=()
+declare -A seen=()
+swapped=0
 
-while IFS=$'\t' read -r id kind icon hash; do
-  [[ -n $id ]] || continue
+for id in "${ids[@]}"; do
+  kind="${kinds[$id]}"
+  icon="${icons[$id]}"
+  hash="${hashes[$id]}"
   desktop_file="$user_dir/$id"
 
-  if [[ ! -f $desktop_file ]] || ! grep -Fxq "Icon=$icon" "$desktop_file"; then
-    rm -f "$originals_dir/$id"
+  fields=""
+  if [[ $kind == "created" && -n ${source[$id]-} ]]; then
+    fields="$(icon_for "${source[$id]}")" || fields=""
+  fi
+  new_icon="" raw=""
+  [[ -z $fields ]] || IFS=$'\t' read -r new_icon raw <<<"$fields"
+
+  if [[ ! -f $desktop_file ]]; then
+    forget "$id"
     continue
   fi
 
-  if [[ $kind == "created" ]]; then
-    unchanged=0
-    [[ -z $hash || $(file_hash "$desktop_file") == "$hash" ]] && unchanged=1
-
-    if [[ -z ${source[$id]-} ]] || ! fields="$(icon_for "${source[$id]}")"; then
-      if (( unchanged )); then
-        rm "$desktop_file"
-      else
-        revert_icon "$desktop_file" "$icon"
-      fi
-      echo "Dropped icon override for $id"
-      continue
+  if ! grep -Fxq "Icon=$icon" "$desktop_file"; then
+    if [[ -n $fields && -n $hash ]] && [[ $(render "$desktop_file" "$icon" "$raw" | sha256sum | cut -d' ' -f1) == "$hash" ]]; then
+      write_override "${source[$id]}" "$id" "$new_icon" "$raw"
+      record "$id" "created" "$new_icon" "$(file_hash "$desktop_file")"
+      seen[$id]=1
+      echo "Swapped icon for $id"
+      swapped=$((swapped + 1))
+    else
+      forget "$id"
     fi
-
-    if (( unchanged )); then
-      IFS=$'\t' read -r icon raw <<<"$fields"
-      write_override "${source[$id]}" "$id" "$icon" "$raw"
-      hash="$(file_hash "$desktop_file")"
-    fi
+    continue
   fi
 
-  ids+=("$id")
-  kinds[$id]="$kind"
-  icons[$id]="$icon"
-  hashes[$id]="$hash"
-done <"$manifest"
+  [[ $kind == "created" ]] || continue
+  seen[$id]=1
 
-declare -A seen=()
-swapped=0
+  current="$(file_hash "$desktop_file")"
+  if [[ -z $hash ]]; then
+    hash="-"
+    [[ -n $fields && $(render "${source[$id]}" "$icon" "$raw" | sha256sum | cut -d' ' -f1) == "$current" ]] && hash="$current"
+  fi
+
+  if [[ -z $fields ]]; then
+    if [[ $current == "$hash" ]]; then
+      rm "$desktop_file"
+    else
+      revert_icon "$desktop_file" "$icon"
+    fi
+    forget "$id"
+    echo "Dropped icon override for $id"
+    continue
+  fi
+
+  if [[ $current == "$hash" ]]; then
+    write_override "${source[$id]}" "$id" "$new_icon" "$raw"
+    hash="$(file_hash "$desktop_file")"
+    icon="$new_icon"
+  fi
+  [[ $hash == "${hashes[$id]}" && $icon == "${icons[$id]}" ]] || record "$id" "created" "$icon" "$hash"
+done
 
 for dir in "$user_dir" "${system_dirs[@]}"; do
   for desktop_file in "$dir"/*.desktop; do
@@ -161,26 +231,18 @@ for dir in "$user_dir" "${system_dirs[@]}"; do
     fi
 
     write_override "$desktop_file" "$id" "$icon" "$raw"
-
-    ids+=("$id")
-    kinds[$id]="$kind"
-    icons[$id]="$icon"
-    hashes[$id]="$(file_hash "$user_dir/$id")"
+    record "$id" "$kind" "$icon" "$(file_hash "$user_dir/$id")"
     echo "Swapped icon for $id"
     swapped=$((swapped + 1))
   done
 done
 
-if (( ${#ids[@]} == 0 )); then
+if [[ ! -s $manifest ]]; then
   rm -rf "$state_dir"
   update-desktop-database "$user_dir" &>/dev/null || true
   echo "No installed apps have an icon in maitri's set"
   exit 0
 fi
-
-for id in "${ids[@]}"; do
-  printf '%s\t%s\t%s\t%s\n' "$id" "${kinds[$id]}" "${icons[$id]}" "${hashes[$id]}"
-done >"$manifest"
 
 update-desktop-database "$user_dir" &>/dev/null || true
 

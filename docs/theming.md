@@ -434,7 +434,10 @@ The set is opt-in, from Style > App Icons in the menu or the commands:
   launchers whose icon was put back by hand or by `maitri-refresh-applications`
   (which runs it again itself when a swap is on). It also keeps each copy in
   step with its system launcher: an app update refreshes the copy, and an app
-  that's gone takes its copy with it. A copy you edited is left as you wrote it.
+  that's gone takes its copy with it. A copy you edited is left as you wrote it;
+  if its app is gone, only its icon goes back. It writes the manifest after
+  every change, so a run cut short leaves nothing restore can't find, and it
+  stops without touching anything when `default/icons/` is missing.
 - `maitri-icons-restore` undoes every swap still in place and clears the
   record. Given desktop file names (`maitri-icons-restore code.desktop`), it
   undoes only those.
@@ -445,8 +448,9 @@ The record lives in `~/.local/state/maitri/icons/`:
 
 - `manifest`: one tab-separated line per launcher it changed,
   `<desktop file name>\t<created|replaced>\t<icon path>\t<sha256>`, where the
-  hash is of the launcher as `set` wrote it. Lines from before the hash column
-  have three fields and are treated as unchanged.
+  hash is of the launcher as `set` wrote it, or `-` when a copy from before the
+  hash column had already been edited. On its first run `set` hashes three-field
+  lines from before that column, comparing each copy with its system launcher.
 - `originals/<desktop file name>`: the user-dir launcher as it was before a
   `replaced` swap.
 
