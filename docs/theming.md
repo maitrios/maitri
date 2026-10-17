@@ -395,9 +395,14 @@ own colorscheme from `default/nvim/maitri-theme` and hands it the theme's
 those roles in Lua: diff, search and selection tints, the heading ramp (H1 in
 `accent`, each lower level a step toward `foreground`, all bold), float and
 border colors, the lualine theme and `g:terminal_color_0..15`. It needs no
-roles beyond the ones above. Any syntax color that falls under 4.5:1 against
-`background` is moved toward `foreground` until it clears that, so a user
-theme with a pale `orange` still reads.
+roles beyond the ones above. Any text color (`accent`, `dark_foreground` and
+the syntax colors) that falls under 4.5:1 against `background` is moved
+toward `foreground` until it clears that, so a user theme with a pale `orange`
+still reads. The terminal colors Neovim hands to `:terminal` stay exactly as
+the theme sets them. When `accent` sits close to `red`, `orange`, `cyan` or
+`green`, diagnostic hints use `magenta` (or `blue`) instead, and lualine's
+other modes step off any hue that matches the accent, so a hint never looks
+like a warning.
 
 `~/.config/nvim/lua/plugins/theme.lua` links to the rendered file, and the
 `theme-hotreload` plugin swaps it when the theme changes. That reload finds
