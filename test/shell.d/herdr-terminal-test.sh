@@ -12,13 +12,14 @@ stub_bin="$test_dir/bin"
 ghostty_bin="$test_dir/ghostty-bin"
 mkdir -p "$stub_bin" "$ghostty_bin"
 
-for command in setsid maitri-launch-tui maitri-pkg-add maitri-icons-set update-desktop-database; do
+for command in setsid maitri-pkg-add maitri-icons-set update-desktop-database; do
   cat >"$stub_bin/$command" <<'STUB'
 #!/bin/bash
 printf '%s %s\n' "${0##*/}" "$*" >>"$CALLS"
 STUB
 done
 printf '#!/bin/bash\n' >"$ghostty_bin/ghostty"
+printf '#!/bin/bash\necho /work/project\n' >"$stub_bin/maitri-cmd-terminal-cwd"
 chmod +x "$stub_bin"/* "$ghostty_bin/ghostty"
 
 export CALLS="$test_dir/calls"
@@ -29,14 +30,14 @@ launch_herdr() {
 }
 
 launch_herdr "$stub_bin:$ghostty_bin:$ROOT/bin"
-[[ $(<"$CALLS") == "setsid uwsm-app -- ghostty --class=org.maitri.herdr -e herdr" ]] ||
-  fail "herdr opens in ghostty with its own class" "$(cat "$CALLS")"
-pass "herdr opens in ghostty with its own class"
+[[ $(<"$CALLS") == "setsid uwsm-app -- ghostty --class=org.maitri.herdr --working-directory=/work/project -e herdr" ]] ||
+  fail "herdr opens in ghostty with its own class, in the active terminal's directory" "$(cat "$CALLS")"
+pass "herdr opens in ghostty with its own class, in the active terminal's directory"
 
 launch_herdr "$stub_bin:$ROOT/bin"
-[[ $(<"$CALLS") == "maitri-launch-tui --app-id=org.maitri.herdr herdr" ]] ||
-  fail "without ghostty, herdr opens in the default terminal with its own class" "$(cat "$CALLS")"
-pass "without ghostty, herdr opens in the default terminal with its own class"
+[[ $(<"$CALLS") == "setsid uwsm-app -- xdg-terminal-exec --dir=/work/project --app-id=org.maitri.herdr -e herdr" ]] ||
+  fail "without ghostty, herdr opens in the default terminal with its own class and directory" "$(cat "$CALLS")"
+pass "without ghostty, herdr opens in the default terminal with its own class and directory"
 
 herdr_entry="$ROOT/default/applications/herdr.desktop"
 for line in "Name=herdr" "Exec=maitri-launch-terminal-herdr" "Icon=utilities-terminal" "Terminal=false" \
