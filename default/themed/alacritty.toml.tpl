@@ -11,12 +11,12 @@ text = "{{ background }}"
 cursor = "{{ bright_foreground }}"
 
 [colors.search.matches]
-foreground = "{{ background }}"
-background = "{{ yellow }}"
+foreground = "{{ foreground }}"
+background = "{{ mix background green 32% }}"
 
 [colors.search.focused_match]
 foreground = "{{ background }}"
-background = "{{ red }}"
+background = "{{ orange }}"
 
 [colors.footer_bar]
 foreground = "{{ background }}"
