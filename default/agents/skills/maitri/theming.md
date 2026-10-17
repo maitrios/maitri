@@ -78,6 +78,8 @@ maitri font current            # Current font
 maitri font set <name>         # Change font
 ```
 
+Install > Style > Font installs another Nerd Font (Cascadia Code, Fira Code, Inconsolata, Victor Mono and more) and switches to it.
+
 ## Launcher Icons
 
 ```bash
