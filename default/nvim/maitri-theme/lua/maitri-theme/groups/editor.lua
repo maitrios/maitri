@@ -80,7 +80,7 @@ return function(p)
 
     DiffAdd = { bg = p.diff_add },
     DiffChange = { bg = p.diff_change },
-    DiffDelete = { fg = p.blend(p.bg, p.red, 0.55), bg = p.diff_delete },
+    DiffDelete = { fg = p.blend(p.bg, p.red, 0.35), bg = p.diff_delete },
     DiffText = { bg = p.diff_text },
     DiffTextAdd = { bg = p.diff_add_text },
     Added = { fg = p.green },

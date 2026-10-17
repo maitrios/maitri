@@ -14,6 +14,33 @@ function M.blend(from, to, amount)
   return string.format("#%02x%02x%02x", channel(r1, r2), channel(g1, g2), channel(b1, b2))
 end
 
+local function luminance(hex)
+  local function channel(value)
+    value = value / 255
+    return value <= 0.03928 and value / 12.92 or ((value + 0.055) / 1.055) ^ 2.4
+  end
+  local r, g, b = rgb(hex)
+  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
+end
+
+function M.contrast(a, b)
+  local la, lb = luminance(a), luminance(b)
+  if la < lb then
+    la, lb = lb, la
+  end
+  return (la + 0.05) / (lb + 0.05)
+end
+
+function M.readable(color, bg, fg, minimum)
+  local amount = 0
+  local result = color
+  while M.contrast(result, bg) < (minimum or 4.5) and amount < 1 do
+    amount = amount + 0.05
+    result = M.blend(color, fg, amount)
+  end
+  return result
+end
+
 local required = {
   "accent",
   "selection",
@@ -83,6 +110,10 @@ function M.build(c, mode)
     bright_magenta = c.bright_magenta,
     bright_cyan = c.bright_cyan,
   }
+
+  for _, key in ipairs({ "comment", "accent", "red", "green", "yellow", "blue", "magenta", "cyan", "orange" }) do
+    p[key] = M.readable(p[key], p.bg, p.fg)
+  end
 
   local tint = light and 0.16 or 0.13
 
