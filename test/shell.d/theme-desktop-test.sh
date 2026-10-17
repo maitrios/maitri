@@ -327,11 +327,11 @@ const hex = value => {
 }
 
 function shellRuntime(overrides, palette) {
-  const geometry = vm.createContext({})
+  const geometry = vm.createContext({ Qt: { rgba } })
   vm.runInContext(read('shell/Commons/BorderGeometry.js').replace(/^\.pragma library\n/, ''), geometry)
   const color = { ...palette, shellValues: {} }
   const style = vm.createContext({ styleOverrides: overrides, Qt: { rgba }, Util: { clampAlpha: geometry.clampAlpha, alpha: (c, a) => rgba(c.r, c.g, c.b, a) } })
-  const border = vm.createContext({ Style: style, Geometry: geometry, Commons: { Color: color } })
+  const border = vm.createContext({ Style: style, Geometry: geometry, Qt: { rgba }, Commons: { Color: color } })
   style.Commons = { Color: color, Border: border }
   for (const fn of functions(read('shell/Commons/Border.qml'))) vm.runInContext(fn, border)
   const source = read('shell/Commons/Style.qml')
@@ -354,10 +354,7 @@ function controls(file) {
   return out
 }
 
-const expectBorder = (value, alpha) => {
-  const byte = Math.round(Number(alpha) * 255).toString(16).padStart(2, '0')
-  return (byte === 'ff' ? value : value + byte).toLowerCase()
-}
+const expectBorder = (value, alpha) => String(rgba(...Object.values(hex(value)).slice(0, 3), Number(alpha))).toLowerCase()
 
 for (const theme of fs.readdirSync(path.join(root, 'themes'))) {
   const file = path.join(process.env.THEME_RENDERS, theme, '.local/state/maitri/current/next-theme/shell.toml')
@@ -372,6 +369,12 @@ for (const theme of fs.readdirSync(path.join(root, 'themes'))) {
 }
 
 const legacy = shellRuntime({ 'normal-color': '#e6e9f0', 'normal-border-alpha': '0.4' }, { foreground: '#e6e9f0', accent: '#000001', urgent: '#000002', background: '#000003' })
-assertEqual(String(legacy.normalBorderFor(hex('#e6e9f0'), hex('#000001'))).toLowerCase(), '#e6e9f066',
+assertEqual(String(legacy.normalBorderFor(hex('#e6e9f0'), hex('#000001'))).toLowerCase(), '#66e6e9f0',
   'a shell.toml without normal-border still blends the state color at normal-border-alpha')
+const roles = shellRuntime({ 'normal-border-alpha': '0.4' }, { foreground: '#e6e9f0', accent: '#000001', urgent: '#000002', background: '#000003' })
+assertEqual(String(roles.normalBorderFor(rgba(1, 0, 0, 0.5), hex('#000001'))).toLowerCase(), '#33ff0000',
+  'a translucent state color keeps its color and combines its alpha with normal-border-alpha')
+const translucent = shellRuntime({ 'normal-color': '#ff000080', 'normal-border-alpha': '0.4' }, { foreground: '#e6e9f0', accent: '#000001', urgent: '#000002', background: '#000003' })
+assertEqual(String(translucent.normalBorderFor(hex('#e6e9f0'), hex('#000001'))).toLowerCase(), '#33ff0000',
+  'a normal-color with an alpha byte keeps its color and combines its alpha with normal-border-alpha')
 JS

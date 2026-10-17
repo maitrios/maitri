@@ -123,7 +123,9 @@ QtObject {
   function borderValue(raw, fallbackColor, opacity, legacyGradientRaw) {
     var fallback = cssColor(fallbackColor, opacity)
     var primaryRaw = String(raw || "").replace(/^\s+|\s+$/g, "")
-    var primary = resolvedGradient(primaryRaw.length > 0 ? primaryRaw : fallbackColor, fallbackColor, opacity)
+    var primary = primaryRaw.length > 0
+      ? resolvedGradient(primaryRaw, fallbackColor, opacity)
+      : { colors: [fallback], angle: 0, enabled: false }
     var color = primary.colors.length > 0 ? primary.colors[0] : fallback
     var gradient = primary.enabled ? primary : { colors: [], angle: 0, enabled: false }
 
