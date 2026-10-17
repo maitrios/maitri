@@ -1,10 +1,14 @@
 @define-color foreground {{ foreground }};
 @define-color background {{ background }};
 @define-color accent {{ accent }};
-@define-color muted {{ muted }};
+@define-color border {{ border }};
+@define-color border_focus {{ border_focus }};
+@define-color comment {{ comment }};
 @define-color card_bg {{ lighter_background }};
+@define-color card_hover {{ mix lighter_background foreground 6% }};
+@define-color selection {{ selection }};
 @define-color text_dark {{ background }};
-@define-color accent_hover {{ bright_blue }};
+@define-color accent_hover {{ mix accent foreground 20% }};
 @define-color selected_tab {{ accent }};
 @define-color text {{ foreground }};
 
@@ -56,15 +60,24 @@ tabs > tab:focus > .tab-label {
 
 flowboxchild > .card, button > .card {
     transition: all 0.2s ease;
-    border: solid 2px transparent;
-    border-color: @background;
+    border: solid 2px @border;
     border-radius: 5px;
     background-color: @card_bg;
     padding: 5px;
 }
 
-flowboxchild:hover > .card, button:hover > .card, flowboxchild:active > .card, flowboxchild:selected > .card, button:active > .card, button:selected > .card, button:focus > .card {
-    border: solid 2px @accent;
+flowboxchild:hover > .card, button:hover > .card {
+    border-color: @border_focus;
+    background-color: @card_hover;
+}
+
+flowboxchild:active > .card, flowboxchild:selected > .card, button:active > .card, button:selected > .card {
+    border-color: @accent;
+    background-color: @selection;
+}
+
+flowboxchild:focus > .card, button:focus > .card {
+    border-color: @accent;
 }
 
 .image {
@@ -83,12 +96,22 @@ flowboxchild:hover > .card, button:hover > .card, flowboxchild:active > .card, f
     color: @text_dark;
 }
 
-.region-button:not(:disabled):hover, .region-button:not(:disabled):focus {
+.region-button:not(:disabled):hover {
     background-color: @accent_hover;
     color: @text_dark;
 }
 
+.region-button:not(:disabled):focus {
+    outline: solid 2px @border_focus;
+    outline-offset: 2px;
+}
+
 .region-button:disabled {
-    background-color: @muted;
-    color: @background;
+    background-color: @card_bg;
+    border: solid 1px @border;
+    color: @comment;
+}
+
+.region-button:disabled > label {
+    color: @comment;
 }
