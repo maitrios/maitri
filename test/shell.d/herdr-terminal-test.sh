@@ -40,9 +40,10 @@ pass "without ghostty, herdr opens in the default terminal with its own class"
 
 herdr_entry="$ROOT/default/applications/herdr.desktop"
 for line in "Name=herdr" "Exec=maitri-launch-terminal-herdr" "Icon=utilities-terminal" "Terminal=false" \
-  "Categories=System;TerminalEmulator;" "StartupWMClass=org.maitri.herdr"; do
+  "Categories=System;Utility;" "StartupWMClass=org.maitri.herdr"; do
   grep -qxF -- "$line" "$herdr_entry" || fail "herdr.desktop has $line"
 done
+! grep -q "TerminalEmulator" "$herdr_entry" || fail "xdg-terminal-exec never picks herdr.desktop as a terminal"
 [[ ! -e $ROOT/applications/herdr.desktop ]] || fail "herdr.desktop stays out of the unconditional launcher copy"
 pass "herdr.desktop carries herdr's class and stays out of the unconditional copy"
 
