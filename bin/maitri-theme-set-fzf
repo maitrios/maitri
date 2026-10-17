@@ -23,13 +23,16 @@ trap 'rm -f "$block" "$spliced"' EXIT
 
 # fzf splits FZF_DEFAULT_OPTS into options, so the snippet is only taken when
 # its colour list is nothing but name:#rrggbb pairs and every other line is the
-# built-in template's; a colour with a space in it would otherwise add an option.
+# template's (the user's own, if they have one); a colour with a space in it
+# would otherwise add an option.
 if [[ -n $has_fzf ]]; then
+  tpl="$HOME/.config/maitri/themed/fzf.fish.tpl"
+  [[ -f $tpl ]] || tpl="$MAITRI_PATH/default/themed/fzf.fish.tpl"
   if (( $(grep -c '^set -gx MAITRI_FZF_COLORS ' "$src") == 1 )) && grep -qE "$colors_line" "$src" &&
-    [[ $(grep -v '^set -gx MAITRI_FZF_COLORS ' "$src") == "$(grep -v '^set -gx MAITRI_FZF_COLORS ' "$MAITRI_PATH/default/themed/fzf.fish.tpl")" ]]; then
+    [[ $(grep -v '^set -gx MAITRI_FZF_COLORS ' "$src") == "$(grep -v '^set -gx MAITRI_FZF_COLORS ' "$tpl")" ]]; then
     { echo "if command -q fzf"; sed 's/^/    /' "$src"; echo "end"; } >>"$block"
   else
-    echo "Skipping fzf theme: fzf.fish isn't a plain colour list on the built-in template." >&2
+    echo "Skipping fzf theme: fzf.fish isn't a plain colour list on the fzf.fish template." >&2
   fi
 fi
 

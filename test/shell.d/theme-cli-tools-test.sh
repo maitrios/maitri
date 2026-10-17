@@ -511,6 +511,20 @@ cmp -s "$config/lazygit/config.yml" "$home/lazygit.before" || fail "lazygit keep
 [[ $(<"$config/yazi/theme.toml") == $'[flavor]\ndark = "mine"' ]] || fail "yazi keeps the user's own flavor" "$(cat "$config/yazi/theme.toml")"
 grep -q "sets its own gui.theme" "$home/hook.stderr" || fail "the lazygit hook says why it left the config alone"
 grep -q "picks its own flavor" "$home/hook.stderr" || fail "the yazi hook says why it left theme.toml alone"
+home=$(new_home per-mode amethyst)
+mkdir -p "$home/.config/bat"
+printf -- '--theme-dark="ansi"\n--theme-light="GitHub"\n' >"$home/.config/bat/config"
+run_hook "$home" maitri-theme-set-bat "$apps:$sandbox" || fail "maitri-theme-set-bat runs beside per-mode themes"
+[[ $(<"$home/.config/bat/config") == $'--theme-dark="ansi"\n--theme-light="GitHub"' ]] || fail "bat keeps the user's own --theme-dark and --theme-light" "$(cat "$home/.config/bat/config")"
+
+home=$(new_home dangling amethyst)
+mkdir -p "$home/.config/yazi"
+printf '# >>> maitri theme (rewritten by maitri theme set) >>>\n[flavor]\ndark = "mine"\n' >"$home/.config/yazi/theme.toml"
+cp "$home/.config/yazi/theme.toml" "$home/yazi.before"
+run_hook "$home" maitri-theme-set-yazi "$apps:$sandbox" || fail "maitri-theme-set-yazi runs beside a block without its end marker"
+cmp -s "$home/.config/yazi/theme.toml" "$home/yazi.before" || fail "a [flavor] after a start marker without an end isn't doubled" "$(cat "$home/.config/yazi/theme.toml")"
+[[ ! -e $home/.config/yazi/flavors ]] || fail "the yazi hook writes no flavor when theme.toml picks its own"
+grep -q "picks its own flavor" "$home/hook.stderr" || fail "the yazi hook says why it left a dangling block alone" "$(cat "$home/hook.stderr")"
 pass "the hooks leave a theme the user chose in place and say so"
 
 home=$(new_home hostile amethyst)
@@ -546,6 +560,15 @@ grep -q '      - "#123456"' "$home/.config/lazygit/config.yml" && ! grep -q show
 ! grep -q 'MAITRI_FZF_COLORS' "$home/.config/fish/config.fish" && grep -q 'set -gx BAT_THEME maitri' "$home/.config/fish/config.fish" ||
   fail "fzf colours that would add an option never reach config.fish" "$(cat "$home/.config/fish/config.fish")"
 grep -q "Skipping fzf theme" "$home/hook.stderr" || fail "the fzf hook says why it skipped" "$(cat "$home/hook.stderr")"
+
+home=$(new_home override amethyst)
+rendered="$home/.local/state/maitri/current/theme"
+mkdir -p "$home/.config/maitri/themed" "$home/.config/fish"
+{ cat "$ROOT/default/themed/fzf.fish.tpl"; echo "set -gx MAITRI_FZF_MINE 1"; } >"$home/.config/maitri/themed/fzf.fish.tpl"
+echo "set -gx MAITRI_FZF_MINE 1" >>"$rendered/fzf.fish"
+run_hook "$home" maitri-theme-set-fzf "$apps:$sandbox" || fail "maitri-theme-set-fzf takes a fzf.fish from the user's own template"
+grep -q '    set -gx MAITRI_FZF_MINE 1' "$home/.config/fish/config.fish" || fail "fzf.fish rendered from the user's own template reaches config.fish" "$(cat "$home/.config/fish/config.fish")"
+! grep -q "Skipping fzf theme" "$home/hook.stderr" || fail "the fzf hook accepts the user's own template" "$(cat "$home/hook.stderr")"
 
 home=$(new_home quotes amethyst)
 printf '[delta]\n\tminus-style = "#ff0000\n' >"$home/.local/state/maitri/current/theme/delta.gitconfig"

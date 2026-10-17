@@ -94,7 +94,7 @@ if maitri-cmd-present bat && [[ -f $tmtheme ]]; then
     if [[ -n $bat_theme_ready ]]; then
       mkdir -p "$(dirname "$bat_config")"
       touch "$bat_config"
-      if ! outside_block "$bat_config" | grep -qE '^[[:space:]]*--theme(=|[[:space:]]|$)'; then
+      if ! outside_block "$bat_config" | grep -qE '^[[:space:]]*--theme(-dark|-light)?(=|[[:space:]]|$)'; then
         printf -- '--theme="maitri"\n' >"$block"
         splice_block "$bat_config"
         write_spliced "$bat_config"
