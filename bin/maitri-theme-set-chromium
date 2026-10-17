@@ -132,19 +132,31 @@ installed_roots() {
 
 # A running browser holds Preferences in memory and writes them back on exit,
 # after it has already dropped its SingletonLock, and a crash leaves a lock
-# naming a process that is gone or reused. So a browser counts as open while
-# any process has a file open inside its user data dir. Prints that process,
-# or "elsewhere" for a lock taken on another host over a shared home.
+# naming a process that is gone or reused. So the process in the lock only
+# counts while it has a file open inside the user data dir, and once the lock
+# is gone any process that still does counts. /proc shows resolved paths, so
+# the match is against the real path. Prints that process, or "elsewhere" for
+# a lock taken on another host over a shared home.
 root_holder() {
-  local target fd
+  local target real pid fd
 
+  real=$(realpath -- "$1" 2>/dev/null) || return 1
   target=$(readlink "$1/SingletonLock" 2>/dev/null)
-  if [[ $target =~ -[0-9]+$ && ${target%-*} != "$(uname -n)" ]]; then
-    echo elsewhere
-    return 0
+
+  if [[ $target =~ -[0-9]+$ ]]; then
+    if [[ ${target%-*} != "$(uname -n)" ]]; then
+      echo elsewhere
+      return 0
+    fi
+
+    pid=${target##*-}
+    if [[ -n $(find "/proc/$pid/fd" -maxdepth 1 -lname "$real/*" -print -quit 2>/dev/null) ]]; then
+      echo "$pid"
+      return 0
+    fi
   fi
 
-  fd=$(find /proc/[0-9]*/fd -maxdepth 1 -lname "$1/*" -print -quit 2>/dev/null)
+  fd=$(find /proc/[0-9]*/fd -maxdepth 1 -lname "$real/*" -print -quit 2>/dev/null)
   [[ -n $fd ]] || return 1
   fd=${fd#/proc/}
   echo "${fd%%/*}"
