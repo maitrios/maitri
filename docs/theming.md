@@ -67,6 +67,8 @@ instead of racing.
 - `vscode.json` — names the extension `maitri-theme-set-vscode` installs, and a VS Code extension is arbitrary JavaScript
 - `herdr.toml` — `maitri-theme-set-herdr` splices it into herdr's own `config.toml`, which runs commands
 
+A theme's `gtk.css` is kept, but `maitri-theme-set-gtk` only splices it into the user's GTK config when every line is an `@define-color name #RRGGBB;`, a comment or blank; otherwise GTK apps drop back to their own look. `maitri-toggle-enabled skip-gtk-theme-changes` turns the GTK splice off.
+
 Symlinks are dropped with them, at any depth; in a cloned theme they point wherever the theme author chose. Everything a cloned theme ships that is colour is kept, including files maitri would otherwise have generated — `btop.theme`, `helix.toml`, `shell.toml`, `icons.theme`, `keyboard.rgb` and the rest — so a theme can still say exactly how it wants each app to look. What is dropped gets generated from `default/themed/*.tpl` instead, and is named on stderr.
 
 A denylist is only right while it is maintained. Adding a template for another terminal, or for another editor that loads Lua, means adding it to `INSTALLED_THEME_DENIED` in `bin/maitri-theme-set`; `test/shell.d/theme-staging-test.sh` fails on any `default/themed/*.tpl` whose output is recorded as neither code nor colour, so a new template cannot be added without that decision being made.
