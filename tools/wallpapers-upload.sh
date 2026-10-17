@@ -5,11 +5,13 @@
 # stable channel at it. .github/workflows/wallpapers.yml runs this on a release;
 # see docs/wallpapers.md.
 #
-#   tools/wallpapers-upload.sh [--dry-run] [--from <dir>] <tag>
+#   tools/wallpapers-upload.sh [--dry-run] [--prerelease] [--from <dir> | --tar <file>] <tag>
 #
 # A real run needs the aws CLI and R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and
 # R2_ENDPOINT. --dry-run needs neither: it reads the public bucket, says what it
-# would upload and prints the manifest it would publish.
+# would upload and prints the manifest it would publish. --tar takes the staged
+# wallpapers from a wallpapers.tar instead of a directory. --prerelease, or a tag
+# with a prerelease suffix, writes only the release's manifest and leaves stable.
 
 set -euo pipefail
 
@@ -20,16 +22,24 @@ die() {
   exit 1
 }
 
-usage="usage: tools/wallpapers-upload.sh [--dry-run] [--from <dir>] <tag>"
+usage="usage: tools/wallpapers-upload.sh [--dry-run] [--prerelease] [--from <dir> | --tar <file>] <tag>"
 dry_run=0
+prerelease=0
 from="$ROOT/wallpapers"
+tar=""
 tag=""
 while (( $# > 0 )); do
   case $1 in
     --dry-run) dry_run=1 ;;
+    --prerelease) prerelease=1 ;;
     --from)
       (( $# > 1 )) || die "$usage"
       from=$2
+      shift
+      ;;
+    --tar)
+      (( $# > 1 )) || die "$usage"
+      tar=$2
       shift
       ;;
     -*) die "$usage" ;;
@@ -41,12 +51,15 @@ while (( $# > 0 )); do
   shift
 done
 [[ $tag =~ ^v[0-9][0-9A-Za-z.+-]*$ ]] || die "$usage"
-[[ -d $from ]] || die "no staging directory at $from"
+[[ $tag != *-* ]] || prerelease=1
+[[ -n $tar || -d $from ]] || die "no staging directory at $from"
+[[ -z $tar || -f $tar ]] || die "no tar at $tar"
 
 bucket=maitri-assets
 base_url=${MAITRI_WALLPAPERS_URL:-https://maitri.cdn.k7.dev}
 file_cache="public, max-age=31536000, immutable"
 manifest_cache="public, max-age=60"
+max_size=$((64 * 1024 * 1024))
 
 if (( dry_run == 0 )); then
   : "${R2_ACCESS_KEY_ID:?R2_ACCESS_KEY_ID is not set}"
@@ -67,7 +80,7 @@ s3() {
 
 public_get() {
   local status
-  status=$(curl -sS --max-time 60 -o "$2" -w '%{http_code}' "$base_url/$1") || die "could not reach $base_url/$1"
+  status=$(curl -sS --max-time 60 "${@:3}" -o "$2" -w '%{http_code}' "$base_url/$1") || die "could not reach $base_url/$1"
   if (( status == 200 )); then
     return 0
   elif (( status == 404 )); then
@@ -90,7 +103,7 @@ get() {
 exists() {
   local error
   if (( dry_run == 1 )); then
-    public_get "$1" /dev/null
+    public_get "$1" /dev/null --head
     return
   fi
   error=$(s3 head-object --bucket "$bucket" --key "$1" 2>&1 >/dev/null) && return 0
@@ -109,10 +122,11 @@ put() {
 
 previous_release=""
 if get channels/stable/manifest.json "$work/stable.json"; then
-  jq -e '
+  jq -e --argjson max "$max_size" '
     (.release | type == "string") and (.files | type == "array") and (.files | all(
-      type == "object" and (.theme | type == "string") and (.sha256 | type == "string") and (.size | type == "number")
-      and (.file | type == "string" and test("^themes/[a-z0-9-]+/[0-9a-f]{64}\\.[a-z0-9]+$"))
+      type == "object" and (.theme | type == "string") and (.sha256 | type == "string")
+      and (.size | type == "number" and . >= 0 and . <= $max and floor == .)
+      and (.file | type == "string" and test("^themes/[a-z0-9-]+/[0-9a-f]{64}\\.(jpg|png|webp|avif)$"))
       and (. as $entry | $entry.file | startswith("themes/\($entry.theme)/\($entry.sha256)."))
     ))' "$work/stable.json" >/dev/null ||
     die "channels/stable/manifest.json is not a valid manifest; fix it before publishing over it"
@@ -121,37 +135,55 @@ else
   echo '{"release": "", "files": []}' >"$work/stable.json"
 fi
 
-: >"$work/added.jsonl"
-shopt -s nullglob
-for dir in "$from"/*/; do
-  theme=$(basename "$dir")
-  [[ $theme =~ ^[a-z0-9-]+$ ]] || die "$dir: theme names are lowercase letters, digits and dashes"
-  [[ -d $ROOT/themes/$theme ]] || die "$dir: maitri has no $theme theme"
+if [[ -n $tar ]]; then
+  types=$(tar -tvf "$tar" | cut -c1) || die "$tar could not be read"
+  [[ -z $types ]] || ! grep -qv '^[-d]$' <<<"$types" || die "$tar: only directories and plain files go in wallpapers.tar"
+  from="$work/staged"
+  mkdir "$from"
+  tar -xf "$tar" -C "$from" --no-same-owner --no-same-permissions || die "$tar could not be unpacked"
+fi
 
-  for wallpaper in "$dir"*; do
+image_type() {
+  case $(od -An -tx1 -N12 "$1" | tr -d ' \n') in
+    ffd8ff*) echo jpg ;;
+    89504e470d0a1a0a*) echo png ;;
+    52494646????????57454250) echo webp ;;
+  esac
+}
+
+: >"$work/added.jsonl"
+upload_files=()
+upload_keys=()
+upload_types=()
+shopt -s nullglob dotglob
+for entry in "$from"/*; do
+  [[ ${entry##*/} != "README.md" ]] || continue
+  [[ -d $entry && ! -L $entry ]] || die "$entry: only theme directories go at the top of the staging directory"
+  theme=${entry##*/}
+  [[ $theme =~ ^[a-z0-9-]+$ ]] || die "$entry: theme names are lowercase letters, digits and dashes"
+  [[ -d $ROOT/themes/$theme ]] || die "$entry: maitri has no $theme theme"
+
+  for wallpaper in "$entry"/*; do
     [[ -f $wallpaper && ! -L $wallpaper ]] || die "$wallpaper: only plain image files go in a theme directory"
     extension=${wallpaper##*.}
     extension=${extension,,}
+    [[ $extension != "jpeg" ]] || extension=jpg
     case $extension in
-      jpg | jpeg)
-        extension=jpg
-        content_type=image/jpeg
-        ;;
+      jpg) content_type=image/jpeg ;;
       png) content_type=image/png ;;
       webp) content_type=image/webp ;;
       *) die "$wallpaper: wallpapers are jpg, png or webp" ;;
     esac
+    [[ $(image_type "$wallpaper") == "$extension" ]] || die "$wallpaper: the file is not a $extension image"
 
-    sha256=$(sha256sum "$wallpaper" | cut -d' ' -f1)
     size=$(stat -c %s "$wallpaper")
+    (( size > 0 && size <= max_size )) || die "$wallpaper: $size bytes, wallpapers are at most $max_size"
+    sha256=$(sha256sum "$wallpaper" | cut -d' ' -f1)
     key="themes/$theme/$sha256.$extension"
 
-    if exists "$key"; then
-      echo "already published $key ($wallpaper)" >&2
-    else
-      put "$wallpaper" "$key" "$content_type" "$file_cache"
-    fi
-
+    upload_files+=("$wallpaper")
+    upload_keys+=("$key")
+    upload_types+=("$content_type")
     jq -nc --arg theme "$theme" --arg file "$key" --arg sha256 "$sha256" --argjson size "$size" \
       '{theme: $theme, file: $file, sha256: $sha256, size: $size}' >>"$work/added.jsonl"
   done
@@ -162,16 +194,30 @@ jq --arg release "$tag" --slurpfile added "$work/added.jsonl" \
   "$work/stable.json" >"$work/manifest.json"
 
 release_key="releases/$tag/manifest.json"
+write_release=1
 if get "$release_key" "$work/published.json"; then
-  [[ $(jq -cS '.files' "$work/published.json") == $(jq -cS '.files' "$work/manifest.json") ]] ||
-    die "$release_key is already published with other files; wallpapers for a published tag are fixed, so ship them with the next release"
-  echo "already published $release_key" >&2
-else
-  put "$work/manifest.json" "$release_key" application/json "$manifest_cache"
+  jq -e --slurpfile new "$work/manifest.json" '.files - $new[0].files == []' "$work/published.json" >/dev/null ||
+    die "$release_key is already published with files this run would drop; a release's wallpapers only grow, so ship them with the next release"
+  if [[ $(jq -cS '.files' "$work/published.json") == "$(jq -cS '.files' "$work/manifest.json")" ]]; then
+    echo "already published $release_key" >&2
+    write_release=0
+  fi
 fi
 
+for i in "${!upload_keys[@]}"; do
+  if exists "${upload_keys[$i]}"; then
+    echo "already published ${upload_keys[$i]} (${upload_files[$i]})" >&2
+  else
+    put "${upload_files[$i]}" "${upload_keys[$i]}" "${upload_types[$i]}" "$file_cache"
+  fi
+done
+
+(( write_release == 0 )) || put "$work/manifest.json" "$release_key" application/json "$manifest_cache"
+
 newest=$(printf '%s\n%s\n' "$previous_release" "$tag" | sort -V | tail -n 1)
-if [[ $newest == "$tag" ]]; then
+if (( prerelease == 1 )); then
+  echo "$tag is a prerelease; leaving stable on $previous_release" >&2
+elif [[ $newest == "$tag" ]]; then
   put "$work/manifest.json" channels/stable/manifest.json application/json "$manifest_cache"
 else
   echo "stable is on $previous_release, newer than $tag; leaving it there" >&2

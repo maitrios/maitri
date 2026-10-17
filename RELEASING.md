@@ -25,10 +25,21 @@ maitri uses SemVer tags `vMAJOR.MINOR.PATCH`. `v0.x` is pre-stable; `v0.3.0` is 
 
    Verify with `gh release view stable -R maitrios/maitri-pkgs` (or `pacman -Sy && pacman -Si
    maitri` on a stable machine).
-4. Publish the GitHub release, which triggers the ISO build:
+4. Publish the GitHub release, which triggers the ISO build and the wallpaper upload:
 
    ```bash
    gh release create vX.Y.Z --repo maitrios/maitri --target main --title "maitri vX.Y.Z" --generate-notes
+   ```
+
+   With new wallpapers staged under `wallpapers/<theme>/`, pack them and publish with the tar
+   attached instead:
+
+   ```bash
+   tar -cf wallpapers.tar -C wallpapers --exclude README.md .
+   ```
+
+   ```bash
+   gh release create vX.Y.Z --repo maitrios/maitri --target main --title "maitri vX.Y.Z" --generate-notes wallpapers.tar
    ```
 
    `build-iso.yml` waits for the `stable` channel to carry `maitri X.Y.Z`, builds the ISO, pushes it
@@ -39,8 +50,19 @@ maitri uses SemVer tags `vMAJOR.MINOR.PATCH`. `v0.x` is pre-stable; `v0.3.0` is 
 Release notes are generated from merged pull requests, so land changes through PRs with clear titles.
 
 New wallpapers ship by attaching `wallpapers.tar` to the release when publishing it; `wallpapers.yml`
-uploads them and moves the stable wallpaper manifest to the release either way. See
-[`docs/wallpapers.md`](docs/wallpapers.md).
+uploads them and moves the stable wallpaper manifest to the release either way. If the tar missed the
+release, attach it and rerun the workflow on the tag (a run started from `main` is refused by the
+`release` environment):
+
+```bash
+gh release upload vX.Y.Z wallpapers.tar --repo maitrios/maitri
+```
+
+```bash
+gh workflow run wallpapers.yml --repo maitrios/maitri --ref vX.Y.Z -f tag=vX.Y.Z
+```
+
+See [`docs/wallpapers.md`](docs/wallpapers.md).
 
 ## Releasing as a flare
 
@@ -70,6 +92,8 @@ takes it; Andrew's approval of the PR that bumped `version` was the approval for
    compare range from the previous release; `git log --first-parent vPREV..vX.Y.Z` shows the same
    merges locally:
    `gh release create vX.Y.Z --repo maitrios/maitri --target <sha> --title "maitri vX.Y.Z" --notes-file <summary> --generate-notes`.
+   If Andrew handed over a `wallpapers.tar` for the release, pass it as the last argument
+   (`... --generate-notes wallpapers.tar`), then check that `wallpapers.yml` passed for the release.
 4. Check that `build-iso.yml` started for the release. If it didn't, start it with
    `gh workflow run build-iso.yml -R maitrios/maitri -f release_tag=vX.Y.Z` (see its inputs).
 5. Comment on the issue with the tag, the maitri-pkgs commit and the release link, then close it.
