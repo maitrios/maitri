@@ -578,7 +578,8 @@ The set is opt-in, from Style > App Icons in the menu or the commands:
   stops without touching anything when `default/icons/` is missing. Each run
   also refreshes the icon copies from `default/icons/`, so new icon art from an
   update reaches them, and removes copies no swap uses anymore. It never
-  overwrites or removes an icon file it didn't write, and it touches the icon
+  overwrites or removes an icon file it didn't write, and skips a launcher
+  whose `maitri-<key>` name such a file already takes, and it touches the icon
   theme dir whenever a copy changes, so GTK rescans it. Swaps made before icons
   were copied, which point at an absolute path, are moved over to the names. A
   launcher whose icon has left the set (after `maitri dev unlink` from a branch

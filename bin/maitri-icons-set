@@ -48,7 +48,7 @@ png_size() {
 
   signature="$(od -An -tx1 -N8 "$1" 2>/dev/null | tr -d ' \n')"
   [[ $signature == "89504e470d0a1a0a" ]] || return 1
-  read -r size < <(od -An -tu1 -j16 -N8 "$1" | awk '{
+  read -r size < <(od -An -tu1 -j16 -N8 "$1" 2>/dev/null | awk '{
     w = $1 * 16777216 + $2 * 65536 + $3 * 256 + $4
     h = $5 * 16777216 + $6 * 65536 + $7 * 256 + $8
     print (w == h ? w : "")
@@ -85,6 +85,17 @@ icon_copy_path() {
   else
     size="$(png_size "$source")"
     printf '%s\n' "$icon_theme_dir/${size}x${size}/apps/maitri-$1.png"
+  fi
+}
+
+icon_usable() {
+  local copy
+
+  icon_source "$1" >/dev/null || return 1
+  copy="$(icon_copy_path "$1")"
+  if [[ -e $copy || -L $copy ]] && ! grep -Fxqs "$copy" "$copies"; then
+    echo "Not swapping $1: $copy is there and maitri didn't put it there" >&2
+    return 1
   fi
 }
 
@@ -139,7 +150,7 @@ icon_for() {
 
   key="$raw"
   [[ $key =~ \.(png|svg|xpm)$ ]] && key="${key%.*}"
-  icon_source "$key" >/dev/null || return 1
+  icon_usable "$key" || return 1
   printf '%s\t%s\n' "maitri-$key" "$raw"
 }
 
@@ -268,7 +279,7 @@ for id in "${ids[@]}"; do
 
   seen[$id]=1
   if [[ $kind != "created" ]]; then
-    if ! icon_source "$(icon_key "$icon")" >/dev/null; then
+    if ! icon_usable "$(icon_key "$icon")"; then
       if [[ -n $hash && $(file_hash "$desktop_file") == "$hash" ]] && [[ -e $originals_dir/$id || -L $originals_dir/$id ]]; then
         mv "$originals_dir/$id" "$desktop_file"
       else
@@ -279,7 +290,7 @@ for id in "${ids[@]}"; do
       continue
     fi
     wanted="maitri-$(icon_key "$icon")"
-    if [[ $icon != "$wanted" ]] && icon_source "${wanted#maitri-}" >/dev/null; then
+    if [[ $icon != "$wanted" ]] && icon_usable "${wanted#maitri-}"; then
       ensure_icon "$wanted"
       unchanged=0
       [[ -n $hash && $(file_hash "$desktop_file") == "$hash" ]] && unchanged=1
