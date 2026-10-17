@@ -1,14 +1,13 @@
 return {
   {
     "maitri-theme",
-    dir = vim.env.MAITRI_PATH .. "/default/nvim/maitri-theme",
+    dir = assert(vim.env.MAITRI_PATH, "MAITRI_PATH is not set, so the maitri colorscheme can't load") .. "/default/nvim/maitri-theme",
     lazy = false,
     priority = 1000,
     opts = {
       mode = "{{ mode }}",
       colors = {
         accent = "{{ accent }}",
-        selection = "{{ selection }}",
         muted = "{{ muted }}",
 
         background = "{{ background }}",
