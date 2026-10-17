@@ -1,0 +1,233 @@
+#!/bin/bash
+
+# maitri:summary=Style Firefox and Zen profiles from the current maitri theme
+# maitri:hidden=true
+
+THEME_DIR="$HOME/.local/state/maitri/current/theme"
+STYLESHEETS_PREF="toolkit.legacyUserProfileCustomizations.stylesheets"
+
+BROWSERS=(
+  "Firefox|firefox|$HOME/.mozilla/firefox $HOME/.config/mozilla/firefox"
+  "Zen|zen-browser zen|$HOME/.zen $HOME/.config/zen"
+)
+
+profile_dirs() {
+  local root="$1"
+
+  awk -v root="$root" '
+    function emit() {
+      if (in_profile && path != "") print (relative ? root "/" path : path)
+    }
+    { sub(/\r$/, "") }
+    /^\[/ {
+      emit()
+      in_profile = ($0 ~ /^\[Profile[0-9]+\]$/)
+      path = ""
+      relative = 1
+      next
+    }
+    in_profile && /^Path=/ { path = substr($0, 6) }
+    in_profile && /^IsRelative=/ { relative = (substr($0, 12) + 0 != 0) }
+    END { emit() }
+  ' "$root/profiles.ini"
+}
+
+string_pref() {
+  local key="${2//./\\.}"
+
+  sed -nE "s/^user_pref\(\"$key\", \"([^\"]*)\"\);.*/\1/p" "$1/prefs.js" 2>/dev/null | tail -n 1
+}
+
+# A profile its owner gave a Firefox theme of its own, or a Zen accent of its
+# own, keeps it; only the default, light and dark built-ins follow maitri.
+follows_maitri() {
+  local accent
+
+  case "$(string_pref "$1" extensions.activeThemeID)" in
+    "" | default-theme@mozilla.org | firefox-compact-dark@mozilla.org | firefox-compact-light@mozilla.org) ;;
+    *) return 1 ;;
+  esac
+
+  accent=$(string_pref "$1" zen.theme.accent-color)
+  [[ -z $accent || $accent == "AccentColor" ]]
+}
+
+# A theme cloned with `maitri theme install` reaches these stylesheets through
+# its colors.toml, so every colour they use has to be a plain #rrggbb. A theme
+# the user wrote is trusted like the rest of their config.
+cloned_theme_colours_ok() {
+  local -A palette=()
+  local name dir key value
+
+  name=$(cat "$HOME/.local/state/maitri/current/theme.name" 2>/dev/null)
+  dir="$HOME/.config/maitri/themes/$name"
+  [[ -n $name && -d $dir/.git && ! -L $dir ]] || return 0
+
+  while IFS=$'\t' read -r key value; do
+    palette[$key]=$value
+  done < <(maitri-theme-color --file "$THEME_DIR/colors.toml" --all 2>/dev/null)
+
+  while IFS= read -r key; do
+    value=${palette[$key]:-}
+    if [[ $key == "mode" ]]; then
+      [[ $value == "dark" || $value == "light" ]] || return 1
+    else
+      [[ $value =~ ^#[0-9A-Fa-f]{6}$ ]] || return 1
+    fi
+  done < <(
+    cat "$MAITRI_PATH"/default/themed/firefox-*.tpl "$HOME"/.config/maitri/themed/firefox-*.tpl 2>/dev/null |
+      grep -oE '\{\{[^}]+\}\}' | tr -d '{}' | tr ' ' '\n' | grep -xE '[a-z_]+' | grep -vxE 'mix(_strip|_rgb)?' | sort -u
+  )
+}
+
+# A symlinked file belongs to the user's dotfiles; maitri neither replaces the
+# link nor writes through it.
+linked_elsewhere() {
+  local file="$1"
+  local wanted="$2"
+
+  [[ -L $file ]] || return 1
+  grep -qxF "$wanted" "$file" 2>/dev/null ||
+    echo "$file is a symlink, so maitri left it alone. Add this line to it to follow the maitri theme: $wanted" >&2
+  return 0
+}
+
+add_import() {
+  local file="$1"
+  local import="$2"
+
+  linked_elsewhere "$file" "$import" && return
+  grep -qxF "$import" "$file" 2>/dev/null && return
+  changed=1
+
+  if [[ ! -s $file ]]; then
+    printf '%s\n' "$import" >"$file"
+  else
+    # @import only counts before every other rule, @charset excepted.
+    awk -v import="$import" '
+      NR == 1 && /^@charset/ { print; print import; next }
+      NR == 1 { print import }
+      { print }
+    ' "$file" >"$file.maitri-tmp" && mv "$file.maitri-tmp" "$file"
+  fi
+}
+
+remove_import() {
+  local file="$1"
+  local import="$2"
+
+  [[ -f $file && ! -L $file ]] && grep -qxF "$import" "$file" || return 0
+  changed=1
+
+  grep -vxF "$import" "$file" >"$file.maitri-tmp"
+  if grep -q '[^[:space:]]' "$file.maitri-tmp"; then
+    mv "$file.maitri-tmp" "$file"
+  else
+    rm -f "$file.maitri-tmp" "$file"
+  fi
+}
+
+# The line maitri adds is marked so it can be found again. A user who set the
+# pref themselves keeps their line, and an explicit false is respected.
+enable_stylesheets() {
+  local file="$1/user.js"
+  local line="user_pref(\"$STYLESHEETS_PREF\", true); // maitri"
+  local pref="^[[:space:]]*user_pref\(\"${STYLESHEETS_PREF//./\\.}\",[[:space:]]*"
+
+  linked_elsewhere "$file" "$line" && return
+
+  if grep -qE "${pref}false[[:space:]]*\)" "$file" 2>/dev/null; then
+    echo "$file sets $STYLESHEETS_PREF to false, so Firefox won't load the maitri stylesheets for this profile." >&2
+    return
+  fi
+  grep -qE "${pref}true[[:space:]]*\)" "$file" 2>/dev/null && return
+
+  changed=1
+  [[ -s $file && $(tail -c 1 "$file") != "" ]] && echo >>"$file"
+  printf '%s\n' "$line" >>"$file"
+}
+
+# A chrome folder that resolves outside the profile is a dotfiles link (stow
+# folds a whole folder into one), so nothing is written through it.
+chrome_elsewhere() {
+  local profile="$1"
+  local chrome="$2"
+  local part
+
+  [[ -e $chrome || -L $chrome ]] || return 1
+  [[ $(realpath -m -- "$chrome") == "$(realpath -m -- "$profile")/chrome" ]] && return 1
+
+  for part in userChrome userContent; do
+    [[ -e $chrome/maitri-$part.css ]] && grep -qxF "@import url(\"maitri-$part.css\");" "$chrome/$part.css" 2>/dev/null && continue
+    echo "$chrome is a symlink, so maitri left it alone. To follow the maitri theme, link $THEME_DIR/firefox-$part.css to $chrome/maitri-$part.css and add this line to $part.css: @import url(\"maitri-$part.css\");" >&2
+  done
+  return 0
+}
+
+# Sets changed when it writes anything, so the restart notice only goes to an
+# open browser whose files actually moved.
+style_profile() {
+  local profile="$1"
+  local chrome="$profile/chrome"
+  local part follows=""
+
+  follows_maitri "$profile" && follows=1
+
+  if [[ -n $follows ]] && chrome_elsewhere "$profile" "$chrome"; then
+    enable_stylesheets "$profile"
+    return
+  fi
+  [[ -z $follows && -L $chrome ]] && return
+
+  for part in userChrome userContent; do
+    if [[ -n $follows ]]; then
+      mkdir -p "$chrome"
+      if ! cmp -s "$THEME_DIR/firefox-$part.css" "$chrome/maitri-$part.css" || [[ -L $chrome/maitri-$part.css ]]; then
+        cp --remove-destination "$THEME_DIR/firefox-$part.css" "$chrome/maitri-$part.css"
+        changed=1
+      fi
+      add_import "$chrome/$part.css" "@import url(\"maitri-$part.css\");"
+    else
+      remove_import "$chrome/$part.css" "@import url(\"maitri-$part.css\");"
+      if [[ -e $chrome/maitri-$part.css || -L $chrome/maitri-$part.css ]]; then
+        rm -f "$chrome/maitri-$part.css"
+        changed=1
+      fi
+    fi
+  done
+
+  [[ -n $follows ]] && enable_stylesheets "$profile"
+}
+
+[[ -f $THEME_DIR/firefox-userChrome.css && -f $THEME_DIR/firefox-userContent.css ]] || exit 0
+
+if ! cloned_theme_colours_ok; then
+  echo "Firefox and Zen keep their current look: this theme's colors.toml has a colour that isn't #rrggbb." >&2
+  exit 0
+fi
+
+for entry in "${BROWSERS[@]}"; do
+  IFS='|' read -r name commands roots <<<"$entry"
+
+  present=""
+  for cmd in $commands; do
+    maitri-cmd-present "$cmd" && present=1 && break
+  done
+  [[ -n $present ]] || continue
+
+  running=""
+  for root in $roots; do
+    [[ -f $root/profiles.ini ]] || continue
+
+    while IFS= read -r profile; do
+      [[ -d $profile ]] || continue
+      changed=""
+      style_profile "$profile"
+      [[ -n $changed && -L $profile/lock ]] && running=1
+    done < <(profile_dirs "$root")
+  done
+
+  [[ -n $running ]] && echo "$name is open, so restart it to pick up the new theme." >&2
+done
+
+exit 0
