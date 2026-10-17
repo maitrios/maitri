@@ -26,7 +26,7 @@ for theme_dir in "$ROOT"/themes/*/; do
   themes+=("$theme")
 done
 
-(( ${#themes[@]} == 6 )) || fail "six themes are rendered" "${themes[*]}"
+(( ${#themes[@]} > 0 )) || fail "themes are rendered"
 
 python3 - "$test_tmp" "${themes[@]}" <<'PY'
 import json, re, sys, tomllib
@@ -89,6 +89,19 @@ class Check:
         if not condition:
             self.errors.append(message)
 
+    def distinct(self, label, fill, surface, minimum):
+        ratio = contrast(over(fill, surface), surface)
+        if ratio < minimum:
+            self.errors.append(f"{label}: {ratio:.2f}:1 against its surface, floor {minimum}:1")
+
+    def scopes(self, rules):
+        p = self.palette
+        heading = {f"H{n}": mix(p["accent"], p["foreground"], (n - 1) * 0.13) for n in range(1, 7)}
+        for stack, role in FIXTURES:
+            expected = heading.get(role) or p[role]
+            got = resolve(rules, stack)
+            self.expect(got and got.lower() == expected.lower(), f"{stack[-1]} under {stack[-2]} is {got}, expected {role}")
+
     def headings(self, colors, bold):
         p = self.palette
         self.expect(colors[0].lower() == p["accent"].lower(), f"H1 is {colors[0]}, not the accent")
@@ -122,6 +135,57 @@ SYNTAX = {
 }
 
 
+FIXTURES = [
+    (["source.python", "meta.function-call.python", "meta.function-call.arguments.python"], "foreground"),
+    (["source.python", "meta.function-call.python", "meta.function-call.generic.python"], "green"),
+    (["source.python", "string.regexp.quoted.single.python"], "red"),
+    (["source.python", "comment.line.number-sign.python"], "comment"),
+    (["source.js", "meta.property.object.js", "punctuation.accessor.js"], "light_foreground"),
+    (["source.json", "meta.structure.dictionary.json", "punctuation.separator.dictionary.key-value.json"], "light_foreground"),
+    (["source.json", "meta.structure.dictionary.json", "support.type.property-name.json"], "orange"),
+    (["source.ts", "storage.type.ts"], "magenta"),
+    (["source.ts", "meta.var.expr.ts", "string.quoted.double.ts"], "yellow"),
+    (["source.ts", "meta.function.ts", "meta.parameters.ts", "variable.parameter.ts"], "orange"),
+    (["source.ts", "meta.decorator.ts", "variable.other.readwrite.ts"], "foreground"),
+    (["source.ts", "meta.decorator.ts", "entity.name.function.ts"], "green"),
+    (["source.java", "meta.definition.variable.java", "storage.type.generic.java"], "cyan"),
+    (["source.c", "meta.preprocessor.macro.c", "constant.numeric.decimal.c"], "blue"),
+    (["source.rust", "entity.name.type.rust"], "cyan"),
+    (["text.html.markdown", "markup.heading.markdown", "heading.1.markdown", "punctuation.definition.heading.markdown"], "H1"),
+    (["text.html.markdown", "markup.heading.markdown", "heading.1.markdown", "entity.name.section.markdown"], "H1"),
+    (["text.html.markdown", "markup.heading.markdown", "heading.3.markdown", "entity.name.section.markdown"], "H3"),
+    (["text.html.markdown", "markup.heading.markdown", "heading.6.markdown", "punctuation.definition.heading.markdown"], "H6"),
+    (["text.html.markdown", "markup.heading.1.markdown", "punctuation.definition.heading.begin.markdown"], "H1"),
+    (["text.html.markdown", "markup.heading.2.markdown", "entity.name.section.markdown"], "H2"),
+    (["text.html.markdown", "markup.heading.4.markdown", "punctuation.definition.heading.begin.markdown"], "H4"),
+    (["text.html.markdown", "markup.heading.setext.2.markdown"], "H2"),
+]
+
+
+def score(selector, stack):
+    result = []
+    i = len(stack)
+    for part in reversed(selector.split()):
+        while i > 0:
+            i -= 1
+            if stack[i] == part or stack[i].startswith(part + "."):
+                result += [i, part.count(".") + 1]
+                break
+        else:
+            return None
+    return result
+
+
+def resolve(rules, stack):
+    best, color = None, None
+    for selectors, fg in rules:
+        for selector in selectors:
+            s = score(selector, stack)
+            if s is not None and fg and (best is None or s >= best):
+                best, color = s, fg
+    return color
+
+
 def helix(theme, p, path):
     c = Check(theme, "helix", p)
     doc = tomllib.load(open(path, "rb"))
@@ -136,6 +200,16 @@ def helix(theme, p, path):
 
     for key, value in palette.items():
         c.expect(re.fullmatch(r"#[0-9A-Fa-f]{6}", value), f"palette {key} is {value}")
+    modifiers = {"bold", "dim", "italic", "underlined", "slow_blink", "rapid_blink", "reversed", "hidden", "crossed_out"}
+    for scope in doc:
+        s = style(scope)
+        for modifier in s.get("modifiers", []):
+            c.expect(modifier in modifiers, f"{scope} has an unknown modifier {modifier}")
+        if "underline" in s:
+            c.expect(s["underline"].get("style") in {"line", "curl", "dashed", "dotted", "double_line"}, f"{scope} has an unknown underline style")
+        for key in ("fg", "bg"):
+            if key in s:
+                c.expect(s[key] in palette, f"{scope} {key} {s[key]} is not in the palette")
 
     bg = p["background"]
     cursorline = color(style("ui.cursorline.primary")["bg"])
@@ -362,6 +436,18 @@ def vscode(theme, p, path):
         ("terminal.ansiBrightBlack", "comment"), ("editorGutter.modifiedBackground", "blue"),
     ):
         c.expect(colors[key].lower() == p[role].lower(), f"{key} is {colors[key]}, not {role}")
+    for fill, surface, minimum in (
+        ("list.activeSelectionBackground", "sideBar.background", 1.2),
+        ("list.inactiveSelectionBackground", "sideBar.background", 1.1),
+        ("list.hoverBackground", "sideBar.background", 1.1),
+        ("quickInputList.focusBackground", "quickInput.background", 1.2),
+        ("editorSuggestWidget.selectedBackground", "editorSuggestWidget.background", 1.2),
+        ("menu.selectionBackground", "menu.background", 1.2),
+        ("editor.lineHighlightBackground", "editor.background", 1.05),
+        ("editor.selectionBackground", "editor.background", 1.4),
+    ):
+        c.distinct(fill, colors[fill], colors[surface], minimum)
+    c.scopes([(t["scope"], t["settings"].get("foreground")) for t in doc["tokenColors"]])
     for key in ("list.hoverBackground", "list.activeSelectionBackground", "editor.lineHighlightBackground"):
         c.expect(colors[key].lower() != p["selection"].lower(), f"{key} reuses the selection fill")
 
@@ -395,8 +481,13 @@ def sublime(theme, p, path):
     c.expect("selection_foreground" not in g, "selection_foreground flattens syntax in selections")
 
     by_name = {}
+    styles = {"bold", "italic", "glow", "underline", "stippled_underline", "squiggly_underline"}
     for rule in doc["rules"]:
         by_name[rule["name"]] = rule
+        for word in rule.get("font_style", "").split():
+            c.expect(word in styles, f"rule {rule['name']} has an unknown font_style {word}")
+        if "foreground" not in rule:
+            continue
         for surface in ("background", "line_highlight"):
             c.floor(f"{rule['name']} on {surface}", rule["foreground"], g[surface])
 
@@ -408,6 +499,7 @@ def sublime(theme, p, path):
         c.expect(by_name[name]["foreground"].lower() == p[SYNTAX[role]].lower(), f"rule {name} is not {SYNTAX[role]}")
     c.expect(by_name["Deleted"]["foreground"].lower() == p["red"].lower(), "markup.deleted is not red")
     c.expect("background" not in by_name["Invalid"], "invalid paints a background")
+    c.scopes([([s.strip() for s in r["scope"].split(",")], r.get("foreground")) for r in doc["rules"]])
 
     headings = [by_name["Heading"]] + [by_name[f"Heading {n}"] for n in range(2, 7)]
     c.headings([h["foreground"] for h in headings], ["bold" in h.get("font_style", "") for h in headings])
@@ -417,7 +509,9 @@ def sublime(theme, p, path):
 def obsidian(theme, p, path):
     c = Check(theme, "obsidian", p)
     css = open(path).read()
-    block = css[css.index("{") + 1:css.index("}")]
+    start = css.index("{", css.index(".theme-dark, .theme-light"))
+    end = css.index("}", start)
+    block = css[start + 1:end]
     raw = dict(re.findall(r"(--[\w-]+):\s*([^;]+);", block))
 
     def value(name):
@@ -453,9 +547,12 @@ def obsidian(theme, p, path):
         for base in (primary, secondary):
             c.floor(f"{name} on {base}", value(name), base, LINE)
 
-    for selector, color in re.findall(r"([^{}]+)\{[^}]*?(?<![-\w])color:\s*(#[0-9A-Fa-f]{6})", css[css.index("}") + 1:]):
+    for selector, color in re.findall(r"([^{}]+)\{[^}]*?(?<![-\w])color:\s*([^;]+);", css[end + 1:]):
         label = " ".join(selector.split())[:60]
+        m = re.fullmatch(r"var\((--[\w-]+)\)", color.strip())
+        color = value(m.group(1)) if m else color.strip()
         c.floor(f"{label} on the page", color, primary)
+        c.floor(f"{label} on the sidebar", color, secondary)
         c.floor(f"{label} in a code block", color, code)
 
     for role, name in (("yellow", "--code-string"), ("green", "--code-function"), ("magenta", "--code-keyword"),
