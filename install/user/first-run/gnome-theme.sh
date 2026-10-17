@@ -1,2 +1,2 @@
 maitri-theme-set-gnome
-maitri-theme-set-gtk
+maitri-theme-set-gtk || true
