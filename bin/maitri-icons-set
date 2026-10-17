@@ -8,7 +8,9 @@ icon_dir="$MAITRI_PATH/default/icons"
 state_dir="$HOME/.local/state/maitri/icons"
 manifest="$state_dir/manifest"
 originals_dir="$state_dir/originals"
+copies="$state_dir/copies"
 user_dir="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+icon_theme_dir="${XDG_DATA_HOME:-$HOME/.local/share}/icons/hicolor"
 
 system_dirs=()
 IFS=: read -ra data_dirs <<<"${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
@@ -41,8 +43,73 @@ entry_fields() {
   ' "$1"
 }
 
+icon_source() {
+  local ext
+
+  for ext in png svg; do
+    if [[ -f $icon_dir/$1.$ext ]]; then
+      printf '%s\n' "$icon_dir/$1.$ext"
+      return 0
+    fi
+  done
+  return 1
+}
+
+icon_key() {
+  local key="${1##*/}"
+
+  [[ $key =~ \.(png|svg)$ ]] && key="${key%.*}"
+  printf '%s\n' "${key#maitri-}"
+}
+
+icon_copy_path() {
+  local source size
+
+  source="$(icon_source "$1")" || return 1
+  if [[ $source == *.svg ]]; then
+    printf '%s\n' "$icon_theme_dir/scalable/apps/maitri-$1.svg"
+  else
+    read -r size < <(od -An -tu1 -j16 -N4 "$source" | awk '{ print $1 * 16777216 + $2 * 65536 + $3 * 256 + $4 }')
+    printf '%s\n' "$icon_theme_dir/${size}x${size}/apps/maitri-$1.png"
+  fi
+}
+
+ensure_icon() {
+  local key source copy
+
+  key="$(icon_key "$1")"
+  source="$(icon_source "$key")" || return 0
+  copy="$(icon_copy_path "$key")"
+  if ! cmp -s "$source" "$copy"; then
+    mkdir -p "${copy%/*}"
+    tmp="$(mktemp "${copy%/*}/.maitri-icon.XXXXXX")"
+    cp "$source" "$tmp"
+    chmod 644 "$tmp"
+    mv "$tmp" "$copy"
+    tmp=""
+  fi
+  grep -Fxqs "$copy" "$copies" || printf '%s\n' "$copy" >>"$copies"
+}
+
+prune_icons() {
+  local copy name kept=""
+
+  [[ -f $copies ]] || return 0
+  while IFS= read -r copy; do
+    [[ -n $copy ]] || continue
+    name="${copy##*/}"
+    name="${name%.*}"
+    if [[ -s $manifest ]] && cut -f3 "$manifest" | grep -Fxq "$name" && [[ $copy == "$(icon_copy_path "${name#maitri-}")" ]]; then
+      kept+="$copy"$'\n'
+    else
+      rm -f "$copy"
+    fi
+  done <"$copies"
+  printf '%s' "$kept" >"$copies"
+}
+
 icon_for() {
-  local hidden raw key ext
+  local hidden raw key
 
   IFS=$'\t' read -r hidden raw < <(entry_fields "$1")
   (( hidden == 0 )) || return 1
@@ -50,17 +117,8 @@ icon_for() {
 
   key="$raw"
   [[ $key =~ \.(png|svg|xpm)$ ]] && key="${key%.*}"
-
-  # Icon= gets the absolute $MAITRI_PATH path, so a swap made under maitri dev link
-  # points at the checkout: https://github.com/k7lab/maitrios/issues/39
-  for ext in png svg; do
-    if [[ -f $icon_dir/$key.$ext ]]; then
-      printf '%s\t%s\n' "$icon_dir/$key.$ext" "$raw"
-      return 0
-    fi
-  done
-
-  return 1
+  icon_source "$key" >/dev/null || return 1
+  printf '%s\t%s\n' "maitri-$key" "$raw"
 }
 
 render() {
@@ -91,16 +149,18 @@ write_override() {
   tmp=""
 }
 
-revert_icon() {
-  local file="$1" icon="$2" key
+swap_icon() {
+  local file="$1" from="$2" to="$3"
 
-  key="${icon##*/}"
-  key="${key%.*}"
   tmp="$(mktemp "$state_dir/write.XXXXXX")"
-  ICON="Icon=$icon" KEY="Icon=$key" awk '$0 == ENVIRON["ICON"] { $0 = ENVIRON["KEY"] } { print }' "$file" >"$tmp"
+  FROM="Icon=$from" TO="Icon=$to" awk '$0 == ENVIRON["FROM"] { $0 = ENVIRON["TO"] } { print }' "$file" >"$tmp"
   chmod --reference="$file" "$tmp"
   mv "$tmp" "$file"
   tmp=""
+}
+
+revert_icon() {
+  swap_icon "$1" "$2" "$(icon_key "$2")"
 }
 
 ids=()
@@ -172,6 +232,7 @@ for id in "${ids[@]}"; do
 
   if ! grep -Fxq "Icon=$icon" "$desktop_file"; then
     if [[ -n $fields && -n $hash ]] && [[ $(render "$desktop_file" "$icon" "$raw" | sha256sum | cut -d' ' -f1) == "$hash" ]]; then
+      ensure_icon "$new_icon"
       write_override "${source[$id]}" "$id" "$new_icon" "$raw"
       record "$id" "created" "$new_icon" "$(file_hash "$desktop_file")"
       seen[$id]=1
@@ -183,8 +244,19 @@ for id in "${ids[@]}"; do
     continue
   fi
 
-  [[ $kind == "created" ]] || continue
   seen[$id]=1
+  if [[ $kind != "created" ]]; then
+    wanted="maitri-$(icon_key "$icon")"
+    if [[ $icon != "$wanted" ]] && icon_source "${wanted#maitri-}" >/dev/null; then
+      ensure_icon "$wanted"
+      unchanged=0
+      [[ -n $hash && $(file_hash "$desktop_file") == "$hash" ]] && unchanged=1
+      swap_icon "$desktop_file" "$icon" "$wanted"
+      (( unchanged == 0 )) || hash="$(file_hash "$desktop_file")"
+      record "$id" "$kind" "$wanted" "$hash"
+    fi
+    continue
+  fi
 
   current="$(file_hash "$desktop_file")"
   if [[ -z $hash ]]; then
@@ -203,9 +275,13 @@ for id in "${ids[@]}"; do
     continue
   fi
 
+  ensure_icon "$new_icon"
   if [[ $current == "$hash" ]]; then
     write_override "${source[$id]}" "$id" "$new_icon" "$raw"
     hash="$(file_hash "$desktop_file")"
+    icon="$new_icon"
+  elif [[ $icon != "$new_icon" ]]; then
+    swap_icon "$desktop_file" "$icon" "$new_icon"
     icon="$new_icon"
   fi
   [[ $hash == "${hashes[$id]}" && $icon == "${icons[$id]}" ]] || record "$id" "created" "$icon" "$hash"
@@ -230,12 +306,20 @@ for dir in "$user_dir" "${system_dirs[@]}"; do
       kind="created"
     fi
 
+    ensure_icon "$icon"
     write_override "$desktop_file" "$id" "$icon" "$raw"
     record "$id" "$kind" "$icon" "$(file_hash "$user_dir/$id")"
     echo "Swapped icon for $id"
     swapped=$((swapped + 1))
   done
 done
+
+if [[ -s $manifest ]]; then
+  while IFS=$'\t' read -r _ _ icon _; do
+    [[ $icon != maitri-* ]] || ensure_icon "$icon"
+  done <"$manifest"
+fi
+prune_icons
 
 if [[ ! -s $manifest ]]; then
   rm -rf "$state_dir"
