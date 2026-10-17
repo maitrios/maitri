@@ -5,14 +5,22 @@
 # release's manifest and point the stable channel at it.
 # .github/workflows/wallpapers.yml runs this on a release; see docs/wallpapers.md.
 #
-#   tools/wallpapers-upload.sh [--dry-run] [--prerelease] [--from <dir> | --tar <file>] <tag>
+#   tools/wallpapers-upload.sh [--dry-run] [--prerelease] [--from <dir> | --tar <file>]
+#     [--make-previews <dir> | --previews <dir>] <tag>
 #
-# Every run needs vips for the previews. A real run also needs the aws CLI and
-# R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_ENDPOINT. --dry-run needs
-# neither: it reads the public bucket, says what it would upload and prints the
-# manifest it would publish. --tar takes the staged wallpapers from a
-# wallpapers.tar instead of a directory. --prerelease, or a tag with a
-# prerelease suffix, writes only the release's manifest and leaves stable.
+# Decoding an image means running image libraries on files from a release
+# asset, so it never happens with the bucket token around. --make-previews
+# checks the staged wallpapers, writes their previews under <dir> with vips and
+# stops; it touches no network and refuses to run with a token in its
+# environment. A real run takes those previews with --previews and only checks
+# their names, sizes and first bytes. A dry run without --previews makes its own,
+# which needs vips.
+#
+# A real run needs the aws CLI and R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and
+# R2_ENDPOINT. --dry-run needs neither: it reads the public bucket, says what it
+# would upload and prints the manifest it would publish. --tar takes the staged
+# wallpapers from a wallpapers.tar instead of a directory. --prerelease, or a tag
+# with a prerelease suffix, writes only the release's manifest and leaves stable.
 
 set -euo pipefail
 
@@ -23,11 +31,13 @@ die() {
   exit 1
 }
 
-usage="usage: tools/wallpapers-upload.sh [--dry-run] [--prerelease] [--from <dir> | --tar <file>] <tag>"
+usage="usage: tools/wallpapers-upload.sh [--dry-run] [--prerelease] [--from <dir> | --tar <file>] [--make-previews <dir> | --previews <dir>] <tag>"
 dry_run=0
 prerelease=0
 from="$ROOT/wallpapers"
 tar=""
+make_previews=""
+previews=""
 tag=""
 while (( $# > 0 )); do
   case $1 in
@@ -43,6 +53,16 @@ while (( $# > 0 )); do
       tar=$2
       shift
       ;;
+    --make-previews)
+      (( $# > 1 )) || die "$usage"
+      make_previews=$2
+      shift
+      ;;
+    --previews)
+      (( $# > 1 )) || die "$usage"
+      previews=$2
+      shift
+      ;;
     -*) die "$usage" ;;
     *)
       [[ -z $tag ]] || die "$usage"
@@ -55,6 +75,9 @@ done
 [[ $tag != *-* ]] || prerelease=1
 [[ -n $tar || -d $from ]] || die "no staging directory at $from"
 [[ -z $tar || -f $tar ]] || die "no tar at $tar"
+[[ -z $make_previews || -z $previews ]] || die "$usage"
+[[ -z $previews || -d $previews ]] || die "no previews at $previews"
+previews=${previews%/}
 
 bucket=maitri-assets
 base_url=${MAITRI_WALLPAPERS_URL:-https://maitri.cdn.k7.dev}
@@ -62,10 +85,11 @@ file_cache="public, max-age=31536000, immutable"
 manifest_cache="public, max-age=60"
 max_size=$((64 * 1024 * 1024))
 max_manifest_size=1048576
+max_preview_size=$((4 * 1024 * 1024))
 preview_width=960
 preview_options="Q=80,effort=6,keep=none"
 
-if (( dry_run == 0 )); then
+if (( dry_run == 0 )) && [[ -z $make_previews ]]; then
   : "${R2_ACCESS_KEY_ID:?R2_ACCESS_KEY_ID is not set}"
   : "${R2_SECRET_ACCESS_KEY:?R2_SECRET_ACCESS_KEY is not set}"
   : "${R2_ENDPOINT:?R2_ENDPOINT is not set}"
@@ -132,18 +156,11 @@ valid_manifest() {
       and (.size | type == "number" and . >= 0 and . <= $max and floor == .)
       and (.file | type == "string" and test("^themes/[a-z0-9-]+/[0-9a-f]{64}\\.(jpg|png|webp|avif)$"))
       and (. as $entry | $entry.file | startswith("themes/\($entry.theme)/\($entry.sha256)."))
-      and ((has("preview") | not) or (. as $entry | $entry.preview == "themes/\($entry.theme)/\($entry.sha256).preview.webp"))
+      and (has("preview") == has("preview_sha256"))
+      and ((has("preview") | not) or (. as $entry | $entry.preview == "themes/\($entry.theme)/\($entry.sha256).preview.webp"
+        and ($entry.preview_sha256 | type == "string" and test("^[0-9a-f]{64}$"))))
     ))' "$1" >/dev/null
 }
-
-previous_release=""
-if get channels/stable/manifest.json "$work/stable.json"; then
-  valid_manifest "$work/stable.json" ||
-    die "channels/stable/manifest.json is not a valid manifest; fix it before publishing over it"
-  previous_release=$(jq -r '.release' "$work/stable.json")
-else
-  echo '{"release": "", "files": []}' >"$work/stable.json"
-fi
 
 if [[ -n $tar ]]; then
   types=$(tar -tvf "$tar" | cut -c1) || die "$tar could not be read"
@@ -170,11 +187,29 @@ make_preview() {
     die "$1: could not be decoded to make its preview: $error"
 }
 
-: >"$work/added.jsonl"
+make_all_previews() {
+  local i
+  [[ -z ${R2_ACCESS_KEY_ID:-}${R2_SECRET_ACCESS_KEY:-}${AWS_SECRET_ACCESS_KEY:-} ]] ||
+    die "won't decode images with a bucket token in the environment; make the previews with --make-previews in a job without it"
+  for i in "${!preview_keys[@]}"; do
+    mkdir -p "$1/${preview_keys[$i]%/*}"
+    make_preview "${upload_files[$i]}" "$1/${preview_keys[$i]}"
+  done
+}
+
+check_preview() {
+  local size
+  [[ -f $1 && ! -L $1 ]] || die "$2: there is no preview for it"
+  [[ $(image_type "$1") == "webp" ]] || die "$2: the preview is not a WebP"
+  size=$(stat -c %s "$1")
+  (( size > 0 && size <= max_preview_size )) || die "$2: the preview is $size bytes, previews are at most $max_preview_size"
+}
+
 upload_files=()
 upload_keys=()
 upload_types=()
 preview_keys=()
+upload_entries=()
 shopt -s nullglob dotglob
 for entry in "$from"/*; do
   [[ ${entry##*/} != "README.md" ]] || continue
@@ -208,14 +243,63 @@ for entry in "$from"/*; do
     upload_keys+=("$key")
     upload_types+=("$content_type")
     preview_keys+=("$preview_key")
-    jq -nc --arg theme "$theme" --arg file "$key" --arg sha256 "$sha256" --argjson size "$size" --arg preview "$preview_key" \
-      '{theme: $theme, file: $file, sha256: $sha256, size: $size, preview: $preview}' >>"$work/added.jsonl"
+    upload_entries+=("$(jq -nc --arg theme "$theme" --arg file "$key" --arg sha256 "$sha256" --argjson size "$size" \
+      '{theme: $theme, file: $file, sha256: $sha256, size: $size}')")
   done
 done
 
-for i in "${!preview_keys[@]}"; do
-  mkdir -p "$work/${preview_keys[$i]%/*}"
-  make_preview "${upload_files[$i]}" "$work/${preview_keys[$i]}"
+if [[ -n $make_previews ]]; then
+  make_all_previews "$make_previews"
+  echo "made ${#preview_keys[@]} previews in $make_previews" >&2
+  exit 0
+fi
+
+if [[ -n $previews ]]; then
+  declare -A expected=()
+  for key in "${preview_keys[@]}"; do
+    expected[$key]=1
+  done
+  while IFS= read -r -d '' path; do
+    [[ ! -d $path || -L $path ]] || continue
+    relative=${path#"$previews"/}
+    [[ -f $path && ! -L $path ]] || die "$previews: $relative is not a plain file"
+    [[ -n ${expected[$relative]:-} ]] || die "$previews: $relative is not the preview of a staged wallpaper"
+  done < <(find "$previews" -mindepth 1 -print0)
+elif (( ${#preview_keys[@]} > 0 )); then
+  (( dry_run == 1 )) ||
+    die "a real run takes its previews from --previews, made by --make-previews without the bucket token"
+  previews="$work/previews"
+  make_all_previews "$previews"
+fi
+
+previous_release=""
+if get channels/stable/manifest.json "$work/stable.json"; then
+  valid_manifest "$work/stable.json" ||
+    die "channels/stable/manifest.json is not a valid manifest; fix it before publishing over it"
+  previous_release=$(jq -r '.release' "$work/stable.json")
+else
+  echo '{"release": "", "files": []}' >"$work/stable.json"
+fi
+
+declare -A preview_sha256=() preview_upload=()
+mkdir -p "$work/published-previews"
+for key in "${preview_keys[@]}"; do
+  [[ -z ${preview_sha256[$key]:-} ]] || continue
+  if get "$key" "$work/published-previews/preview"; then
+    check_preview "$work/published-previews/preview" "$key"
+    preview_sha256[$key]=$(sha256sum <"$work/published-previews/preview" | cut -d' ' -f1)
+    echo "already published $key" >&2
+  else
+    check_preview "$previews/$key" "$key"
+    preview_sha256[$key]=$(sha256sum <"$previews/$key" | cut -d' ' -f1)
+    preview_upload[$key]=1
+  fi
+done
+
+: >"$work/added.jsonl"
+for i in "${!upload_entries[@]}"; do
+  jq -c --arg preview "${preview_keys[$i]}" --arg preview_sha256 "${preview_sha256[${preview_keys[$i]}]}" \
+    '. + {preview: $preview, preview_sha256: $preview_sha256}' <<<"${upload_entries[$i]}" >>"$work/added.jsonl"
 done
 
 jq --arg release "$tag" --slurpfile added "$work/added.jsonl" \
@@ -244,11 +328,12 @@ for i in "${!upload_keys[@]}"; do
   else
     put "${upload_files[$i]}" "${upload_keys[$i]}" "${upload_types[$i]}" "$file_cache"
   fi
-  if exists "${preview_keys[$i]}"; then
-    echo "already published ${preview_keys[$i]}" >&2
-  else
-    put "$work/${preview_keys[$i]}" "${preview_keys[$i]}" image/webp "$file_cache"
-  fi
+done
+
+for key in "${preview_keys[@]}"; do
+  [[ -n ${preview_upload[$key]:-} ]] || continue
+  unset "preview_upload[$key]"
+  put "$previews/$key" "$key" image/webp "$file_cache"
 done
 
 (( write_release == 0 )) || put "$work/manifest.json" "$release_key" application/json "$manifest_cache"

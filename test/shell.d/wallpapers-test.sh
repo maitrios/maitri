@@ -390,9 +390,36 @@ esac
 SH
 chmod +x "$fake_bin/aws"
 
-publish_release() {
-  PATH="$fake_bin:$PATH" FAKE_BUCKET="$served" R2_ACCESS_KEY_ID=test R2_SECRET_ACCESS_KEY=test R2_ENDPOINT=http://r2.invalid \
+decoders="$test_tmp/decoders"
+mkdir -p "$decoders"
+for decoder in vips vipsthumbnail vipsheader magick convert identify gm cwebp dwebp ffmpeg djpeg pngtopnm python3; do
+  printf '#!/bin/bash\necho "%s $*" >>"%s"\nexit 1\n' "$decoder" "$test_tmp/decoders.log" >"$decoders/$decoder"
+  chmod +x "$decoders/$decoder"
+done
+: >"$test_tmp/decoders.log"
+
+with_token() {
+  PATH="$decoders:$fake_bin:$PATH" FAKE_BUCKET="$served" R2_ACCESS_KEY_ID=test R2_SECRET_ACCESS_KEY=test R2_ENDPOINT=http://r2.invalid \
     upload "$@"
+}
+
+publish_with_previews() {
+  local artifact=$1 status=0
+  shift
+  with_token --previews "$artifact" "$@" || status=$?
+  [[ ! -s $test_tmp/decoders.log ]] || fail "a run with the bucket token never decodes an image" "$(cat "$test_tmp/decoders.log")"
+  return "$status"
+}
+
+make_artifact() {
+  rm -rf "$test_tmp/artifact"
+  mkdir -p "$test_tmp/artifact"
+  upload --make-previews "$test_tmp/artifact" "$@"
+}
+
+publish_release() {
+  make_artifact "$@" || return
+  publish_with_previews "$test_tmp/artifact" "$@"
 }
 
 : >"$served.log"
@@ -433,6 +460,8 @@ vipsheader -a "$staging2/harbor/camera.jpg" 2>/dev/null | grep -q '^exif-data' |
   fail "a preview carries no metadata"
 jq -e --arg tide "$tide" '.files | any(.file == "themes/harbor/\($tide).png" and .preview == "themes/harbor/\($tide).preview.webp")' \
   "$served/channels/stable/manifest.json" >/dev/null || fail "the published manifest names each preview"
+[[ $(jq -r --arg tide "$tide" '.files[] | select(.sha256 == $tide) | .preview_sha256' "$served/channels/stable/manifest.json") == \
+  "$(sha256_of "$previews/$tide.preview.webp")" ]] || fail "the manifest carries each preview's sha256"
 [[ ! -e $backgrounds/harbor/$tide.preview.webp ]] || fail "the updater never installs a preview"
 pass "previews are 960-pixel WebPs with no metadata, never scaled up, and the updater ignores them"
 
@@ -466,7 +495,7 @@ grep -qx "already published releases/v1.5.0/manifest.json" "$test_tmp/plan" ||
 pass "an identical rerun publishes nothing new"
 
 for manifest in releases/v1.5.0 channels/stable; do
-  jq '.files |= map(del(.preview))' "$served/$manifest/manifest.json" >"$test_tmp/old.json"
+  jq '.files |= map(del(.preview, .preview_sha256))' "$served/$manifest/manifest.json" >"$test_tmp/old.json"
   cp "$test_tmp/old.json" "$served/$manifest/manifest.json"
 done
 cp "$previews/$camera.preview.webp" "$test_tmp/camera.preview.webp"
@@ -491,20 +520,92 @@ grep -qx "already published releases/v1.5.0/manifest.json" "$test_tmp/plan" &&
 pass "rerunning a release backfills previews into manifests published without them, the same bytes every time"
 
 cp "$served/channels/stable/manifest.json" "$test_tmp/stable-before.json"
-for preview in "themes/harbor/$tide.preview.png" "themes/garnet/$camera.preview.webp" "themes/harbor/$late.preview.webp" 42; do
-  jq --arg camera "$camera" --argjson preview "$(jq -n --arg p "$preview" '$p | tonumber? // $p')" \
-    '.files |= map(if .sha256 == $camera then .preview = $preview else . end)' \
+for change in '.preview = "themes/harbor/\(.sha256).preview.png"' '.preview = "themes/garnet/\(.sha256).preview.webp"' \
+  '.preview = "themes/harbor/\($late).preview.webp"' '.preview = 42' 'del(.preview)' 'del(.preview_sha256)' \
+  '.preview_sha256 = "not a hash"' '.preview_sha256 = .sha256[1:]'; do
+  jq --arg camera "$camera" --arg late "$late" ".files |= map(if .sha256 == \$camera then $change else . end)" \
     "$test_tmp/stable-before.json" >"$served/channels/stable/manifest.json"
   : >"$served.log"
   if publish_release --from "$empty" v1.5.1; then
-    fail "a stable manifest whose preview is not its own entry's is refused ($preview)"
+    fail "a stable manifest with a bad preview is refused ($change)"
   fi
   grep -q "channels/stable/manifest.json is not a valid manifest" "$test_tmp/plan" ||
     fail "the uploader says why it refuses a bad preview" "$(cat "$test_tmp/plan")"
   [[ ! -s $served.log ]] || fail "a bad preview uploads nothing" "$(cat "$served.log")"
 done
 cp "$test_tmp/stable-before.json" "$served/channels/stable/manifest.json"
-pass "a preview must be themes/<theme>/<sha256>.preview.webp for its own entry"
+pass "a preview must be themes/<theme>/<sha256>.preview.webp for its own entry, with a sha256 next to it"
+
+: >"$served.log"
+if with_token --tar "$test_tmp/wallpapers.tar" v1.5.0; then
+  fail "a real run without --previews is refused"
+fi
+grep -q "a real run takes its previews from --previews" "$test_tmp/plan" || fail "the uploader says a real run needs --previews" "$(cat "$test_tmp/plan")"
+if R2_SECRET_ACCESS_KEY="test" upload --make-previews "$test_tmp/artifact" --tar "$test_tmp/wallpapers.tar" v1.5.0; then
+  fail "making previews with the bucket token around is refused"
+fi
+grep -q "won't decode images with a bucket token in the environment" "$test_tmp/plan" ||
+  fail "the uploader says why it won't decode with the token around" "$(cat "$test_tmp/plan")"
+[[ ! -s $served.log && ! -s $test_tmp/decoders.log ]] || fail "neither refusal uploads or decodes anything" "$(cat "$served.log" "$test_tmp/decoders.log")"
+pass "images are only decoded by --make-previews, never with the bucket token in the environment"
+
+staging3="$test_tmp/staging3"
+cp -r "$staging2" "$staging3"
+picture jpg "$staging3/harbor/fresh.jpg"
+fresh=$(sha256_of "$staging3/harbor/fresh.jpg")
+tar -cf "$test_tmp/fresh.tar" -C "$staging3" .
+refuse_artifact() {
+  local expected=$1
+  : >"$served.log"
+  if publish_with_previews "$test_tmp/artifact" --tar "$test_tmp/fresh.tar" v1.5.0; then
+    fail "the publish step refuses previews that $expected"
+  fi
+  grep -q "$expected" "$test_tmp/plan" || fail "the publish step says why it refuses the previews" "$(cat "$test_tmp/plan")"
+  [[ ! -s $served.log ]] || fail "refused previews upload nothing" "$(cat "$served.log")"
+  make_artifact --tar "$test_tmp/fresh.tar" v1.5.0
+}
+make_artifact --tar "$test_tmp/fresh.tar" v1.5.0 || fail "previews for the fresh tar are made" "$(cat "$test_tmp/plan")"
+fresh_preview="$test_tmp/artifact/themes/harbor/$fresh.preview.webp"
+picture webp "$test_tmp/artifact/themes/harbor/$dusk.preview.webp"
+refuse_artifact "is not the preview of a staged wallpaper"
+mkdir -p "$test_tmp/artifact/themes/ember"
+picture webp "$test_tmp/artifact/themes/ember/$fresh.preview.webp"
+refuse_artifact "is not the preview of a staged wallpaper"
+rm "$fresh_preview"
+refuse_artifact "there is no preview for it"
+picture png "$fresh_preview"
+refuse_artifact "the preview is not a WebP"
+truncate -s 5M "$fresh_preview"
+refuse_artifact "previews are at most"
+rm "$fresh_preview"
+ln -s "$test_tmp/camera.preview.webp" "$fresh_preview"
+refuse_artifact "is not a plain file"
+pass "the publish step takes only a WebP of at most 4 MiB at each staged wallpaper's preview name, and nothing else"
+
+cp "$previews/$camera.preview.webp" "$test_tmp/camera-published.webp"
+make_artifact --tar "$test_tmp/wallpapers.tar" v1.5.0
+picture webp "$test_tmp/artifact/themes/harbor/$camera.preview.webp" 960 600
+: >"$served.log"
+publish_with_previews "$test_tmp/artifact" --tar "$test_tmp/wallpapers.tar" v1.5.0 ||
+  fail "a rerun whose previews differ from the published ones succeeds" "$(cat "$test_tmp/plan")"
+cmp -s "$test_tmp/camera-published.webp" "$previews/$camera.preview.webp" || fail "a published preview is never overwritten"
+for manifest in releases/v1.5.0 channels/stable; do
+  [[ $(jq -r --arg camera "$camera" '.files[] | select(.sha256 == $camera) | .preview_sha256' "$served/$manifest/manifest.json") == \
+    "$(sha256_of "$test_tmp/camera-published.webp")" ]] || fail "$manifest keeps the sha256 of the preview in the bucket"
+done
+pass "a rerun under another vips keeps the published preview and its sha256"
+
+cp "$served/releases/v1.5.0/manifest.json" "$test_tmp/release-before.json"
+jq --arg tide "$tide" '.files |= map(if .sha256 == $tide then .size += 1 else . end)' "$test_tmp/release-before.json" \
+  >"$served/releases/v1.5.0/manifest.json"
+: >"$served.log"
+if publish_release --tar "$test_tmp/wallpapers.tar" v1.5.0; then
+  fail "a rerun that would change a published entry's size is refused"
+fi
+grep -q "would drop" "$test_tmp/plan" || fail "the uploader counts a changed size as a dropped entry" "$(cat "$test_tmp/plan")"
+[[ ! -s $served.log ]] || fail "a refused size change uploads nothing" "$(cat "$served.log")"
+cp "$test_tmp/release-before.json" "$served/releases/v1.5.0/manifest.json"
+pass "a published entry's size counts in the grow-only check"
 
 jq --arg sha256 "$oversized" '.files += [{theme: "amethyst", file: ("themes/amethyst/" + $sha256 + ".jpg"), sha256: $sha256, size: 5120}]' \
   "$served/releases/v1.5.0/manifest.json" >"$test_tmp/grown.json"

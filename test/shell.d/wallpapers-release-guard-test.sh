@@ -70,9 +70,30 @@ workflow="$ROOT/.github/workflows/wallpapers.yml"
   fail "wallpapers.yml only runs on workflow_dispatch"
 grep -qx "    if: github.ref == 'refs/heads/main'" "$workflow" ||
   fail "the publish job only runs on main"
-guard=$(grep -n 'tools/wallpapers-check-tag.sh "$TAG"' "$workflow" | cut -d: -f1)
-first_secret=$(grep -n 'secrets\.' "$workflow" | head -n 1 | cut -d: -f1)
+job() {
+  awk -v name="  $1:" '$0 == name { on = 1; print; next } on && /^  [a-z_-]+:$/ { exit } on' "$workflow"
+}
+previews_job=$(job previews)
+publish_job=$(job publish)
+[[ -n $previews_job && -n $publish_job ]] || fail "wallpapers.yml has a previews job and a publish job"
+[[ $(grep -c "^    if: github.ref == 'refs/heads/main'$" "$workflow") == 2 ]] ||
+  fail "both jobs only run on main"
+for definition in "$previews_job" "$publish_job"; do
+  grep -q 'tools/wallpapers-check-tag.sh "$TAG"' <<<"$definition" || fail "each job checks the tag"
+done
+guard=$(grep -n 'tools/wallpapers-check-tag.sh "$TAG"' <<<"$publish_job" | cut -d: -f1)
+first_secret=$(grep -n 'secrets\.' <<<"$publish_job" | head -n 1 | cut -d: -f1)
 [[ -n $guard && -n $first_secret ]] && (( guard < first_secret )) ||
   fail "the tag is checked before any step that sees a secret"
 ! grep -q 'ref: \${{' "$workflow" || fail "the workflow never checks out the tag's tree"
 pass "wallpapers.yml runs only from main, and checks the tag before the secrets"
+
+! grep -qE 'environment:|secrets\.' <<<"$previews_job" || fail "the previews job has no environment and no secrets"
+grep -qx '      contents: read' <<<"$previews_job" && ! grep -qE ': write$' <<<"$previews_job" ||
+  fail "the previews job can only read the repository"
+grep -q -- '--make-previews' <<<"$previews_job" || fail "the previews job makes the previews"
+[[ $(grep -c 'environment:' "$workflow") == 1 ]] && grep -qx '    environment: release' <<<"$publish_job" ||
+  fail "only the publish job reaches the release environment"
+! grep -qE 'vips|--make-previews|apt-get|magick|convert' <<<"$publish_job" || fail "the publish job never installs or runs an image decoder"
+grep -q -- '--previews "$RUNNER_TEMP/previews"' <<<"$publish_job" || fail "the publish job takes the previews job's previews"
+pass "images are decoded only in the previews job, which has no environment and no secrets"
