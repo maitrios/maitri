@@ -11,6 +11,7 @@ WRITTEN_COLORS="$STATE_DIR/chromium-theme-colors"
 APPLY_LOCK="$STATE_DIR/chromium-theme.lock"
 WAITER_LOCK="$STATE_DIR/chromium-theme-waiter.lock"
 HOLDERS="$STATE_DIR/chromium-theme-holders"
+BROWSER_BINARIES=(helium chromium chrome)
 
 BROWSERS=(
   "Helium|helium helium-browser|$HOME/.config/net.imput.helium $HOME/.config/helium"
@@ -111,7 +112,6 @@ theme_color() {
   printf '%s' "${color,,}"
 }
 
-# Prints "name<TAB>user data dir" for every installed browser with a profile.
 installed_roots() {
   local entry name commands roots root cmd present
 
@@ -130,13 +130,26 @@ installed_roots() {
   done
 }
 
+# Only the browser itself writes Preferences back, so a backup or sync daemon,
+# an editor or a reused PID holding a file in the data dir doesn't count.
+browser_process() {
+  local exe binary
+
+  exe=$(readlink "/proc/$1/exe" 2>/dev/null) || return 1
+  exe=${exe% (deleted)}
+  for binary in "${BROWSER_BINARIES[@]}"; do
+    [[ ${exe##*/} == "$binary" ]] && return 0
+  done
+  return 1
+}
+
 # A running browser holds Preferences in memory and writes them back on exit,
 # after it has already dropped its SingletonLock, and a crash leaves a lock
 # naming a process that is gone or reused. So the process in the lock only
 # counts while it has a file open inside the user data dir, and once the lock
-# is gone any process that still does counts. /proc shows resolved paths, so
-# the match is against the real path. Prints that process, or "elsewhere" for
-# a lock taken on another host over a shared home.
+# is gone any browser process that still does counts. /proc shows resolved
+# paths, so the match is against the real path. Prints that process, or
+# "elsewhere" for a lock taken on another host over a shared home.
 root_holder() {
   local target real pid fd
 
@@ -150,16 +163,22 @@ root_holder() {
     fi
 
     pid=${target##*-}
-    if [[ -n $(find "/proc/$pid/fd" -maxdepth 1 -lname "$real/*" -print -quit 2>/dev/null) ]]; then
+    if browser_process "$pid" && [[ -n $(find "/proc/$pid/fd" -maxdepth 1 -lname "$real/*" -print -quit 2>/dev/null) ]]; then
       echo "$pid"
       return 0
     fi
   fi
 
-  fd=$(find /proc/[0-9]*/fd -maxdepth 1 -lname "$real/*" -print -quit 2>/dev/null)
-  [[ -n $fd ]] || return 1
-  fd=${fd#/proc/}
-  echo "${fd%%/*}"
+  while IFS= read -r fd; do
+    fd=${fd#/proc/}
+    pid=${fd%%/*}
+    if browser_process "$pid"; then
+      echo "$pid"
+      return 0
+    fi
+  done < <(find /proc/[0-9]*/fd -maxdepth 1 -lname "$real/*" -print 2>/dev/null | awk -F/ '!seen[$3]++')
+
+  return 1
 }
 
 root_open() {
@@ -242,7 +261,7 @@ wait_until_closed() {
       if pid=$(root_holder "$root"); then
         holders[$root]=$pid
         waiting=1
-      elif [[ ${holders[$root]:-} =~ ^[0-9]+$ ]] && kill -0 "${holders[$root]}" 2>/dev/null; then
+      elif [[ ${holders[$root]:-} =~ ^[0-9]+$ ]] && browser_process "${holders[$root]}"; then
         waiting=1
       else
         unset "holders[$root]"
