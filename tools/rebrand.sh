@@ -121,7 +121,7 @@ DELETE_LIST=(
 )
 
 # Stock upstream themes are not shipped; only maitri's own live in themes/.
-KEEP_THEMES=(spark harbor orchid ember garnet amethyst daybreak)
+KEEP_THEMES=(spark harbor ember garnet amethyst daybreak)
 
 mode=all
 paths=()
