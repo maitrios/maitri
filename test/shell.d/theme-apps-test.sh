@@ -412,12 +412,16 @@ run_hook "$home" maitri-theme-set-fish "$apps:$sandbox:$PATH" || fail "maitri-th
 grep -q "fish_frozen_theme.fish sets colours globally" "$home/hook.stderr" || fail "the fish hook says when a global colour hides the theme" "$(cat "$home/hook.stderr")"
 rm "$home/.config/fish/conf.d/fish_frozen_theme.fish"
 
-for line in 'set -gx fish_color_command red' 'fish_config theme choose "Tomorrow Night"'; do
+for line in 'set -gx fish_color_command red' 'set -g -x fish_color_command red' 'fish_config theme choose "Tomorrow Night"'; do
   : >"$home/hook.stderr"
   printf '%s\n' "$line" >"$home/.config/fish/config.fish"
   run_hook "$home" maitri-theme-set-fish "$apps:$sandbox:$PATH" || fail "maitri-theme-set-fish runs beside $line"
   grep -q "config.fish sets colours globally" "$home/hook.stderr" || fail "the fish hook says that $line hides the theme" "$(cat "$home/hook.stderr")"
 done
+printf 'set -qg fish_color_command; and true\n' >"$home/.config/fish/config.fish"
+: >"$home/hook.stderr"
+run_hook "$home" maitri-theme-set-fish "$apps:$sandbox:$PATH" || fail "maitri-theme-set-fish runs beside a query"
+! grep -q "sets colours globally" "$home/hook.stderr" || fail "the fish hook doesn't mistake set -q for setting a colour" "$(cat "$home/hook.stderr")"
 rm "$home/.config/fish/config.fish"
 
 : >"$home/hook.stderr"
@@ -433,5 +437,9 @@ run_hook "$home" maitri-theme-set-fish "$apps:$sandbox:$PATH" || fail "maitri-th
 [[ $(fish_get "$home" fish_color_command) == "fish_color_command=$amethyst_green" ]] || fail "fish gets the last line of a fish.fish without a final newline" "$(fish_get "$home" fish_color_command)"
 (( $(grep -cE '^SETUVAR fish_(pager_)?color_' "$home/.config/fish/fish_variables") == 1 )) || fail "a shorter fish.fish leaves none of the previous theme's colours" "$(grep SETUVAR "$home/.config/fish/fish_variables")"
 [[ ! -s $home/hook.stderr ]] || fail "a comment in fish.fish is skipped quietly" "$(cat "$home/hook.stderr")"
+
+printf '# no colours of its own\n' >"$home/.local/state/maitri/current/theme/fish.fish"
+run_hook "$home" maitri-theme-set-fish "$apps:$sandbox:$PATH" || fail "maitri-theme-set-fish takes a fish.fish with no colours"
+(( $(grep -cE '^SETUVAR fish_(pager_)?color_' "$home/.config/fish/fish_variables") == 0 )) || fail "a fish.fish with no colours leaves none of the previous theme's" "$(grep SETUVAR "$home/.config/fish/fish_variables")"
 
 pass "fish takes the theme as universal variables, idempotently, and never runs a theme's fish.fish"
