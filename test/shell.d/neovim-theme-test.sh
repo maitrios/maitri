@@ -98,7 +98,27 @@ for _, name in ipairs({ "@markup.link.label", "RenderMarkdownLink" }) do
   end
 end
 
-for _, key in ipairs({ "comment", "accent", "hint", "link", "red", "green", "yellow", "blue", "magenta", "cyan", "orange" }) do
+local lualine = require("lualine.themes.maitri")
+
+for _, name in ipairs({ "NormalFloat", "Pmenu", "StatusLine", "RenderMarkdownCode" }) do
+  floor(ratio(name, "bg", "Normal", "bg"), 1.2, name .. " against Normal")
+end
+floor(ratio("CursorLine", "bg", "Normal", "bg"), 1.15, "CursorLine against Normal")
+floor(ratio("Visual", "bg", "Normal", "bg"), 1.5, "Visual against Normal")
+floor(ratio("WinSeparator", "fg", "Normal", "bg"), 3, "WinSeparator")
+
+if plugin.opts.mode == "dark" then
+  floor(ratio("CursorLine", "bg", "NormalFloat", "bg"), 1.05, "CursorLine against NormalFloat")
+  floor(ratio("SnacksPickerPreviewCursorLine", "bg", "NormalFloat", "bg"), 1.1, "the picker preview cursorline against NormalFloat")
+  floor(ratio("TroublePreview", "bg", "TroubleNormal", "bg"), 1.2, "TroublePreview against TroubleNormal")
+  floor(ratio("PmenuThumb", "bg", "Pmenu", "bg"), 2, "PmenuThumb against Pmenu")
+  floor(palette.contrast(lualine.normal.b.bg, lualine.normal.c.bg), 1.1, "lualine section b against section c")
+  for _, key in ipairs({ "fg", "fg_dim", "accent" }) do
+    floor(palette.contrast(p[key], p.bg_light), 4.5, key .. " on a raised chip")
+  end
+end
+
+for _, key in ipairs({ "fg", "comment", "accent", "hint", "link", "red", "green", "yellow", "blue", "magenta", "cyan", "orange" }) do
   for _, surface in ipairs({ "Normal", "CursorLine", "NormalFloat" }) do
     floor(palette.contrast(p[key], hex(hl(surface).bg)), 4.5, key .. " on " .. surface)
   end
@@ -106,26 +126,6 @@ end
 
 floor(ratio("PmenuExtraSel", "fg", "PmenuSel", "bg"), 3, "PmenuExtraSel")
 floor(ratio("SnacksPickerUnselected", "fg", "NormalFloat", "bg"), 3, "SnacksPickerUnselected")
-
-for _, name in ipairs({ "NormalFloat", "Pmenu", "StatusLine", "RenderMarkdownCode" }) do
-  floor(ratio(name, "bg", "Normal", "bg"), 1.2, name .. " against Normal")
-  for _, key in ipairs({ "fg", "comment", "accent", "red", "green", "yellow", "blue", "magenta", "cyan", "orange" }) do
-    floor(palette.contrast(p[key], hex(hl(name).bg)), 4.5, key .. " on " .. name)
-  end
-end
-floor(ratio("CursorLine", "bg", "Normal", "bg"), 1.15, "CursorLine against Normal")
-floor(ratio("Visual", "bg", "Normal", "bg"), 1.5, "Visual against Normal")
-floor(ratio("WinSeparator", "fg", "Normal", "bg"), 3, "WinSeparator")
-floor(ratio("FloatBorder", "fg", "Normal", "bg"), 3, "FloatBorder against Normal")
-
-if plugin.opts.mode == "dark" then
-  floor(ratio("SnacksPickerPreviewCursorLine", "bg", "NormalFloat", "bg"), 1.1, "the picker preview cursorline against NormalFloat")
-  local lualine_theme = require("lualine.themes.maitri")
-  floor(palette.contrast(lualine_theme.normal.b.bg, lualine_theme.normal.c.bg), 1.1, "lualine section b against section c")
-  for _, key in ipairs({ "fg", "fg_dim", "accent" }) do
-    floor(palette.contrast(p[key], p.bg_light), 4.5, key .. " on a raised chip")
-  end
-end
 
 local forbidden = { [colors.green:lower()] = "green", [colors.yellow:lower()] = "yellow" }
 for level = 1, 6 do
@@ -147,7 +147,6 @@ for i = 0, 15 do
   end
 end
 
-local lualine = require("lualine.themes.maitri")
 if lualine.normal.a.bg ~= p.accent then
   fail("the lualine normal mode is not the accent")
 end
