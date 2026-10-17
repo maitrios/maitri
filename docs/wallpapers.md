@@ -43,25 +43,34 @@ pruned.
 
 `maitri update` runs `maitri-update-wallpapers` after the package steps. It:
 
-1. Fetches `channels/stable/manifest.json`. If that fails (offline, a 5xx, a
-   404, or something that isn't a manifest), it prints one line and exits 0
-   without touching anything.
+1. Fetches `channels/stable/manifest.json`, refusing anything over 1 MiB. If
+   that fails (offline, a 5xx or 429, a 404, or something that isn't a
+   manifest), it prints one line and exits 0 without touching anything.
 2. Checks each entry: `file` must match
    `^themes/[a-z0-9-]+/[0-9a-f]{64}\.(jpg|png|webp|avif)$`, its directory must
-   be the entry's `theme`, and its name must be the entry's `sha256`.
+   be the entry's `theme`, its name must be the entry's `sha256`, and its `size`
+   must be at most 64 MiB.
 3. Skips anything already recorded in
    `~/.local/state/maitri/wallpapers/installed`. A wallpaper you delete stays
    deleted; it isn't fetched again on the next update.
-4. Downloads the rest to a temp directory and checks each file's size and
-   sha256. Anything that fails is reported and never installed.
+4. Downloads the rest to a temp directory with curl's `--max-filesize` set one
+   byte over the entry's `size`, so a response that runs long is cut off there
+   rather than filling the disk, then checks each file's size and sha256.
+   Anything that fails is reported, deleted and never installed.
 5. Moves the verified files into `~/.config/maitri/backgrounds/<theme>/`, the
    user backgrounds directory that `maitri theme bg next` and the switcher
    already read, then records them.
 
 If the network drops partway through, nothing is installed and it exits 0, so
 the next update starts over cleanly. If any entry was rejected it exits 1;
-`maitri update` reports that and carries on. `MAITRI_WALLPAPERS_URL` points it
-at another base URL, which the tests use.
+`maitri update` reports that and carries on. A run where every entry was
+rejected doesn't record the manifest's release. `MAITRI_WALLPAPERS_URL` points
+it at another base URL, which the tests use.
+
+Switching theme picks the theme's own wallpaper first, and `maitri theme bg
+next` cycles from there through the theme's `backgrounds/` and then the
+downloaded ones in manifest order, so a newly published wallpaper never
+replaces a theme's default.
 
 The bg switcher doesn't list `avif` yet, so the uploader below only publishes
 `jpg`, `png` and `webp`; the updater accepts `avif` because the contract allows
@@ -69,60 +78,121 @@ it.
 
 ## Publishing: `.github/workflows/wallpapers.yml`
 
-The workflow runs when a `v*` GitHub release is published, in the `release`
-environment, with the bucket-scoped token in its secrets `R2_ACCESS_KEY_ID`,
-`R2_SECRET_ACCESS_KEY` and `R2_ENDPOINT` (Andrew sets these from 1Password
-`k7 Provisioner/k7m - R2 maitri upload`). It runs on the published release
-rather than the tag push because `RELEASING.md` pushes the tag before the
-packages reach stable, and the wallpapers should land with the packages.
+The workflow only runs when it's started by hand on `main`, with the release
+tag as its `tag` input. Its job uses the `release` environment, which holds the
+bucket-scoped token in the secrets `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`
+and `R2_ENDPOINT` (Andrew sets these from 1Password
+`k7 Provisioner/k7m - R2 maitri upload`) and only accepts `main`. Run it after
+the release is published, so the wallpapers land with the packages.
 
-The wallpapers ride along on the release as a `wallpapers.tar` asset, since
-they aren't in the checkout:
+### Shipping wallpapers with a release
 
-1. Stage the approved wallpapers as `wallpapers/<theme>/<any name>.<ext>`.
-   `wallpapers/` is gitignored apart from its README, and `<theme>` must be a
-   directory under `themes/`.
-2. Check the plan without credentials:
+The picked wallpapers aren't in git, so they ride along on the release as a
+`wallpapers.tar` asset. From a checkout of `main`, once
+`gh release create vX.Y.Z` has published the release:
+
+1. Stage each pick as `wallpapers/<theme>/<any name>.<ext>`, where `<theme>` is
+   a directory under `themes/` and `<ext>` is `jpg`, `jpeg`, `png` or `webp`.
+   `wallpapers/` is gitignored apart from its README.
+2. Check the plan without credentials. It reads the live stable manifest, says
+   which files it would upload, and prints the manifest it would publish:
 
    ```bash
    tools/wallpapers-upload.sh --dry-run vX.Y.Z
    ```
 
-   It reads the live stable manifest, says which files it would upload, and
-   prints the manifest it would publish.
-3. Pack the staging directory and attach it when publishing the release:
+3. Pack the staging directory:
 
    ```bash
    tar -cf wallpapers.tar -C wallpapers --exclude README.md .
-   gh release create vX.Y.Z --repo maitrios/maitri ... wallpapers.tar
    ```
 
-The workflow unpacks the tar into `wallpapers/` and runs
-`tools/wallpapers-upload.sh`, which:
+4. Attach it to the release:
 
-1. Reads the current stable manifest straight from the bucket.
-2. For each staged file, HEADs `themes/<theme>/<sha256>.<ext>` and uploads it
-   only if it isn't there, with its Content-Type and
-   `Cache-Control: public, max-age=31536000, immutable`.
-3. Writes the stable manifest's files plus the new ones as
-   `releases/<tag>/manifest.json`. If that key already exists with a different
-   file list, it stops: a published release's wallpapers are fixed.
-4. Rewrites `channels/stable/manifest.json` with the same content, unless
-   stable is already on a newer release.
+   ```bash
+   gh release upload vX.Y.Z wallpapers.tar --repo maitrios/maitri
+   ```
 
-A release without `wallpapers.tar` still gets a manifest, carrying the current
-wallpapers forward. To publish for an existing release (or rehearse one), run
-the workflow by hand with its `tag` input, and `dry_run` to only report:
+5. Publish:
+
+   ```bash
+   gh workflow run wallpapers.yml --repo maitrios/maitri --ref main -f tag=vX.Y.Z
+   ```
+
+A release with no new wallpapers only needs step 5. It still gets a manifest,
+carrying the current wallpapers forward, and moves stable to it.
+
+To add wallpapers to a release that was already published, repeat steps 1 to 5
+for it. A release's manifest only grows, so the rerun adds the new files and
+keeps everything it already listed.
+
+To rehearse a run in CI without uploading anything:
 
 ```bash
-gh workflow run wallpapers.yml --repo maitrios/maitri -f tag=vX.Y.Z -f dry_run=true
+gh workflow run wallpapers.yml --repo maitrios/maitri --ref main -f tag=vX.Y.Z -f dry_run=true
 ```
+
+### What the workflow does
+
+1. Checks out `main` and refuses to go on unless the run was started on
+   `main`. Then `tools/wallpapers-check-tag.sh` checks that the tag is
+   `vX.Y.Z` or `vX.Y.Z-<pre>`, exists on the remote, and points at a commit in
+   `main`'s history. This runs before any step that sees a secret. Nothing from
+   the tag's tree is checked out or run.
+2. Reads the release. A release marked as a prerelease only gets its own
+   manifest. If `wallpapers.tar` is attached and is at most 1 GiB, it's
+   downloaded.
+3. Runs `tools/wallpapers-upload.sh --tar wallpapers.tar vX.Y.Z`, which:
+   1. Refuses a tar holding anything but directories and plain files, or a
+      member that climbs out with `..`.
+   2. Checks every file: a plain file directly in a directory named after a
+      maitri theme, a name with no control characters or backslashes, a `jpg`,
+      `png` or `webp` by both its name and its first bytes, and between 1 byte
+      and 64 MiB. It hashes each one.
+   3. Reads the current stable manifest straight from the bucket and builds
+      the release's manifest from it plus the new files. The whole manifest
+      must pass the same checks the stable one does (paths, 64-hex sha256s,
+      whole-number sizes) and fit in the 1 MiB the updater reads.
+   4. Stops before uploading anything if `releases/<tag>/manifest.json`
+      already lists a file the new manifest doesn't.
+   5. HEADs `themes/<theme>/<sha256>.<ext>` for each file and uploads it only
+      if it isn't there, with its Content-Type and
+      `Cache-Control: public, max-age=31536000, immutable`.
+   6. Writes `releases/<tag>/manifest.json`, then rewrites
+      `channels/stable/manifest.json` with the same content, unless the
+      release is a prerelease (marked as one, or a tag like `v1.2.0-rc.1`) or
+      stable is already on a newer release. Both get
+      `Cache-Control: public, max-age=60`.
+
+### What keeps the token safe
+
+GitHub runs a workflow from the ref it was started on, so a tag at an
+unreviewed commit runs that commit's workflow files. Those runs aren't on
+`main`, and the `release` environment only accepts `main`, so none of them get
+the token. Every run that can get it uses a workflow file from `main`, and
+changes to `main` go through a reviewed pull request. That only holds while
+the `R2_*` secrets live in the `release` environment and nowhere else: never
+add them as repository or organization secrets.
+
+The tag is checked so that only a real release gets published, but anyone who
+can start the workflow and attach a release asset can publish any wallpaper
+that passes the checks above. The checks cover each file's shape, not what it
+shows.
 
 ## Tests
 
 `test/shell.d/wallpapers-test.sh` serves a manifest and files from a local
-`python3 -m http.server` and covers the install, an idempotent re-run, a
-deleted wallpaper staying deleted, a bad checksum being rejected, and an
-offline run exiting 0. It also builds a manifest with
-`tools/wallpapers-upload.sh --dry-run` and installs from it, so the two sides
-round-trip.
+HTTP server and covers the install, an idempotent re-run, a deleted wallpaper
+staying deleted, a bad checksum being rejected, an offline run exiting 0, a
+300 MB body for a 5 KB entry (with and without a Content-Length) being cut off
+without landing on disk, and an oversized manifest. On the publishing side it
+builds a manifest with `tools/wallpapers-upload.sh --dry-run` from both a
+staging directory and a `wallpapers.tar`, refuses bad tars and file names, and
+runs a real upload against a stub `aws` to check the keys, headers, prerelease
+handling, attaching wallpapers after a release, the grow-only release manifest
+and the manifest size limit, then installs from the result.
+`test/shell.d/wallpapers-release-guard-test.sh` runs
+`tools/wallpapers-check-tag.sh` against a scratch remote (tags on and off
+`main`, moved, local, malformed and missing) and checks that the workflow only
+runs from `main` and checks the tag before any secret. It also checks that a theme switch and `maitri theme
+bg next` put the theme's own wallpaper ahead of downloaded ones.
