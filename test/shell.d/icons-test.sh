@@ -388,3 +388,100 @@ run_icons restore
 cmp -s "$user_apps/slack.desktop" "$tmpdir/slack-original.desktop" || fail "a re-pointed replaced launcher still restores its original"
 grep -Fxq 'Icon=vscode' "$user_apps/code.desktop" || fail "a re-pointed edited copy still restores its icon"
 pass "set re-points swaps made with absolute icon paths, and restore still undoes them"
+
+png_header() {
+  printf '\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR'
+  printf "\\x$(printf '%02x' $(( $1 >> 24 & 255 )))\\x$(printf '%02x' $(( $1 >> 16 & 255 )))\\x$(printf '%02x' $(( $1 >> 8 & 255 )))\\x$(printf '%02x' $(( $1 & 255 )))"
+  printf "\\x$(printf '%02x' $(( $2 >> 24 & 255 )))\\x$(printf '%02x' $(( $2 >> 16 & 255 )))\\x$(printf '%02x' $(( $2 >> 8 & 255 )))\\x$(printf '%02x' $(( $2 & 255 )))"
+}
+
+for icon in "$icons"/*.png; do
+  [[ $(od -An -tx1 -N8 "$icon" | tr -d ' \n') == "89504e470d0a1a0a" ]] || fail "every base icon is a PNG" "$icon"
+  read -r width height < <(od -An -tu1 -j16 -N8 "$icon" | awk '{ print $1 * 16777216 + $2 * 65536 + $3 * 256 + $4, $5 * 16777216 + $6 * 65536 + $7 * 256 + $8 }')
+  [[ $width == "$height" && " 16 22 24 32 36 48 64 72 96 128 192 256 512 " == *" $width "* ]] ||
+    fail "every base icon is square at a size the hicolor theme lists" "$icon: ${width}x$height"
+done
+pass "every icon in default/icons is a square PNG at a hicolor size"
+
+reset_fixture
+maitri_path="$tmpdir/bad-pngs"
+mkdir -p "$maitri_path/default"
+cp -r "$icons" "$maitri_path/default/icons"
+echo 'not a png' >"$maitri_path/default/icons/foot.png"
+{ png_header 1024 1024; head -c 64 /dev/zero; } >"$maitri_path/default/icons/slack.png"
+{ png_header 256 128; head -c 64 /dev/zero; } >"$maitri_path/default/icons/firefox.png"
+run_icons set
+[[ ! -e $user_apps/foot.desktop ]] || fail "set skips an icon that isn't a PNG"
+grep -Fxq 'Icon=slack' "$user_apps/slack.desktop" || fail "set skips a PNG at a size the hicolor theme doesn't list"
+[[ ! -e $user_apps/firefox.desktop ]] || fail "set skips a PNG that isn't square"
+[[ -z $(find "$theme_icons" -path '*x/apps/*' ! -path '*[0-9]x[0-9]*/apps/*' 2>/dev/null) && ! -d $theme_icons/1024x1024 ]] ||
+  fail "set never makes a size folder from a bad PNG" "$(find "$theme_icons")"
+grep -Fxq 'Icon=maitri-vscode' "$user_apps/code.desktop" || fail "bad icons don't hold back the good ones"
+run_icons restore
+unset maitri_path
+pass "set skips icons that aren't square PNGs at a hicolor size"
+
+reset_fixture
+desktop_entry "Foot" "foot --user" "foot" >"$user_apps/foot.desktop"
+cp "$user_apps/foot.desktop" "$tmpdir/foot-original.desktop"
+maitri_path="$tmpdir/branch"
+mkdir -p "$maitri_path/default"
+cp -r "$icons" "$maitri_path/default/icons"
+cp "$icons/vscode.png" "$maitri_path/default/icons/foot.png"
+run_icons set
+grep -Fxq 'Icon=maitri-foot' "$user_apps/foot.desktop" || fail "set on the branch swaps the user launcher"
+rm -rf "$maitri_path"
+maitri_path="$ROOT"
+run_icons set
+cmp -s "$user_apps/foot.desktop" "$tmpdir/foot-original.desktop" ||
+  fail "a replaced launcher whose icon left the set gets its original back" "$(cat "$user_apps/foot.desktop")"
+grep -q '^foot.desktop' "$state/manifest" && fail "set forgets a replaced launcher whose icon left the set"
+[[ -z $(find "$theme_icons" -name 'maitri-foot*') ]] || fail "the icon that left the set has no copy left"
+
+maitri_path="$tmpdir/branch"
+mkdir -p "$maitri_path/default"
+cp -r "$icons" "$maitri_path/default/icons"
+cp "$icons/vscode.png" "$maitri_path/default/icons/foot.png"
+run_icons set
+sed -i 's/^Exec=foot --user$/Exec=foot --edited/' "$user_apps/foot.desktop"
+rm -rf "$maitri_path"
+maitri_path="$ROOT"
+run_icons set
+grep -Fxq 'Exec=foot --edited' "$user_apps/foot.desktop" && grep -Fxq 'Icon=foot' "$user_apps/foot.desktop" ||
+  fail "an edited replaced launcher whose icon left the set keeps its edit and gets its icon back" "$(cat "$user_apps/foot.desktop")"
+grep -q '^foot.desktop' "$state/manifest" && fail "set forgets an edited replaced launcher whose icon left the set"
+unset maitri_path
+pass "a replaced launcher whose icon leaves the set after dev link and unlink goes back to its own icon"
+
+reset_fixture
+mkdir -p "$theme_icons/256x256/apps"
+echo mine >"$theme_icons/256x256/apps/maitri-slack.png"
+run_icons set
+[[ $(<"$theme_icons/256x256/apps/maitri-slack.png") == "mine" ]] || fail "set never overwrites an icon it didn't put there"
+grep -q 'maitri-slack.png' "$state/copies" && fail "set doesn't record an icon it didn't put there"
+grep -q "maitri-slack.png alone: maitri didn't put it there" "$tmpdir/err" || fail "set says it left a file alone" "$(cat "$tmpdir/err")"
+run_icons restore
+[[ $(<"$theme_icons/256x256/apps/maitri-slack.png") == "mine" ]] || fail "restore never removes an icon set didn't put there"
+rm "$theme_icons/256x256/apps/maitri-slack.png"
+pass "set and restore leave alone an icon file they didn't write"
+
+reset_fixture
+run_icons set
+touch -d '2000-01-01' "$theme_icons"
+maitri_path="$tmpdir/touched"
+mkdir -p "$maitri_path/default"
+cp -r "$icons" "$maitri_path/default/icons"
+printf 'new art' >>"$maitri_path/default/icons/vscode.png"
+run_icons set
+(( $(stat -c %Y "$theme_icons") > $(date -d '2000-01-01' +%s) )) || fail "set touches the icon theme dir when a copy changes"
+touch -d '2000-01-01' "$theme_icons"
+run_icons set
+[[ $(stat -c %Y "$theme_icons") == "$(date -d '2000-01-01' +%s)" ]] || fail "set leaves the icon theme dir alone when nothing changes"
+unset maitri_path
+pass "set touches the icon theme dir only when a copy changes, so GTK rescans past a stale cache"
+
+: >"$state/manifest"
+run_icons restore
+[[ -z $(find "$theme_icons" -name 'maitri-*') ]] || fail "restore with an empty manifest still removes the copies" "$(find "$theme_icons" -name 'maitri-*')"
+[[ ! -e $state ]] || fail "restore with an empty manifest clears its state"
+pass "restore cleans up copies left by a set that wrote no swaps"

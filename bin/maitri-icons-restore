@@ -11,8 +11,29 @@ manifest="$state_dir/manifest"
 originals_dir="$state_dir/originals"
 copies="$state_dir/copies"
 user_dir="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+icon_theme_dir="${XDG_DATA_HOME:-$HOME/.local/share}/icons/hicolor"
+
+kept=""
+kept_copies=""
+prune_copies() {
+  local copy name
+
+  [[ -f $copies ]] || return 0
+  while IFS= read -r copy; do
+    [[ -n $copy ]] || continue
+    name="${copy##*/}"
+    name="${name%.*}"
+    if [[ -n $kept ]] && cut -f3 <<<"$kept" | grep -Fxq "$name"; then
+      kept_copies+="$copy"$'\n'
+    elif [[ -e $copy || -L $copy ]]; then
+      rm -f "$copy"
+      touch "$icon_theme_dir"
+    fi
+  done <"$copies"
+}
 
 if [[ ! -s $manifest ]]; then
+  prune_copies
   rm -rf "$state_dir"
   echo "No swapped icons to restore"
   exit 0
@@ -43,7 +64,6 @@ revert_icon() {
   tmp=""
 }
 
-kept=""
 while IFS=$'\t' read -r id kind icon hash; do
   [[ -n $id ]] || continue
 
@@ -72,19 +92,7 @@ while IFS=$'\t' read -r id kind icon hash; do
   rm -f "$original"
 done <"$manifest"
 
-kept_copies=""
-if [[ -f $copies ]]; then
-  while IFS= read -r copy; do
-    [[ -n $copy ]] || continue
-    name="${copy##*/}"
-    name="${name%.*}"
-    if [[ -n $kept ]] && cut -f3 <<<"$kept" | grep -Fxq "$name"; then
-      kept_copies+="$copy"$'\n'
-    else
-      rm -f "$copy"
-    fi
-  done <"$copies"
-fi
+prune_copies
 
 if [[ -n $kept ]]; then
   printf '%s' "$kept" >"$manifest"
