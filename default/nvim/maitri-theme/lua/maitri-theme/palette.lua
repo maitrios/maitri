@@ -172,10 +172,14 @@ function M.build(c, mode)
     p.bg_darker = M.toward(p.bg_darker, p.fg, p.bg, 1.35)
     p.bg_light = M.toward(p.bg_light, p.fg, p.bg, 1.16)
     p.line = M.toward(p.line, p.fg, p.bg, 3)
+  else
+    p.bg_dark = M.toward(c.lighter_background, p.fg, p.bg, 1.22)
+    p.bg_light = M.toward(c.lighter_background, p.fg, p.bg, 1.15)
   end
+  p.code_border = light and p.bg_darker or M.toward(c.lighter_background, p.fg, p.bg, 1.35)
 
   for _, key in ipairs({ "comment", "accent", "red", "green", "yellow", "blue", "magenta", "cyan", "orange" }) do
-    p[key] = M.readable(p[key], light and p.bg_dark or p.bg, p.fg)
+    p[key] = M.readable(p[key], p.bg_dark, p.fg)
   end
 
   local tint = light and 0.16 or 0.13
@@ -200,7 +204,7 @@ function M.build(c, mode)
 
   local diagnostics = { p.red, p.orange, p.cyan, p.green }
   if c.hint and clear(c.hint, diagnostics) then
-    p.hint = M.readable(c.hint, light and p.bg_dark or p.bg, p.fg)
+    p.hint = M.readable(c.hint, p.bg_dark, p.fg)
   else
     p.hint = apart(p.accent, { p.magenta, p.blue }, diagnostics)
   end
@@ -221,7 +225,7 @@ function M.build(c, mode)
   end
   for _, candidate in ipairs(links) do
     if M.hue_distance(candidate, p.accent) >= 60 then
-      p.link = M.readable(candidate, light and p.bg_dark or p.bg, p.fg)
+      p.link = M.readable(candidate, p.bg_dark, p.fg)
       break
     end
   end
@@ -230,6 +234,7 @@ function M.build(c, mode)
   p.cursorline = p.bg_light
   p.float = p.bg_dark
   p.border = c.border_focus or light and M.toward(p.bg, p.accent, p.float, 3) or blend(p.bg, p.accent, 0.6)
+  p.border = M.toward(p.border, light and p.fg or p.accent, p.float, 3)
   p.border_dim = c.border or p.line
   p.nontext = light and blend(p.bg, p.comment, 0.55) or blend(p.line, p.comment, 0.35)
   p.reference = blend(p.bg, p.accent, light and 0.12 or 0.16)

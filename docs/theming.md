@@ -450,10 +450,15 @@ too close to a diagnostic color, a `selection` under 1.3:1 against the
 background or a `border_focus` that's just the accent (what the fallbacks give
 a theme that doesn't set them) is replaced with what the colorscheme works
 out from the base roles.
-Any text color (`accent`, `dark_foreground` and
-the syntax colors) that falls under 4.5:1 against `background` is moved
-toward `foreground` until it clears that, so a user theme with a pale `orange`
-still reads. The terminal colors Neovim hands to `:terminal` stay exactly as
+
+Floats, popup menus, the statusline and code blocks sit on their own surface,
+stepped 1.22:1 off `background` (the cursorline 1.15:1), so they read as
+separate without leaning on their borders. Light themes step down from
+`dark_background`; dark themes step up from `lighter_background`, which keeps
+them dark. Any text color (`accent`, `dark_foreground` and the syntax colors)
+that falls under 4.5:1 on that surface is moved toward `foreground` until it
+clears that, so a user theme with a pale `orange` still reads. The float
+border is lifted the same way until it clears 3:1 on the float. The terminal colors Neovim hands to `:terminal` stay exactly as
 the theme sets them. When `accent` sits close to `red`, `orange`, `cyan` or
 `green`, diagnostic hints use `magenta` (or `blue`) instead, and lualine's
 other modes step off any hue that matches the accent, so a hint never looks
