@@ -19,8 +19,13 @@ text)
   maitri-launch-editor ~/.config/maitri/branding/screensaver.txt >/dev/null 2>&1 && maitri-launch-screensaver force >/dev/null 2>&1
   ;;
 reset)
-  { cat "$MAITRI_PATH/icon.txt"; printf '\f\n'; cat "$MAITRI_PATH/logo.txt"; } >~/.config/maitri/branding/screensaver.txt &&
-    maitri-launch-screensaver force >/dev/null 2>&1
+  screensaver=~/.config/maitri/branding/screensaver.txt
+  if ! { cat "$MAITRI_PATH/icon.txt" && printf '\f\n' && cat "$MAITRI_PATH/logo.txt"; } >"$screensaver.new"; then
+    rm -f "$screensaver.new"
+    exit 1
+  fi
+  mv "$screensaver.new" "$screensaver"
+  maitri-launch-screensaver force >/dev/null 2>&1
   ;;
 *)
   echo "Usage: maitri-branding-screensaver <image|text|reset>" >&2

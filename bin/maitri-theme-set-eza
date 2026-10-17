@@ -1,0 +1,64 @@
+#!/bin/bash
+
+# maitri:summary=Apply the current maitri theme to eza in fish
+# maitri:hidden=true
+
+src="$HOME/.local/state/maitri/current/theme/eza.fish"
+
+maitri-cmd-present eza fish || exit 0
+[[ -f $src ]] || exit 0
+
+# eza.fish is never sourced, since a theme from a git repo can ship its own. It
+# has to be one EZA_COLORS list of two-letter keys, each an optional run of SGR
+# attributes and an r,g,b colour, and only that list reaches fish.
+entry='[A-Za-z]{2}=([0-9];)*[0-9]{1,3},[0-9]{1,3},[0-9]{1,3}'
+line=$(grep -vE '^[[:space:]]*(#.*)?$' "$src")
+if [[ ! $line =~ ^set\ -Ux\ EZA_COLORS\ \"($entry(:$entry)*)\"$ ]]; then
+  echo "Skipping eza theme: eza.fish isn't a plain EZA_COLORS colour list." >&2
+  exit 0
+fi
+
+colors=()
+IFS=: read -ra entries <<<"${BASH_REMATCH[1]}"
+for entry in "${entries[@]}"; do
+  rgb=${entry##*[=;]}
+  colors+=("${entry%"$rgb"}38;2;${rgb//,/;}")
+done
+value=$(IFS=:; echo "${colors[*]}")
+
+# A universal variable reaches every running fish at once, and ls and lt run eza
+# from fish. Being exported, it also reaches the session's environment, and a
+# fish that inherits it from there holds the old value as a global that shadows
+# the universal one. The conf.d file drops that copy as each fish starts, and the
+# global erase here does the same for an EZA_COLORS inherited by this one. It
+# sorts before the user's conf.d files and only drops a value shaped like
+# maitri's, so an EZA_COLORS the user sets anywhere stays theirs.
+config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/fish"
+conf_d="$config_dir/conf.d/00-maitri-eza.fish"
+maitri_entry='[A-Za-z]{2}=([0-9];)*38;2;[0-9]{1,3};[0-9]{1,3};[0-9]{1,3}'
+mkdir -p "$(dirname "$conf_d")"
+tmp=$(mktemp "$conf_d.XXXXXX")
+printf '%s\n' "# Written by maitri theme set: EZA_COLORS is a universal variable, so an inherited copy of maitri's colours mustn't shadow it." \
+  "set -qg EZA_COLORS; and string match -qr -- '^$maitri_entry(:$maitri_entry)*\$' \"\$EZA_COLORS\"; and set -eg EZA_COLORS" >"$tmp"
+if cmp -s "$tmp" "$conf_d"; then
+  rm "$tmp"
+else
+  mv "$tmp" "$conf_d"
+fi
+
+fish -c 'set -eg EZA_COLORS; test "$EZA_COLORS" = "$argv[1]"; or set -Ux EZA_COLORS $argv[1]' -- "$value"
+
+shopt -s nullglob
+for config in "$config_dir/config.fish" "$config_dir"/conf.d/*.fish; do
+  [[ -f $config && $config != "$conf_d" ]] || continue
+  if awk '
+    /^[[:space:]]*export[[:space:]]+EZA_COLORS([=[:space:]]|$)/ { found = 1 }
+    match($0, /^[[:space:]]*set([[:space:]]+-[-a-zA-Z]+)*[[:space:]]+EZA_COLORS([[:space:]]|$)/) {
+      flags = substr($0, 1, RLENGTH)
+      if (flags !~ /[[:space:]](-[a-zA-Z]*[qe][a-zA-Z]*|--query|--erase)[[:space:]]/) found = 1
+    }
+    END { exit !found }
+  ' "$config"; then
+    echo "eza: $config sets EZA_COLORS itself, which overrides the maitri colours; remove that line to follow the theme." >&2
+  fi
+done

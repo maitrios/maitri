@@ -1,0 +1,6 @@
+osd-color="{{ foreground }}"
+osd-outline-color="{{ background }}"
+osd-selected-color="{{ accent }}"
+osd-selected-outline-color="{{ background }}"
+sub-color="{{ foreground }}"
+sub-outline-color="{{ background }}"

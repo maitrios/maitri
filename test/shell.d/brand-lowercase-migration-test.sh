@@ -81,6 +81,15 @@ STALE="" run_migration
 pass "customized branding stays, and fresh boot images are not rebuilt"
 
 reset
+printf 'my own art\n' >"$branding/about.txt"
+rm "$share/icon.txt"
+! run_migration 2>/dev/null || fail "the migration fails when icon.txt is missing"
+cmp -s "$branding/screensaver.txt" "$ROOT/test/shell.d/fixtures/brand/shipped-block-wordmark.txt" ||
+  fail "a failed screensaver rewrite keeps the shipped wordmark, so a retry still recognizes it"
+pass "a failed screensaver rewrite keeps the shipped wordmark, so a retry still recognizes it"
+cp "$ROOT/icon.txt" "$share/"
+
+reset
 GROUPS_LIST="guest users" run_migration
 [[ ! -s $CALLS ]] || fail "a user outside wheel is never asked for sudo" "$(cat "$CALLS")"
 pass "a user outside wheel is never asked for sudo"
