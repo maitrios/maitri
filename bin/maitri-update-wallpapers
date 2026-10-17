@@ -1,0 +1,125 @@
+#!/bin/bash
+
+# maitri:summary=Fetch, verify and install the wallpapers in the stable manifest
+# maitri:hidden=true
+
+set -euo pipefail
+
+base_url=${MAITRI_WALLPAPERS_URL:-https://maitri.cdn.k7.dev}
+backgrounds_dir="$HOME/.config/maitri/backgrounds"
+state_dir="$HOME/.local/state/maitri/wallpapers"
+installed_list="$state_dir/installed"
+
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+
+fetch() {
+  local url=$1 out=$2 status
+
+  status=$(curl -sS --connect-timeout 10 --max-time 300 -o "$out" -w '%{http_code}' "$url" 2>/dev/null) || return 2
+  if (( status == 200 )); then
+    return 0
+  elif (( status >= 500 )); then
+    return 2
+  fi
+  return 1
+}
+
+skip_run() {
+  printf '\e[33mWallpapers: %s, nothing changed.\e[0m\n' "$1"
+  exit 0
+}
+
+rejected=0
+reject() {
+  printf '\e[31mWallpapers: rejected %s (%s).\e[0m\n' "$1" "$2" >&2
+  rejected=$((rejected + 1))
+}
+
+echo -e "\e[32m\nUpdate wallpapers\e[0m"
+
+fetch "$base_url/channels/stable/manifest.json" "$work/manifest.json" ||
+  skip_run "the manifest could not be fetched"
+jq -e '(.release | type == "string" and test("^[0-9A-Za-z.+-]+$")) and (.files | type == "array")' "$work/manifest.json" >/dev/null 2>&1 ||
+  skip_run "the manifest could not be read"
+
+theme_pattern='^[a-z0-9-]+$'
+file_pattern='^themes/([a-z0-9-]+)/([0-9a-f]{64})\.(jpg|png|webp|avif)$'
+size_pattern='^(0|[1-9][0-9]{0,11})$'
+
+declare -A seen=()
+records=()
+downloads=()
+
+while IFS=$'\x1f' read -r theme file sha256 size; do
+  if [[ ! $theme =~ $theme_pattern ]]; then
+    reject "$file" "invalid theme"
+    continue
+  fi
+  if [[ ! $file =~ $file_pattern ]]; then
+    reject "$file" "invalid file name"
+    continue
+  fi
+  if [[ ${BASH_REMATCH[1]} != "$theme" || ${BASH_REMATCH[2]} != "$sha256" ]]; then
+    reject "$file" "name does not match its theme and sha256"
+    continue
+  fi
+  if [[ ! $size =~ $size_pattern ]]; then
+    reject "$file" "invalid size"
+    continue
+  fi
+
+  record="$sha256 $theme/${file##*/}"
+  [[ -z ${seen[$record]:-} ]] || continue
+  seen[$record]=1
+
+  [[ -f $installed_list ]] && grep -qxF "$record" "$installed_list" && continue
+
+  dest="$backgrounds_dir/$theme/${file##*/}"
+  if [[ -f $dest ]] && [[ $(sha256sum "$dest" | cut -d' ' -f1) == "$sha256" ]]; then
+    records+=("$record")
+    continue
+  fi
+
+  download="$work/files/$theme/${file##*/}"
+  mkdir -p "${download%/*}"
+  status=0
+  fetch "$base_url/$file" "$download" || status=$?
+  if (( status == 2 )); then
+    skip_run "$file is unreachable"
+  elif (( status != 0 )); then
+    reject "$file" "download failed"
+    continue
+  fi
+
+  if (( $(stat -c %s "$download") != size )); then
+    reject "$file" "size mismatch"
+    continue
+  fi
+  if [[ $(sha256sum "$download" | cut -d' ' -f1) != "$sha256" ]]; then
+    reject "$file" "sha256 mismatch"
+    continue
+  fi
+
+  records+=("$record")
+  downloads+=("$theme/${file##*/}")
+done < <(jq -r '.files[] | [.theme?, .file?, .sha256?, .size?] | map(tostring | gsub("[\n\r\u001f]"; " ")) | join("\u001f")' "$work/manifest.json")
+
+for wallpaper in "${downloads[@]}"; do
+  dest="$backgrounds_dir/$wallpaper"
+  mkdir -p "${dest%/*}"
+  install -m 0644 "$work/files/$wallpaper" "$dest.part"
+  mv -f "$dest.part" "$dest"
+done
+
+mkdir -p "$state_dir"
+(( ${#records[@]} == 0 )) || printf '%s\n' "${records[@]}" >>"$installed_list"
+jq -r '.release' "$work/manifest.json" >"$state_dir/release"
+
+if (( ${#downloads[@]} > 0 )); then
+  echo "Wallpapers: installed ${#downloads[@]} new from $(<"$state_dir/release")."
+else
+  echo "Wallpapers: up to date."
+fi
+
+(( rejected == 0 ))

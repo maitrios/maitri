@@ -38,6 +38,10 @@ maitri uses SemVer tags `vMAJOR.MINOR.PATCH`. `v0.x` is pre-stable; `v0.3.0` is 
 
 Release notes are generated from merged pull requests, so land changes through PRs with clear titles.
 
+New wallpapers ship by attaching `wallpapers.tar` to the release when publishing it; `wallpapers.yml`
+uploads them and moves the stable wallpaper manifest to the release either way. See
+[`docs/wallpapers.md`](docs/wallpapers.md).
+
 ## Releasing as a flare
 
 A `version` change landing on `main` (usually inside an approved `upstream-sync` PR) makes

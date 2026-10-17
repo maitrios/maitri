@@ -27,6 +27,7 @@ steps=(
   maitri-update-aur-pkgs
   maitri-update-mise
   maitri-update-orphan-pkgs
+  maitri-update-wallpapers
   maitri-update-analyze-logs
   maitri-update-status
   maitri-update-restart
@@ -74,6 +75,7 @@ expected_steps() {
     maitri-update-aur-pkgs \
     maitri-update-mise \
     maitri-update-orphan-pkgs \
+    maitri-update-wallpapers \
     maitri-update-analyze-logs \
     maitri-update-status \
     maitri-update-stay-awake \
