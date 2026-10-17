@@ -1,0 +1,97 @@
+#!/bin/bash
+
+# maitri:summary=Apply the current maitri theme to yazi
+# maitri:hidden=true
+
+theme_dir="$HOME/.local/state/maitri/current/theme"
+src="$theme_dir/yazi.toml"
+yazi_dir="${YAZI_CONFIG_HOME:-${XDG_CONFIG_HOME:-$HOME/.config}/yazi}"
+flavor_dir="$yazi_dir/flavors/maitri.yazi"
+theme_config="$yazi_dir/theme.toml"
+block_start="# >>> maitri theme (rewritten by maitri theme set) >>>"
+block_end="# <<< maitri theme <<<"
+
+maitri-cmd-present yazi || exit 0
+[[ -f $src ]] || exit 0
+
+if grep -q '{{' "$src"; then
+  echo "Skipping yazi theme: yazi.toml has unresolved colors." >&2
+  exit 0
+fi
+
+block=$(mktemp)
+spliced=$(mktemp)
+trap 'rm -f "$block" "$spliced"' EXIT
+
+mkdir -p "$yazi_dir"
+touch "$theme_config"
+
+exec 9>"${XDG_RUNTIME_DIR:-/tmp}/maitri-theme-set-yazi.lock"
+flock 9
+
+# A start marker without an end is the user's text, the same as in the splice
+# below, so a [flavor] after it counts as theirs.
+if awk -v start="$block_start" -v end="$block_end" '
+  NR == FNR {
+    if ($0 == start && !e) s = FNR
+    else if ($0 == end && s && !e) e = FNR
+    next
+  }
+  e && FNR >= s && FNR <= e { next }
+  /^[[:space:]]*(\[[[:space:]]*["\047]?flavor["\047]?[[:space:]]*\]|["\047]?flavor["\047]?[[:space:]]*[.=])/ { found = 1 }
+  END { exit !found }
+' "$theme_config" "$theme_config"; then
+  echo "yazi's theme.toml picks its own flavor, so it stays as it is. Set dark and light to \"maitri\" there to follow the maitri theme." >&2
+  exit 0
+fi
+
+# The theme is a flavor so that anything in the user's own theme.toml still
+# wins over it, and theme.toml only gets the lines that pick the flavor.
+mkdir -p "$flavor_dir"
+tmp=$(mktemp "$flavor_dir/.maitri-theme.XXXXXX")
+cp "$src" "$tmp"
+mv "$tmp" "$flavor_dir/flavor.toml"
+
+if [[ -f $theme_dir/bat.tmTheme ]] && ! grep -q '{{' "$theme_dir/bat.tmTheme"; then
+  tmp=$(mktemp "$flavor_dir/.maitri-theme.XXXXXX")
+  cp "$theme_dir/bat.tmTheme" "$tmp"
+  mv "$tmp" "$flavor_dir/tmtheme.xml"
+fi
+
+printf '[flavor]\ndark = "maitri"\nlight = "maitri"\n' >"$block"
+
+# TOML tables can't go above keys that aren't in a table, so a new block goes
+# at the end, and one already in the file is replaced where it stands.
+awk -v start="$block_start" -v end="$block_end" -v block="$block" '
+  function emit(line) {
+    if (done) return
+    print start
+    while ((getline line < block) > 0) print line
+    close(block)
+    print end
+    done = 1
+  }
+
+  NR == FNR {
+    if ($0 == start && !e) s = FNR
+    else if ($0 == end && s && !e) e = FNR
+    next
+  }
+
+  FNR == 1 && !e { s = 0 }
+  s && FNR == s { emit() }
+  s && FNR >= s && FNR <= e { next }
+  { print; last = $0 }
+  END {
+    if (!done && NR > FNR && last !~ /^[[:space:]]*$/) print ""
+    emit()
+  }
+' "$theme_config" "$theme_config" >"$spliced" || exit 1
+
+# Written through rather than moved over, so a config symlinked from a dotfiles
+# repo stays a symlink and keeps its permissions.
+cmp -s "$spliced" "$theme_config" || cat "$spliced" >"$theme_config"
+
+if pgrep -x yazi >/dev/null; then
+  echo "yazi picks up the new maitri colours after a restart." >&2
+fi
