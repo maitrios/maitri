@@ -107,14 +107,16 @@ end
 floor(ratio("PmenuExtraSel", "fg", "PmenuSel", "bg"), 3, "PmenuExtraSel")
 floor(ratio("SnacksPickerUnselected", "fg", "NormalFloat", "bg"), 3, "SnacksPickerUnselected")
 
-if plugin.opts.mode == "light" then
-  for _, name in ipairs({ "NormalFloat", "Pmenu", "StatusLine", "RenderMarkdownCode" }) do
-    floor(ratio(name, "bg", "Normal", "bg"), 1.2, name .. " against Normal")
+for _, name in ipairs({ "NormalFloat", "Pmenu", "StatusLine", "RenderMarkdownCode" }) do
+  floor(ratio(name, "bg", "Normal", "bg"), 1.2, name .. " against Normal")
+  for _, key in ipairs({ "fg", "comment", "accent", "red", "green", "yellow", "blue", "magenta", "cyan", "orange" }) do
+    floor(palette.contrast(p[key], hex(hl(name).bg)), 4.5, key .. " on " .. name)
   end
-  floor(ratio("CursorLine", "bg", "Normal", "bg"), 1.15, "CursorLine against Normal")
-  floor(ratio("Visual", "bg", "Normal", "bg"), 1.5, "Visual against Normal")
-  floor(ratio("WinSeparator", "fg", "Normal", "bg"), 3, "WinSeparator")
 end
+floor(ratio("CursorLine", "bg", "Normal", "bg"), 1.15, "CursorLine against Normal")
+floor(ratio("Visual", "bg", "Normal", "bg"), 1.5, "Visual against Normal")
+floor(ratio("WinSeparator", "fg", "Normal", "bg"), 3, "WinSeparator")
+floor(ratio("FloatBorder", "fg", "Normal", "bg"), 3, "FloatBorder against Normal")
 
 local forbidden = { [colors.green:lower()] = "green", [colors.yellow:lower()] = "yellow" }
 for level = 1, 6 do
