@@ -701,6 +701,39 @@
         <string>{{ cyan }}</string>
       </dict>
     </dict>
+    <dict>
+      <key>name</key>
+      <string>Diff fill added</string>
+      <key>scope</key>
+      <string>diff.inserted</string>
+      <key>settings</key>
+      <dict>
+        <key>background</key>
+        <string>{{ mix background green 8% }}</string>
+      </dict>
+    </dict>
+    <dict>
+      <key>name</key>
+      <string>Diff fill removed</string>
+      <key>scope</key>
+      <string>diff.deleted</string>
+      <key>settings</key>
+      <dict>
+        <key>background</key>
+        <string>{{ mix background red 8% }}</string>
+      </dict>
+    </dict>
+    <dict>
+      <key>name</key>
+      <string>Codex accent</string>
+      <key>scope</key>
+      <string>codex.accent</string>
+      <key>settings</key>
+      <dict>
+        <key>foreground</key>
+        <string>{{ accent }}</string>
+      </dict>
+    </dict>
   </array>
 </dict>
 </plist>
