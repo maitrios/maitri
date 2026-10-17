@@ -123,7 +123,9 @@ shell palette is loaded from:
   value ends up as glyphs a person reads. Falls back to `color8`, then
   `foreground`, so it always resolves.
 - `comment` — the same value as `dark_foreground`, under the name editors use.
-  Falls back to `dark_foreground`.
+  Falls back to `dark_foreground` moved toward `foreground` until it clears
+  4.5:1, so a theme with only `color0` to `color15` doesn't get a `color8`
+  comment at 2:1.
 - `selection` — the selection fill: a tint of `accent`, light enough that
   `foreground` stays readable on it. Text on `selection` is `foreground` (or
   `bright_foreground`). `accent` isn't a text color there: on daybreak it's
@@ -134,7 +136,9 @@ shell palette is loaded from:
   table edges. Unlike `muted` it clears 3:1 against `background`. Falls back to
   `muted` moved toward `foreground` until it clears 3:1.
 - `border_focus` — the focused or floating border, a step of `accent` toward
-  `background` that clears 3:1. Falls back to `accent`.
+  `background` that clears 3:1. Falls back to `background` mixed 60% toward
+  `accent`, then moved back toward `accent` until it clears 3:1, the same
+  step the Neovim palette takes, so it never collapses into the accent.
 - `hint` — hint diagnostics. It's `accent` unless the accent sits near `red`,
   `orange`, `cyan` or `green` (error, warning, info, ok), when it's the next
   hue that doesn't. Falls back to `accent`, so a theme whose accent is orange,
@@ -469,7 +473,7 @@ the theme's `selection` for Visual, `border_focus` for float borders, `border`
 for window separators, and `hint`, `link` and `comment`, so Neovim and the
 other apps begin from the same values. A `link` within 60° of the accent, a
 `hint` too close to a diagnostic color, a `selection` under 1.3:1 against the
-background or a `border_focus` that's just the accent (its fallback) is
+background or a `border_focus` that's just the accent is
 replaced with what the colorscheme works out from the base roles, and any of
 them that falls under its floor on Neovim's own surfaces is moved as described
 below, so on dark themes `comment` reads a shade lighter in Neovim than

@@ -317,14 +317,29 @@ resolve_theme_colors() {
   [[ ${THEME_COLORS[selection_foreground]} ]] || THEME_COLORS[selection_foreground]="${THEME_COLORS[bright_foreground]}"
   [[ ${THEME_COLORS[orange]} ]]               || THEME_COLORS[orange]="${THEME_COLORS[yellow]}"
   [[ ${THEME_COLORS[brown]} ]]      || THEME_COLORS[brown]=$(mix_color "${THEME_COLORS[orange]}" "#000000" 50%)
-  [[ ${THEME_COLORS[comment]} ]]      || THEME_COLORS[comment]="${THEME_COLORS[dark_foreground]}"
+  if [[ -z ${THEME_COLORS[comment]} ]]; then
+    THEME_COLORS[comment]="${THEME_COLORS[dark_foreground]}"
+    if is_hex_color "${THEME_COLORS[comment]}" && is_hex_color "${THEME_COLORS[foreground]}" && is_hex_color "${THEME_COLORS[background]}"; then
+      THEME_COLORS[comment]=$(lift_color "${THEME_COLORS[comment]}" "${THEME_COLORS[foreground]}" "${THEME_COLORS[background]}" 4.5)
+    fi
+  fi
   if [[ -z ${THEME_COLORS[border]} ]]; then
     THEME_COLORS[border]="${THEME_COLORS[muted]}"
     if is_hex_color "${THEME_COLORS[muted]}" && is_hex_color "${THEME_COLORS[foreground]}" && is_hex_color "${THEME_COLORS[background]}"; then
       THEME_COLORS[border]=$(lift_color "${THEME_COLORS[muted]}" "${THEME_COLORS[foreground]}" "${THEME_COLORS[background]}" 3)
     fi
   fi
-  [[ ${THEME_COLORS[border_focus]} ]] || THEME_COLORS[border_focus]="${THEME_COLORS[accent]:-${THEME_COLORS[blue]}}"
+  if [[ -z ${THEME_COLORS[border_focus]} ]]; then
+    THEME_COLORS[border_focus]="${THEME_COLORS[accent]:-${THEME_COLORS[blue]}}"
+    if is_hex_color "${THEME_COLORS[accent]}" && is_hex_color "${THEME_COLORS[foreground]}" && is_hex_color "${THEME_COLORS[background]}"; then
+      THEME_COLORS[border_focus]=$(mix_color "${THEME_COLORS[background]}" "${THEME_COLORS[accent]}" 60%)
+      THEME_COLORS[border_focus]=$(lift_color "${THEME_COLORS[border_focus]}" "${THEME_COLORS[accent]}" "${THEME_COLORS[background]}" 3)
+      if [[ ${THEME_COLORS[border_focus],,} == "${THEME_COLORS[accent],,}" ]]; then
+        THEME_COLORS[border_focus]=$(mix_color "${THEME_COLORS[accent]}" "${THEME_COLORS[foreground]}" 20%)
+        THEME_COLORS[border_focus]=$(lift_color "${THEME_COLORS[border_focus]}" "${THEME_COLORS[foreground]}" "${THEME_COLORS[background]}" 3)
+      fi
+    fi
+  fi
   [[ ${THEME_COLORS[hint]} ]]         || THEME_COLORS[hint]="${THEME_COLORS[accent]:-${THEME_COLORS[blue]}}"
   if [[ -z ${THEME_COLORS[link]} ]]; then
     THEME_COLORS[link]="${THEME_COLORS[blue]}"

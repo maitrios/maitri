@@ -378,7 +378,7 @@ grep -qx 'selection-foreground=#eeeeee' "$NEXT_THEME/alias-test.txt" || fail "th
 grep -qx 'cursor-alias=#eeeeee' "$NEXT_THEME/alias-test.txt" || fail "theme template derives cursor alias from bright_foreground"
 grep -qx 'comment=#cccccc' "$NEXT_THEME/alias-test.txt" || fail "theme template derives comment from dark_foreground"
 grep -qx 'border=#5d5d5d' "$NEXT_THEME/alias-test.txt" || fail "theme template lifts the border fallback from muted to 3:1"
-grep -qx 'border-focus=#336699' "$NEXT_THEME/alias-test.txt" || fail "theme template derives border_focus from accent"
+grep -qx 'border-focus=#2e5c8a' "$NEXT_THEME/alias-test.txt" || fail "theme template derives border_focus as an accent step that clears 3:1"
 grep -qx 'hint=#336699' "$NEXT_THEME/alias-test.txt" || fail "theme template derives hint from accent"
 grep -qx 'link=#ff00ff' "$NEXT_THEME/alias-test.txt" || fail "theme template link fallback skips a blue within 60 degrees of the accent"
 pass "theme template semantic aliases expose legacy palette helpers"
@@ -483,7 +483,7 @@ awk '
 ' "$NEXT_THEME/shell.toml" || fail "theme shell section override is merged"
 pass "theme shell section override is merged"
 
-jq -e '.name == "maitri-system" and .vars.panel == "#0f0f0f" and .vars.border == "#336699" and .colors.accent == "accent"' "$NEXT_THEME/pi.json" >/dev/null
+jq -e '.name == "maitri-system" and .vars.panel == "#0f0f0f" and .vars.border == "#2e5c8a" and .colors.accent == "accent"' "$NEXT_THEME/pi.json" >/dev/null
 pass "pi theme template is generated from standard themed templates"
 cp "$NEXT_THEME/pi.json" "$CURRENT_THEME/pi.json"
 

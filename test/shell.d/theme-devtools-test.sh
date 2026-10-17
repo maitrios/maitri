@@ -20,7 +20,7 @@ pass "the dev tool templates keep muted off text and lines"
 cat >"$test_tmp/contrast.py" <<'PY'
 import json, re, sys
 
-theme_dir, colors_file = sys.argv[1], sys.argv[2]
+theme_dir, palette_file = sys.argv[1], sys.argv[2]
 
 def channel(c):
     c /= 255
@@ -46,12 +46,7 @@ def mix(a, b, amount):
 def read(name):
     return open(f"{theme_dir}/{name}").read()
 
-palette = {}
-for line in open(colors_file):
-    m = re.match(r'\s*([a-z_]+)\s*=\s*"([^"]*)"', line)
-    if m:
-        palette[m.group(1)] = m.group(2).lower()
-palette.setdefault("comment", palette["dark_foreground"])
+palette = dict(line.rstrip("\n").lower().split("\t", 1) for line in open(palette_file) if "\t" in line)
 mode = palette.get("mode", "dark")
 
 TEXT, LINE = 4.5, 3.0
@@ -224,7 +219,31 @@ def hermes():
                       ("banner_accent", heading2), ("ui_label", heading3), ("session_label", heading3), ("syntax_string", "yellow"), ("syntax_number", "blue")):
         same("hermes", key, h[key], role)
 
-for app in (claude, herdr, pi, t3code, hermes):
+def fallbacks():
+    bg = palette["background"]
+    claude = json.loads(read("claude.json"))["overrides"]
+    data = json.loads(read("pi.json"))
+    pi = {k: norm(data["vars"].get(v, v)) for k, v in data["colors"].items()}
+    t3 = json.loads(read("t3code.json"))["colors"]
+    herdr = dict(re.findall(r'^(\w+) = "([^"]+)"$', read("herdr.toml"), re.M))
+    hermes = dict(re.findall(r'^  (\w+): "([^"]+)"$', read("hermes.yaml"), re.M))
+    dim = [("claude", k, claude[k]) for k in ("subtle", "inactive")]
+    dim += [("pi", "dim", pi["dim"]), ("herdr", "overlay0", herdr["overlay0"])]
+    dim += [("t3code", k, t3[k]) for k in ("textMuted", "placeholder", "secondaryLabel", "iconMuted")]
+    dim += [("hermes", k, hermes[k]) for k in ("ui_thinking", "banner_dim", "status_bar_dim")]
+    for app, key, value in dim:
+        check(app, f"{key} on background", value, bg, TEXT)
+    focus = [("claude", "promptBorder", claude["promptBorder"]), ("pi", "border", pi["border"]),
+             ("t3code", "focus", t3["focus"]), ("hermes", "response_border", hermes["response_border"])]
+    for app, key, value in focus:
+        check(app, f"{key} on background", value, bg, LINE)
+        if norm(value) == palette["accent"]:
+            fail(f"{app} {key} collapses into the accent")
+    ramp = [pi[k] for k in ("thinkingOff", "thinkingMinimal", "thinkingLow", "thinkingMedium", "thinkingHigh", "thinkingXhigh")]
+    if len(set(ramp)) != len(ramp):
+        fail("pi thinking levels repeat a colour")
+
+for app in ((fallbacks,) if sys.argv[3:] == ["fallbacks"] else (claude, herdr, pi, t3code, hermes)):
     try:
         app()
     except (KeyError, AttributeError, IndexError, ValueError) as error:
@@ -234,7 +253,28 @@ for app, label, fg, bg, ratio, floor in rows:
     print(f"{'ok' if ratio >= floor else 'FAIL'}\t{app}\t{label}\t{fg}\t{bg}\t{ratio:.2f}\t{floor}")
 PY
 
-for theme_dir in "$ROOT"/themes/*/; do
+mkdir -p "$test_tmp/themes/ansi-only"
+cat >"$test_tmp/themes/ansi-only/colors.toml" <<'EOF'
+accent = "#7aa2f7"
+color0 = "#1a1b26"
+color1 = "#f7768e"
+color2 = "#9ece6a"
+color3 = "#e0af68"
+color4 = "#7aa2f7"
+color5 = "#bb9af7"
+color6 = "#7dcfff"
+color7 = "#a9b1d6"
+color8 = "#414868"
+color9 = "#f7768e"
+color10 = "#9ece6a"
+color11 = "#e0af68"
+color12 = "#7aa2f7"
+color13 = "#bb9af7"
+color14 = "#7dcfff"
+color15 = "#c0caf5"
+EOF
+
+for theme_dir in "$ROOT"/themes/*/ "$test_tmp/themes/ansi-only/"; do
   theme=$(basename "$theme_dir")
   home="$test_tmp/$theme"
   next_theme="$home/.local/state/maitri/current/next-theme"
@@ -248,12 +288,20 @@ for theme_dir in "$ROOT"/themes/*/; do
     ! grep -q '{{' "$next_theme/$file" || fail "$theme leaves no placeholders in $file" "$(grep -n '{{' "$next_theme/$file")"
   done
 
-  report=$(python3 "$test_tmp/contrast.py" "$next_theme" "$theme_dir/colors.toml") ||
+  checks=()
+  claim="dev tool colors keep their roles and clear 4.5:1 for text and 3:1 for lines"
+  if [[ $theme == "ansi-only" ]]; then
+    checks=(fallbacks)
+    claim="dev tools get readable dim text and a focus border apart from the accent from the fallbacks"
+  fi
+
+  "$ROOT/bin/maitri-theme-color" --file "$next_theme/colors.toml" --all >"$home/palette.tsv"
+  report=$(python3 "$test_tmp/contrast.py" "$next_theme" "$home/palette.tsv" "${checks[@]}") ||
     fail "$theme contrast check runs"
   [[ -n $report ]] || fail "$theme produces a contrast report"
   if failures=$(grep '^FAIL' <<<"$report"); then
-    fail "$theme dev tool colors keep their roles and clear 4.5:1 for text and 3:1 for lines" "$failures"
+    fail "$theme $claim" "$failures"
   fi
   [[ -z ${MAITRI_CONTRAST_REPORT:-} ]] || sed "s/^/$theme\t/" <<<"$report" >>"$MAITRI_CONTRAST_REPORT"
-  pass "$theme dev tool colors keep their roles and clear 4.5:1 for text and 3:1 for lines"
+  pass "$theme $claim"
 done
