@@ -453,11 +453,10 @@ those roles in Lua: diff, search and selection tints, the heading ramp (H1 in
 border colors, the lualine theme and `g:terminal_color_0..15`. It takes
 `selection` for Visual, `border_focus` for float borders, `border` for window
 separators, and `hint`, `link` and `comment`, so Neovim and every other app
-draw them the same. A `link` within 60° of the accent, a `hint`
-too close to a diagnostic color, a `selection` under 1.3:1 against the
-background or a `border_focus` that's just the accent (its fallback) is
-replaced with what the colorscheme works
-out from the base roles.
+draw them the same. A `link` within 60° of the accent, a `hint` too close to a
+diagnostic color, a `selection` under 1.3:1 against the background or a
+`border_focus` that's just the accent (its fallback) is replaced with what the
+colorscheme works out from the base roles.
 
 Floats, popup menus, the statusline and code blocks sit on their own surface,
 stepped 1.22:1 off `background`, so they read as separate without leaning on
@@ -470,10 +469,10 @@ that falls under 4.5:1 on the float surface is moved toward `foreground`
 until it clears that, so a user theme with a pale `orange` still reads. The
 float border is moved toward `accent` (toward `foreground` on light themes)
 until it clears 3:1 on the float. The terminal colors Neovim hands to
-`:terminal` stay exactly as the theme sets them. When `accent` sits close to `red`, `orange`, `cyan` or
-`green`, diagnostic hints use `magenta` (or `blue`) instead, and lualine's
-other modes step off any hue that matches the accent, so a hint never looks
-like a warning.
+`:terminal` stay exactly as the theme sets them. When `accent` sits close to
+`red`, `orange`, `cyan` or `green`, diagnostic hints use `magenta` (or `blue`)
+instead, and lualine's other modes step off any hue that matches the accent,
+so a hint never looks like a warning.
 
 `~/.config/nvim/lua/plugins/theme.lua` links to the rendered file, and the
 `theme-hotreload` plugin swaps it when the theme changes. That reload finds
