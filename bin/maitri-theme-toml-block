@@ -8,8 +8,8 @@
 # the table's header, or under a new header at the end. Keys the file already
 # sets in that table stay the user's: they're left out of the block, since TOML
 # can't set a key twice, and their names are printed. Exits 3 without touching
-# a file that writes the table inline or as dotted keys, and 1 if the file
-# can't be read.
+# a file that writes the table inline or as dotted keys, or spells a key with
+# escapes, and 1 if the file can't be read.
 
 if (( $# != 3 )); then
   echo "Usage: maitri-theme-toml-block <file> <table> <block-file>" >&2
@@ -36,34 +36,77 @@ awk -v start="$block_start" -v end="$block_end" -v table="$table" -v block="$blo
     return line
   }
 
-  function header(line) {
-    if (line !~ /^[[:space:]]*\[[^]]*\][[:space:]]*(#.*)?$/) return ""
-    sub(/^[[:space:]]*\[[[:space:]]*/, "", line)
-    sub(/[[:space:]]*\][[:space:]]*(#.*)?$/, "", line)
-    gsub(/"/, "", line)
-    return line
+  function keypath(text,  path, segment) {
+    path = ""
+    sub(/^[[:space:]]+/, "", text)
+    while (1) {
+      if (match(text, /^[A-Za-z0-9_-]+/)) {
+        segment = substr(text, 1, RLENGTH)
+      } else if (match(text, /^"([^"\\]|\\.)*"/)) {
+        segment = substr(text, 2, RLENGTH - 2)
+        if (index(segment, "\\")) escaped = 1
+      } else if (match(text, /^\x27[^\x27]*\x27/)) {
+        segment = substr(text, 2, RLENGTH - 2)
+      } else {
+        return ""
+      }
+      text = substr(text, RLENGTH + 1)
+      if (segment !~ /^[A-Za-z0-9_-]+$/) segment = "\001" segment
+      path = path (path == "" ? "" : ".") segment
+      sub(/^[[:space:]]+/, "", text)
+      if (substr(text, 1, 1) != ".") break
+      text = substr(text, 2)
+      sub(/^[[:space:]]+/, "", text)
+    }
+    rest = text
+    return path
   }
 
-  function key(line) {
-    if (line !~ /^[[:space:]]*[A-Za-z0-9_".-]+[[:space:]]*=/) return ""
-    sub(/^[[:space:]]+/, "", line)
-    sub(/[[:space:]]*=.*/, "", line)
-    gsub(/"/, "", line)
-    return line
+  function header(line,  path) {
+    sub(/^[[:space:]]*\[/, "", line)
+    path = keypath(line)
+    if (path == "" || rest !~ /^\][[:space:]]*(#.*)?$/) return "\001unreadable"
+    return path
+  }
+
+  function key(line,  path) {
+    path = keypath(line)
+    if (path == "" || rest !~ /^=/) return ""
+    return path
+  }
+
+  function multiline(line,  value) {
+    value = line
+    sub(/^[^=]*=[[:space:]]*/, "", value)
+    if (value ~ /^"""/ && gsub(/"""/, "&", value) == 1) quote = "\"\"\""
+    else if (value ~ /^\x27\x27\x27/ && gsub(/\x27\x27\x27/, "&", value) == 1) quote = "\x27\x27\x27"
+    else if (value ~ /^\[/) depth = brackets(value)
   }
 
   { all[NR] = $0 }
 
   END {
     # Each end marker pairs with the nearest start before it. A start with no
-    # end after it is the user'"'"'s text and stays.
+    # end after it is the user'"'"'s text and stays, and so is a marker inside a
+    # multi-line string or array.
     for (i = 1; i <= NR; i++) {
-      if (trimmed(all[i]) == start) open = i
-      else if (trimmed(all[i]) == end && open) {
+      line = all[i]
+      if (quote != "") {
+        if (index(line, quote)) quote = ""
+        continue
+      }
+      if (depth > 0) {
+        depth += brackets(line)
+        continue
+      }
+      if (trimmed(line) == start) open = i
+      else if (trimmed(line) == end && open) {
         for (j = open; j <= i; j++) skip[j] = 1
         open = 0
-      }
+      } else if (key(line) != "") multiline(line)
     }
+    quote = ""
+    depth = 0
     for (i = 1; i <= NR; i++) if (!skip[i]) lines[++n] = all[i]
 
     # Lines inside a multi-line string or array are values, never headers or
@@ -91,16 +134,14 @@ awk -v start="$block_start" -v end="$block_end" -v table="$table" -v block="$blo
       }
       k = key(line)
       if (k == "") continue
-      value = line
-      sub(/^[^=]*=[[:space:]]*/, "", value)
-      if (value ~ /^"""/ && gsub(/"""/, "&", value) == 1) quote = "\"\"\""
-      else if (value ~ /^\x27\x27\x27/ && gsub(/\x27\x27\x27/, "&", value) == 1) quote = "\x27\x27\x27"
-      else if (value ~ /^\[/) depth = brackets(value)
+      multiline(line)
       if (current == "" && (k == table || index(k, table ".") == 1)) exit 3
       if (current != table) continue
       sub(/\..*/, "", k)
       mine[k] = 1
     }
+
+    if (escaped) exit 3
 
     while ((getline line < block) > 0) {
       k = key(line)

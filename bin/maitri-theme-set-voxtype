@@ -48,7 +48,7 @@ dropped=$(maitri-theme-toml-block "$config" osd "$block")
 case $? in
   0) ;;
   3)
-    echo "voxtype's config.toml writes [osd] inline or as dotted keys, so maitri leaves it as it is." >&2
+    echo "voxtype's config.toml writes [osd] inline, as dotted keys or with escaped key names, so maitri leaves it as it is." >&2
     exit 0
     ;;
   *) exit 1 ;;

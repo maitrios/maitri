@@ -458,7 +458,7 @@ run_hook "$home" maitri-theme-set-codex "$apps:$sandbox" || fail "maitri-theme-s
 run_hook "$home" maitri-theme-set-gemini "$apps:$sandbox" || fail "maitri-theme-set-gemini runs beside settings with comments"
 cmp -s "$home/.codex/config.toml" "$test_tmp/config.toml" && cmp -s "$home/.gemini/settings.json" "$test_tmp/settings.json" ||
   fail "configs maitri can't edit safely are left as they were"
-grep -q "writes \[tui\] inline or as dotted keys" "$home/hook.stderr" && grep -q "isn't plain JSON" "$home/hook.stderr" ||
+grep -q "writes \[tui\] inline, as dotted keys" "$home/hook.stderr" && grep -q "isn't plain JSON" "$home/hook.stderr" ||
   fail "the hooks say why they left a config alone" "$(cat "$home/hook.stderr")"
 pass "the hooks leave a theme the user chose in place and say so"
 
@@ -538,6 +538,39 @@ set_theme "$home" amethyst
 run_hook "$home" maitri-theme-set-voxtype "$apps:$sandbox" || fail "maitri-theme-set-voxtype runs beside another OSD style"
 [[ $(jq -r .colors.accent "$home/run/voxtype/quickshell-style.json") == "#000000" ]] || fail "an OSD on another style keeps its colours"
 pass "voxtype switches to the maitri OSD while idle and retints a running one in place"
+
+toml_block_case() {
+  local description="$1" input="$2" expected_status="$3" status=0
+  printf '%b' "$input" >"$test_tmp/case.toml"
+  cp "$test_tmp/case.toml" "$test_tmp/case.before"
+  "$ROOT/bin/maitri-theme-toml-block" "$test_tmp/case.toml" tui "$test_tmp/case.block" >"$test_tmp/case.dropped" || status=$?
+  (( status == expected_status )) || fail "$description: exits $expected_status" "exit $status: $(cat "$test_tmp/case.toml")"
+  if (( status == 3 )); then
+    cmp -s "$test_tmp/case.toml" "$test_tmp/case.before" || fail "$description: file left as it is" "$(cat "$test_tmp/case.toml")"
+  fi
+  python3 -c 'import sys, tomllib; tomllib.load(open(sys.argv[1], "rb"))' "$test_tmp/case.toml" ||
+    fail "$description: stays valid TOML" "$(cat "$test_tmp/case.toml")"
+}
+
+printf 'theme = "maitri"\n' >"$test_tmp/case.block"
+toml_block_case "a single-quoted table header" "['tui']\nalt = 1\n" 0
+[[ $(toml_value "$test_tmp/case.toml" tui.theme) == maitri ]] || fail "a single-quoted [tui] gets the block" "$(cat "$test_tmp/case.toml")"
+toml_block_case "a spaced, single-quoted table header" "[ 'tui' ]\n" 0
+[[ $(toml_value "$test_tmp/case.toml" tui.theme) == maitri ]] || fail "a spaced [ 'tui' ] gets the block" "$(cat "$test_tmp/case.toml")"
+toml_block_case "a single-quoted key the user sets" "[tui]\n'theme' = \"own\"\n" 0
+[[ $(toml_value "$test_tmp/case.toml" tui.theme) == own && $(cat "$test_tmp/case.dropped") == theme ]] ||
+  fail "a single-quoted theme key stays the user's" "$(cat "$test_tmp/case.toml")"
+toml_block_case "a quoted key with spaced dots in the table" "[tui]\n\"theme\" . 'x' = 1\n" 0
+[[ $(cat "$test_tmp/case.dropped") == theme ]] || fail "a spaced dotted theme key counts as the user's" "$(cat "$test_tmp/case.toml")"
+toml_block_case "a top-level dotted key with spaces" "tui . theme = \"x\"\n" 3
+toml_block_case "a quoted top-level dotted key" "'tui'.theme = \"x\"\n" 3
+toml_block_case "a table whose quoted name has a dot" "[\"tui.x\"]\na = 1\n" 0
+[[ $(toml_value "$test_tmp/case.toml" tui.theme) == maitri ]] || fail "a [\"tui.x\"] table isn't taken for [tui]" "$(cat "$test_tmp/case.toml")"
+toml_block_case "a key spelled with escapes" "[tui]\n\"th\\\\u0065me\" = \"own\"\n" 3
+toml_block_case "maitri's markers inside a multi-line string" "[tui]\nnote = \"\"\"\n# >>> maitri theme (rewritten by maitri theme set) >>>\nkept\n# <<< maitri theme <<<\n\"\"\"\n" 0
+python3 -c 'import sys, tomllib; assert "kept" in tomllib.load(open(sys.argv[1], "rb"))["tui"]["note"]' "$test_tmp/case.toml" ||
+  fail "markers inside a multi-line string stay part of it" "$(cat "$test_tmp/case.toml")"
+pass "the TOML block reads quoted and dotted keys whole and leaves files with escaped keys alone"
 
 if command -v mpv >/dev/null 2>&1; then
   home=$(new_home real-mpv daybreak)

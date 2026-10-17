@@ -41,7 +41,7 @@ dropped=$(maitri-theme-toml-block "$config" tui "$block")
 case $? in
   0) ;;
   3)
-    echo "Codex's config.toml writes [tui] inline or as dotted keys, so maitri leaves it as it is." >&2
+    echo "Codex's config.toml writes [tui] inline, as dotted keys or with escaped key names, so maitri leaves it as it is." >&2
     exit 0
     ;;
   *) exit 1 ;;
