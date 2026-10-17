@@ -6,8 +6,17 @@ selection_background {{ selection_background }}
 cursor {{ bright_foreground }}
 cursor_text_color {{ background }}
 
-active_border_color {{ accent }}
+url_color {{ link }}
+
+active_border_color {{ border_focus }}
+inactive_border_color {{ border }}
+bell_border_color {{ orange }}
+
+tab_bar_background {{ background }}
+active_tab_foreground {{ background }}
 active_tab_background {{ accent }}
+inactive_tab_foreground {{ comment }}
+inactive_tab_background {{ background }}
 
 color0 {{ background }}
 color1 {{ red }}
