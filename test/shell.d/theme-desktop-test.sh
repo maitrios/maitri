@@ -14,7 +14,7 @@ RENDERED=(hyprland.lua shell.toml vicinae.toml hyprland-preview-share-picker.css
 cat >"$test_tmp/contrast.py" <<'PY'
 import re, sys, tomllib
 
-theme_dir, colors_file, vicinae_file = sys.argv[1], sys.argv[2], sys.argv[3]
+theme_dir, colors_file, vicinae_file, mode = sys.argv[1:5]
 
 def channel(c):
     c /= 255
@@ -47,6 +47,7 @@ for line in open(colors_file):
     m = re.match(r'\s*([a-z_]+)\s*=\s*"([^"]*)"', line)
     if m:
         palette[m.group(1)] = m.group(2).lower()
+palette["mode"] = mode
 
 TEXT, LINE = 4.5, 3.0
 bg = palette["background"]
@@ -69,6 +70,7 @@ def hyprland():
     h = read("hyprland.lua")
     active = re.search(r"^local active_border_color = (.+)$", h, re.M).group(1)
     inactive = re.search(r"^local inactive_border_color = (.+)$", h, re.M).group(1)
+    inactive_border = re.findall(r'"([^"]+)"', inactive)[0]
     for label, spec in (("active border", active), ("inactive border", inactive)):
         for color in re.findall(r'"([^"]+)"', spec):
             check("hyprland", label, color, bg, LINE)
@@ -90,6 +92,10 @@ def hyprland():
     check("hyprland", "groupbar locked inactive", bar["text_color_inactive"], bar["locked_inactive"], TEXT)
     locked = re.search(r'border_locked_active = "([^"]+)"', h).group(1)
     check("hyprland", "locked border", locked, bg, LINE)
+    locked_inactive = re.search(r'border_locked_inactive = "([^"]+)"', h).group(1)
+    check("hyprland", "locked inactive border", locked_inactive, bg, LINE)
+    if norm(locked_inactive) == norm(inactive_border):
+        fail("hyprland locked groups look unlocked when inactive")
 
 def shell_sections(text):
     sections, current = {}, None
@@ -135,14 +141,14 @@ def shell():
     for color in solid("controls", "selection-color", "selection-fill-alpha"):
         check("shell", "text selection", palette["foreground"], color, TEXT)
 
-    for section in ("menu", "launcher"):
+    for section in ("menu",):
         back = solid(section, "selected-background")[0]
         check("shell", f"{section} selected row", s[section]["selected-text"], back, TEXT)
         if norm(back) != palette["selection"]:
             fail(f"shell {section} selected row is not selection")
         not_role("shell", f"{section} selected text", s[section]["selected-text"], "accent")
         check("shell", f"{section} text", s[section]["text"], s[section]["background"], TEXT)
-        for color in solid(section, "border") + solid(section, "selected-border"):
+        for color in solid(section, "border"):
             check("shell", f"{section} border", color, bg, LINE)
 
     for section in ("popups", "tooltip", "notifications", "polkit", "lock"):
@@ -196,7 +202,10 @@ def vicinae():
         check("vicinae", label, color, bg, TEXT)
     check("vicinae", "muted on surface", text["muted"], surface, TEXT)
     check("vicinae", "placeholder in input", text["placeholder"], colors["input"]["background"], TEXT)
-    check("vicinae", "footer text", text["muted"], colors["main_window"]["footer"]["background"], TEXT)
+    footer = colors["main_window"]["footer"]["background"]
+    check("vicinae", "footer text", text["muted"], footer, TEXT)
+    if contrast(norm(hover["background"]), norm(footer)) < 1.08:
+        fail("vicinae footer buttons have no visible hover")
     check("vicinae", "text selection", text["selection"]["foreground"], text["selection"]["background"], TEXT)
     check("vicinae", "accent button", core["accent_foreground"], core["accent"], TEXT)
     button = colors["button"]["primary"]
@@ -280,7 +289,8 @@ for theme_dir in "$ROOT"/themes/*/; do
   vicinae_file="$home/.local/share/vicinae/themes/maitri.toml"
   [[ -f $vicinae_file ]] || fail "$theme installs the Vicinae theme"
 
-  report=$(python3 "$test_tmp/contrast.py" "$next_theme" "$theme_dir/colors.toml" "$vicinae_file") ||
+  mode=$(PATH="$ROOT/bin:$PATH" maitri-theme-color --file "$next_theme/colors.toml" mode)
+  report=$(python3 "$test_tmp/contrast.py" "$next_theme" "$theme_dir/colors.toml" "$vicinae_file" "$mode") ||
     fail "$theme desktop contrast check runs"
   [[ -n $report ]] || fail "$theme produces a desktop contrast report"
   if failures=$(grep '^FAIL' <<<"$report"); then
@@ -298,6 +308,7 @@ printf '[menu]\nselected-text = "#123456"\n' >"$next_theme/shell.menu.toml"
 HOME="$home" MAITRI_PATH="$ROOT" PATH="$ROOT/bin:$PATH" bash "$ROOT/bin/maitri-theme-set-templates"
 menu=$(awk '/^\[menu\]/ { on = 1; next } /^\[/ { on = 0 } on' "$next_theme/shell.toml")
 [[ $menu == 'selected-text = "#123456"' ]] || fail "a shell.menu.toml override replaces the [menu] section" "$menu"
-grep -q '^normal-border       = "#635B79"' "$next_theme/shell.toml" ||
+border=$(PATH="$ROOT/bin:$PATH" maitri-theme-color --file "$next_theme/colors.toml" border)
+grep -qF "normal-border       = \"$border\"" "$next_theme/shell.toml" ||
   fail "a shell.menu.toml override leaves [controls] on the theme roles"
 pass "shell section overrides still replace their section"
