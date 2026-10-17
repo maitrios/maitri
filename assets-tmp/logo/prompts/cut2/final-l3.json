@@ -1,0 +1,9 @@
+{
+  "model": "gemini-3-pro-image",
+  "size": "4K",
+  "aspect": "1:1",
+  "prompt": "Reference image 1 is the chosen draft. Keep its concept, proportions and composition, and redraw it as a finished logo master: precise geometry, perfectly even strokes, exact symmetry where the draft is symmetric, crisp vector-like edges at high resolution, flat solid colors only. maitri is 'a kinder computer': an independent Linux distribution whose name means loving-kindness. The logo should feel warm, calm, friendly and trustworthy while staying modern and precise, and simple enough to read as a 16 pixel favicon and as a 1024 pixel boot logo. Reference image 1 is a logo mark from an earlier round: an open heart drawn as one continuous, even, rounded line that makes a small loop at the top centre where the two lobes meet. Make one deliberate variation of this exact concept; keep it a single flat-colour line with round ends. Change only what is described: the line does not close: it starts and ends near the bottom point, leaving a small gap just left of the point, so the heart is drawn in one stroke that stays open; small loop at the top. Colors: primary amethyst #B08CFF, optional light lilac #DBB6FF and deep violet #5F4B8B, on a plain solid #0F0A18 near-black background. Flat vector logo artwork: solid fills, crisp clean edges, perfect symmetry where it makes sense, centered with a generous empty margin. No shading, no 3D, no bevel, no glow, no texture, no mockup, no photo, no extra text, no watermark, no signature. Do not draw any letters or words. Draw only the one mark from reference 1; no ghosted, faded or duplicated shapes anywhere. ",
+  "refs": [
+    "draft loop/l3a"
+  ]
+}

@@ -223,3 +223,29 @@ Variants:
 3. **Loop heart** (`heart/3b`). One continuous line with a single loop at the top; the warmest and most human of the set, and still clearly an open heart. Vector: One centreline path with even stroke and round caps, outlined. The loop's counter fills in below 32 px, so it needs a heavier small-size cut or the filled tile as the favicon.
 4. **Notched heart tile** (`tile/1a`). A filled heart with a notch where the gap was; the boldest favicon and glyph here, and a solid sibling for any outline mark. Vector: Heart silhouette plus notch as one path, on icon.svg's existing tile and gradient. Check the notch survives at 16 px; widen it slightly for the glyph.
 5. **Heart + lowercase lockup** (`lockup/1a`). The horizontal lockup the brand doesn't have yet, heart stroke matched to the letters. It raises the real question: keep the block MAITRI or move to lowercase. Vector: The lettering is a placeholder. Set 'maitri' in a real open-licence rounded sans, match the heart's stroke to the letter stems, and space it by hand. The heart is today's heart.svg.
+
+## Cut 2: power heart and loop heart
+
+Andrew liked shortlist picks 1 to 3 and asked for about five variations each of the power heart and the loop heart, each shown with the block MAITRI wordmark and a typeset lowercase lockup, at 16 and 32 px, and on daybreak. Sheets: `cut2/power.jpg`, `cut2/loop.jpg`, `cut2/favicons.jpg`.
+
+- References: `refs/power-final.png` and `refs/loop-final.png`, the round 1 finals computer/1a-dark and heart/3b-dark scaled to 1536 px.
+- Drafts: Nano Banana 2.1, 1K, three runs (a, b, c) per variation, 30 in all. Finals: Nano Banana Pro, 4K, with the picked draft as the reference.
+- The first Pro pass also passed the round 1 final as a second reference; p2, p3 and p4 came back with ghosted copies of it, l3 lost its opening, l4 grew a stray tail and l5 wasn't bold. Those six were redone with the picked draft alone and a 'no ghosted shapes' line.
+- Stroke weight barely moved in the drafts, so the finals for P1, P2 and L5 carry an explicit stroke ratio (6%, 13%, 12% of the heart's width).
+- Everything on the sheets past the Pro final is local and deterministic: the mark's alpha is pulled from the final (grayscale, level 22% to 48%, small morphology open, trim), filled with exact #B08CFF or #644AC9, and set on flat #0F0A18 or #F5F5F5. So these daybreak versions are exact recolors, with no model in the loop.
+- Block lockups use the real wordmark from tools/brand.py (amethyst and daybreak theme_wordmark), with the mark at 1.25x the wordmark height. Lowercase lockups are typeset in Nunito (SIL OFL, fetched as a file into scratch, nothing installed) at 600, 700 or 800 to match each mark's stroke. No model drew any lettering in cut 2.
+- Transparent marks (`cut2/<id>-mark-<dark|light>.png`, 2304 px) and lockups (`cut2/<id>-<block|lower>-<dark|light>.png`) are on the branch for the vector pass.
+- Cut 2 spend: $5.30 over 46 calls. Running total $17.46.
+
+| variation | change | drafts | picked | final | cost |
+|---|---|---|---|---|---|
+| P1 Light | a noticeably thinner stroke, about two thirds of the reference weight (stroke width about 6% of the heart's overall width); a wider gap between the curl ends; a longer bar that reaches down to about the middle of the heart. | p1a, p1b, p1c | p1b | Pro 4K | $0.38 |
+| P2 Bold | a much heavier stroke, about one and a half times the reference weight (stroke width about 13% of the heart's overall width); a short stubby bar; a narrow gap; built to read at 16 pixels. | p2a, p2b, p2c | p2c | Pro 4K, redone with draft only | $0.63 |
+| P3 Soft | a softer, rounder heart with fuller lobes and a gently rounded bottom point instead of a sharp one; the curls are shorter and end higher; medium bar length. | p3a, p3b, p3c | p3a | Pro 4K, redone with draft only | $0.63 |
+| P4 Rising bar | the bar starts above the top of the heart, rising clear of the lobes like a classic power symbol, and comes down into the gap to about one third of the heart's height; wide gap; medium stroke. | p4a, p4b, p4c | p4b | Pro 4K, redone with draft only | $0.63 |
+| P5 Crisp | straighter sides and a crisper bottom point with only a small radius, the curl ends turned only slightly inward so the top reads as an open arc, a medium-length bar; precise and technical but still friendly. | p5a, p5b, p5c | p5c | Pro 4K | $0.38 |
+| L1 Small loop | a tiny tight loop at the top centre, medium stroke, otherwise a clean symmetric heart. | l1a, l1b, l1c | l1b | Pro 4K | $0.38 |
+| L2 Big loop | a large loop that drops well down into the middle of the heart, like a ribbon, medium stroke. | l2a, l2b, l2c | l2c | Pro 4K | $0.38 |
+| L3 Open at the bottom | the line does not close: it starts and ends near the bottom point, leaving a small gap just left of the point, so the heart is drawn in one stroke that stays open; small loop at the top. | l3a, l3b, l3c | l3a | Pro 4K, redone with draft only | $0.63 |
+| L4 Signature | the line starts inside the loop and ends with a free tail on the right lobe that does not rejoin, like a hand-signed heart; slightly calligraphic rhythm but even stroke. | l4a, l4b, l4c | l4c | Pro 4K, redone with draft only | $0.63 |
+| L5 Bold | a much heavier stroke (stroke width about 12% of the heart's overall width) with the loop sized so its inner hole stays clearly open; built to read at 16 and 32 pixels; softly rounded bottom point. | l5a, l5b, l5c | l5b | Pro 4K, redone with draft only | $0.63 |
