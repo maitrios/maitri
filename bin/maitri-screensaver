@@ -21,8 +21,6 @@ printf '\033]11;rgb:00/00/00\007'  # Set background color to black
 
 hyprctl eval 'hl.config({ cursor = { invisible = true } })' &>/dev/null || hyprctl keyword cursor:invisible true &>/dev/null
 
-tty=$(tty 2>/dev/null)
-
 # Terminals allocate the pty at the default 80x24 and only resize it once the
 # compositor has told the window how big it is. ttfx measures the terminal once,
 # at startup, so starting it before the resize lands sizes an 80x24 canvas and
@@ -45,19 +43,29 @@ frame=0
 
 while true; do
   awk -v want="$frame" '
+    { sub(/\r$/, "") }
     function keep() { if (buf ~ /[^[:space:]]/) frames[n++] = buf; buf = "" }
     $0 == "\f" { keep(); next }
     { buf = buf $0 "\n" }
     END { keep(); if (n) printf "%s", frames[want % n] }
-  ' "$text" >"$frame_dir/next"
+  ' "$text" >"$frame_dir/next" 2>/dev/null
+
+  # ttfx exits at once on empty input, which would respawn it in a tight loop
+  # that never reaches the input and focus checks below.
+  if [[ ! -s $frame_dir/next ]]; then
+    maitri-notification-send -g 󱄄 "Screensaver has nothing to show" "Restore the default under Style > Screensaver"
+    exit_screensaver
+  fi
+
   mv "$frame_dir/next" "$frame_dir/frame"
   frame=$((frame + 1))
 
   ttfx -i "$frame_dir/frame" \
     --frame-rate 120 --canvas-width 0 --canvas-height 0 --reuse-canvas --anchor-canvas c --anchor-text c\
     --random-effect --no-eol --no-restore-cursor &
+  effect=$!
 
-  while pgrep -t "${tty#/dev/}" -x ttfx >/dev/null; do
+  while kill -0 "$effect" 2>/dev/null; do
     if read -n1 -t 1 || ! screensaver_in_focus; then
       exit_screensaver
     fi

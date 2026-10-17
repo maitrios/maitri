@@ -67,6 +67,7 @@ instead of racing.
 - `vscode.json` — names the extension `maitri-theme-set-vscode` installs, and a VS Code extension is arbitrary JavaScript
 - `emacs-theme.el` — Elisp, which Emacs runs when it loads the theme
 - `herdr.toml` — `maitri-theme-set-herdr` splices it into herdr's own `config.toml`, which runs commands
+- `glamour.json` — gh and glow write its prefix strings to the terminal as they are, so an escape sequence in one could rewrite the clipboard
 
 A theme's `gtk.css` is kept, but `maitri-theme-set-gtk` only splices it into the user's GTK config when every line is an `@define-color name #RRGGBB;`, a comment or blank; otherwise GTK apps drop back to their own look. With the `skip-gtk-theme-changes` toggle on, `maitri-theme-set-gtk` leaves GTK alone and the colours of the last theme it applied stay in place. It rewrites gtk.css by moving a new copy into place, which keeps the file's mode but not ACLs or extended attributes; a symlinked or hard-linked gtk.css is left alone with a hint instead.
 
@@ -472,6 +473,23 @@ For a gradient it renders:
 local active_border_color = { colors = { "rgba(33ccffee)", "rgba(00ff99ee)" }, angle = 45 }
 ```
 
+## gh and glow
+
+`default/themed/glamour.json.tpl` renders a glamour style to
+`~/.local/state/maitri/current/theme/glamour.json` on every theme set, so gh,
+glow and other glamour-based Markdown renderers draw in the theme: headings on
+the accent ramp, links in `link`, quote bars and rules in `border`, and code on
+the shared syntax mapping.
+
+maitri's fish config points them at it with two marked lines
+(`# maitri:glamour-style`): `GLAMOUR_STYLE` when gh or glow is installed, and
+`GLOW_STYLE` when glow is. Each is only set when it isn't already, so a style you
+export yourself, from the session environment, `conf.d` or a universal variable,
+wins. The file's path never changes, so gh and glow pick up a new theme on their
+next run. One catch: glow ranks `GLOW_STYLE` above the `style:` key in its own
+`glow.yml`, so to use a style from there, set `GLOW_STYLE` to it yourself or
+drop the marked line.
+
 ## Zed, JetBrains and Emacs
 
 Each editor gets a theme rendered from `colors.toml`, installed by its own
@@ -587,7 +605,8 @@ The set is opt-in, from Style > App Icons in the menu or the commands:
   stops without touching anything when `default/icons/` is missing. Each run
   also refreshes the icon copies from `default/icons/`, so new icon art from an
   update reaches them, and removes copies no swap uses anymore. It never
-  overwrites or removes an icon file it didn't write, and it touches the icon
+  overwrites or removes an icon file it didn't write, and skips a launcher
+  whose `maitri-<key>` name such a file already takes, and it touches the icon
   theme dir whenever a copy changes, so GTK rescans it. Swaps made before icons
   were copied, which point at an absolute path, are moved over to the names. A
   launcher whose icon has left the set (after `maitri dev unlink` from a branch

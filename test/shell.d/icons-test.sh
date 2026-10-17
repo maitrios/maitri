@@ -477,7 +477,10 @@ cp -r "$icons" "$maitri_path/default/icons"
 echo 'not a png' >"$maitri_path/default/icons/foot.png"
 { png_header 1024 1024; head -c 64 /dev/zero; } >"$maitri_path/default/icons/slack.png"
 { png_header 256 128; head -c 64 /dev/zero; } >"$maitri_path/default/icons/firefox.png"
+printf '\x89PNG\r\n\x1a\n\x00\x00\x00\x0d' >"$maitri_path/default/icons/google-chrome.png"
 run_icons set
+[[ ! -e $user_apps/google-chrome.desktop ]] || fail "set skips a PNG cut off before its size"
+[[ ! -s $tmpdir/err ]] || fail "a short PNG makes no noise on stderr" "$(cat "$tmpdir/err")"
 [[ ! -e $user_apps/foot.desktop ]] || fail "set skips an icon that isn't a PNG"
 grep -Fxq 'Icon=slack' "$user_apps/slack.desktop" || fail "set skips a PNG at a size the hicolor theme doesn't list"
 [[ ! -e $user_apps/firefox.desktop ]] || fail "set skips a PNG that isn't square"
@@ -523,14 +526,26 @@ pass "a replaced launcher whose icon leaves the set after dev link and unlink go
 reset_fixture
 mkdir -p "$theme_icons/256x256/apps"
 echo mine >"$theme_icons/256x256/apps/maitri-slack.png"
+ln -s "$tmpdir/nowhere.png" "$theme_icons/256x256/apps/maitri-vscode.png"
 run_icons set
 [[ $(<"$theme_icons/256x256/apps/maitri-slack.png") == "mine" ]] || fail "set never overwrites an icon it didn't put there"
-grep -q 'maitri-slack.png' "$state/copies" && fail "set doesn't record an icon it didn't put there"
-grep -q "maitri-slack.png alone: maitri didn't put it there" "$tmpdir/err" || fail "set says it left a file alone" "$(cat "$tmpdir/err")"
+[[ -L $theme_icons/256x256/apps/maitri-vscode.png && ! -e $theme_icons/256x256/apps/maitri-vscode.png ]] ||
+  fail "set never replaces a dangling symlink it didn't put there"
+grep -q 'maitri-slack.png\|maitri-vscode.png' "$state/copies" && fail "set doesn't record an icon it didn't put there"
+cmp -s "$user_apps/slack.desktop" "$tmpdir/slack-original.desktop" ||
+  fail "set doesn't swap a launcher whose icon name is taken by a file it didn't write" "$(cat "$user_apps/slack.desktop")"
+[[ ! -e $user_apps/code.desktop ]] || fail "set doesn't swap a launcher whose icon name is a dangling symlink it didn't write"
+grep -q '^slack.desktop\|^code.desktop' "$state/manifest" && fail "set doesn't record a launcher it didn't swap"
+grep -q "Swapped icon for slack.desktop\|Swapped icon for code.desktop" "$tmpdir/out" && fail "set doesn't say it swapped a launcher it skipped"
+grep -q "Not swapping slack: .*maitri-slack.png is there and maitri didn't put it there" "$tmpdir/err" &&
+  grep -q "Not swapping vscode: .*maitri-vscode.png is there" "$tmpdir/err" ||
+  fail "set says why it skipped a launcher" "$(cat "$tmpdir/err")"
+grep -Fxq 'Icon=maitri-firefox' "$user_apps/firefox.desktop" || fail "the other launchers still swap"
 run_icons restore
-[[ $(<"$theme_icons/256x256/apps/maitri-slack.png") == "mine" ]] || fail "restore never removes an icon set didn't put there"
-rm "$theme_icons/256x256/apps/maitri-slack.png"
-pass "set and restore leave alone an icon file they didn't write"
+[[ $(<"$theme_icons/256x256/apps/maitri-slack.png") == "mine" && -L $theme_icons/256x256/apps/maitri-vscode.png ]] ||
+  fail "restore never removes an icon set didn't put there"
+rm "$theme_icons/256x256/apps/maitri-slack.png" "$theme_icons/256x256/apps/maitri-vscode.png"
+pass "set skips a launcher whose icon name is taken by a file or symlink it didn't write, and leaves that file alone"
 
 reset_fixture
 run_icons set
