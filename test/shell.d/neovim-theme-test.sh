@@ -78,6 +78,38 @@ if border < 3 then
   fail(string.format("FloatBorder is %.2f:1 on NormalFloat", border))
 end
 
+local function ratio(fg_group, fg_key, bg_group, bg_key)
+  return palette.contrast(hex(hl(fg_group)[fg_key]), hex(hl(bg_group)[bg_key]))
+end
+
+local function floor(value, minimum, label)
+  if value < minimum then
+    fail(string.format("%s is %.2f:1, under %.2f:1", label, value, minimum))
+  end
+end
+
+for _, name in ipairs({ "@markup.link.label", "RenderMarkdownLink" }) do
+  local group = hl(name)
+  if not group.underline then
+    fail(name .. " is not underlined")
+  end
+  if palette.hue_distance(hex(group.fg), p.accent) < 60 then
+    fail(name .. " is within 60 degrees of the accent")
+  end
+end
+
+floor(ratio("PmenuExtraSel", "fg", "PmenuSel", "bg"), 3, "PmenuExtraSel")
+floor(ratio("SnacksPickerUnselected", "fg", "NormalFloat", "bg"), 3, "SnacksPickerUnselected")
+
+if plugin.opts.mode == "light" then
+  for _, name in ipairs({ "NormalFloat", "Pmenu", "StatusLine", "RenderMarkdownCode" }) do
+    floor(ratio(name, "bg", "Normal", "bg"), 1.2, name .. " against Normal")
+  end
+  floor(ratio("CursorLine", "bg", "Normal", "bg"), 1.15, "CursorLine against Normal")
+  floor(ratio("Visual", "bg", "Normal", "bg"), 1.5, "Visual against Normal")
+  floor(ratio("WinSeparator", "fg", "Normal", "bg"), 3, "WinSeparator")
+end
+
 local forbidden = { [colors.green:lower()] = "green", [colors.yellow:lower()] = "yellow" }
 for level = 1, 6 do
   for _, name in ipairs({ "RenderMarkdownH" .. level, "RenderMarkdownH" .. level .. "Bg", "@markup.heading." .. level .. ".markdown" }) do

@@ -219,7 +219,7 @@ return function(p)
     SnacksPickerDirectory = { fg = p.accent },
     SnacksPickerTotals = { fg = p.comment },
     SnacksPickerSelected = { fg = p.orange },
-    SnacksPickerUnselected = { fg = p.line },
+    SnacksPickerUnselected = { fg = p.comment },
     SnacksPickerToggle = { fg = p.accent, bg = p.virtual.hint },
     SnacksPickerCursorLine = { bg = p.menu_sel },
     SnacksPickerRow = { fg = p.comment },

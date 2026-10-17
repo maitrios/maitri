@@ -56,7 +56,7 @@ return function(p)
     PmenuKind = { fg = p.cyan, bg = p.float },
     PmenuKindSel = { fg = p.cyan, bg = p.menu_sel },
     PmenuExtra = { fg = p.comment, bg = p.float },
-    PmenuExtraSel = { fg = p.comment, bg = p.menu_sel },
+    PmenuExtraSel = { fg = p.fg_dim, bg = p.menu_sel },
     PmenuSbar = { bg = p.float },
     PmenuThumb = { bg = p.line },
     PmenuMatch = { fg = p.accent, bold = true },
@@ -99,7 +99,7 @@ return function(p)
     healthError = { fg = p.red },
     healthSuccess = { fg = p.green },
     healthWarning = { fg = p.orange },
-    helpHyperTextJump = { fg = p.blue, underline = true },
+    helpHyperTextJump = { fg = p.link, underline = true },
     helpCommand = { fg = p.cyan },
     helpExample = { fg = p.green },
 

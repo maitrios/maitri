@@ -65,7 +65,7 @@ return function(p)
     ["@string.escape"] = { fg = p.magenta },
     ["@string.special"] = { fg = p.magenta },
     ["@string.special.symbol"] = { fg = p.blue },
-    ["@string.special.url"] = { fg = p.blue, underline = true },
+    ["@string.special.url"] = { fg = p.link, underline = true },
     ["@string.special.path"] = { fg = p.yellow },
 
     ["@character"] = { link = "Character" },

@@ -41,6 +41,40 @@ local function near(a, b)
   return M.distance(a, b) < 48
 end
 
+function M.hue(hex)
+  local r, g, b = rgb(hex)
+  r, g, b = r / 255, g / 255, b / 255
+  local max, min = math.max(r, g, b), math.min(r, g, b)
+  local delta = max - min
+  if delta == 0 then
+    return 0
+  end
+  local h
+  if max == r then
+    h = ((g - b) / delta) % 6
+  elseif max == g then
+    h = (b - r) / delta + 2
+  else
+    h = (r - g) / delta + 4
+  end
+  return h * 60
+end
+
+function M.hue_distance(a, b)
+  local d = math.abs(M.hue(a) - M.hue(b)) % 360
+  return math.min(d, 360 - d)
+end
+
+function M.toward(color, target, against, minimum)
+  local amount = 0
+  local result = color
+  while M.contrast(result, against) < minimum and amount < 1 do
+    amount = amount + 0.02
+    result = M.blend(color, target, amount)
+  end
+  return result
+end
+
 function M.readable(color, bg, fg, minimum)
   local amount = 0
   local result = color
@@ -120,8 +154,15 @@ function M.build(c, mode)
     bright_cyan = c.bright_cyan,
   }
 
+  if light then
+    p.bg_dark = M.toward(p.bg_dark, p.fg, p.bg, 1.22)
+    p.bg_darker = M.toward(p.bg_darker, p.fg, p.bg, 1.35)
+    p.bg_light = M.toward(p.bg_light, p.fg, p.bg, 1.16)
+    p.line = M.toward(p.line, p.fg, p.bg, 3)
+  end
+
   for _, key in ipairs({ "comment", "accent", "red", "green", "yellow", "blue", "magenta", "cyan", "orange" }) do
-    p[key] = M.readable(p[key], p.bg, p.fg)
+    p[key] = M.readable(p[key], light and p.bg_light or p.bg, p.fg)
   end
 
   local tint = light and 0.16 or 0.13
@@ -153,10 +194,18 @@ function M.build(c, mode)
   p.modes.terminal = apart(p.cyan, { p.blue, p.green }, { p.accent, p.modes.command })
   p.jump_current = apart(p.orange, { p.red, p.yellow }, { p.accent })
 
-  p.visual = blend(p.bg, p.accent, light and 0.2 or 0.26)
+  p.link = p.magenta
+  for _, candidate in ipairs({ p.magenta, blend(p.magenta, p.red, 0.5), p.blue, p.orange }) do
+    if M.hue_distance(candidate, p.accent) >= 60 then
+      p.link = M.readable(candidate, p.bg, p.fg)
+      break
+    end
+  end
+
+  p.visual = light and M.toward(p.bg, p.accent, p.bg, 1.5) or blend(p.bg, p.accent, 0.26)
   p.cursorline = p.bg_light
   p.float = p.bg_dark
-  p.border = blend(p.bg, p.accent, light and 0.8 or 0.6)
+  p.border = light and M.toward(p.bg, p.accent, p.float, 3) or blend(p.bg, p.accent, 0.6)
   p.border_dim = p.line
   p.nontext = light and blend(p.bg, p.comment, 0.55) or blend(p.line, p.comment, 0.35)
   p.reference = blend(p.bg, p.accent, light and 0.12 or 0.16)
