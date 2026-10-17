@@ -204,8 +204,10 @@ run_hook "$link_home" 2>"$test_tmp/stderr"
 [[ ! -e $dotfiles/gtk-4.0/gtk.css ]] || fail "nothing is written into a symlinked GTK config dir"
 (( $(grep -c "is a symlink, so maitri left it alone" "$test_tmp/stderr") == 2 )) ||
   fail "the hook says how to follow the theme from a symlinked config" "$(cat "$test_tmp/stderr")"
-grep -qF "@import url(\"file://$link_home/.local/state/maitri/current/theme/gtk.css\");" "$test_tmp/stderr" ||
+grep -qF "@import url(\"file://$link_home/.local/state/maitri/current/gtk-4.0.css\");" "$test_tmp/stderr" ||
   fail "the hint names the import line to add" "$(cat "$test_tmp/stderr")"
+grep -qF 'button.suggested-action {' "$link_home/.local/state/maitri/current/gtk-3.0.css" ||
+  fail "the hint's file carries the vetted block"
 pass "a symlinked gtk.css or GTK config dir is left alone with a hint"
 
 xdg_home="$test_tmp/xdg-home"
@@ -222,6 +224,102 @@ run_hook "$hostile_home" 2>"$test_tmp/stderr"
   fail "a gtk.css with anything but colour definitions is not spliced in"
 grep -q "isn't a colour definition" "$test_tmp/stderr" || fail "the hook says why it skipped a theme's gtk.css"
 pass "a theme's gtk.css only gets through as colour definitions"
+
+nul_home="$test_tmp/nul-home"
+render_theme amethyst "$nul_home"
+printf '/*\0*/\nbutton { opacity: 0; }\n' >>"$nul_home/.local/state/maitri/current/theme/gtk.css"
+run_hook "$nul_home" 2>/dev/null
+[[ ! -e $nul_home/.config/gtk-4.0/gtk.css ]] || fail "a NUL byte cannot smuggle a rule past the colour-only filter"
+pass "a NUL byte cannot smuggle a rule past the colour-only filter"
+
+marker_home="$test_tmp/marker-home"
+render_theme amethyst "$marker_home"
+echo '/* <<< maitri theme <<< */' >>"$marker_home/.local/state/maitri/current/theme/gtk.css"
+run_hook "$marker_home" 2>/dev/null
+[[ ! -e $marker_home/.config/gtk-4.0/gtk.css ]] || fail "a theme cannot carry the block markers"
+pass "a theme cannot carry the block markers"
+
+strip_home="$test_tmp/strip-home"
+render_theme amethyst "$strip_home"
+mkdir -p "$strip_home/.config/gtk-4.0"
+printf 'label { color: red; }\n' >"$strip_home/.config/gtk-4.0/gtk.css"
+run_hook "$strip_home" 2>/dev/null
+echo 'window { opacity: 0; }' >>"$strip_home/.local/state/maitri/current/theme/gtk.css"
+run_hook "$strip_home" 2>/dev/null
+! grep -qF 'maitri theme' "$strip_home/.config/gtk-4.0/gtk.css" || fail "a theme that fails the filter drops the old block"
+grep -qxF 'label { color: red; }' "$strip_home/.config/gtk-4.0/gtk.css" || fail "dropping the block keeps the user's rules"
+[[ ! -s $strip_home/.local/state/maitri/current/gtk-4.0.css ]] || fail "dropping the block empties the file the symlink hint imports"
+pass "a theme that fails the filter drops the previous theme's block"
+
+locked_home="$test_tmp/locked-home"
+render_theme amethyst "$locked_home"
+mkdir -p "$locked_home/.config/gtk-4.0"
+printf 'label { color: red; }\n' >"$locked_home/.config/gtk-4.0/gtk.css"
+chmod 200 "$locked_home/.config/gtk-4.0/gtk.css"
+if run_hook "$locked_home" 2>"$test_tmp/stderr"; then
+  fail "the hook reports a gtk.css it can't read"
+fi
+chmod 600 "$locked_home/.config/gtk-4.0/gtk.css"
+[[ $(cat "$locked_home/.config/gtk-4.0/gtk.css") == 'label { color: red; }' ]] || fail "an unreadable gtk.css is never emptied"
+grep -q "can't be read" "$test_tmp/stderr" || fail "the hook says why it left an unreadable gtk.css alone" "$(cat "$test_tmp/stderr")"
+[[ -z $(find "$locked_home/.config/gtk-4.0" -name '.gtk.css.*') ]] || fail "no staging file is left behind"
+pass "an unreadable gtk.css is left alone and reported"
+
+doubled_home="$test_tmp/doubled-home"
+render_theme amethyst "$doubled_home"
+mkdir -p "$doubled_home/.config/gtk-4.0"
+printf '%s\nlabel { color: red; }\n%s\nbox {}\n%s\n' '/* >>> maitri theme (rewritten by maitri theme set) >>> */' \
+  '/* >>> maitri theme (rewritten by maitri theme set) >>> */' '/* <<< maitri theme <<< */' >"$doubled_home/.config/gtk-4.0/gtk.css"
+cp "$doubled_home/.config/gtk-4.0/gtk.css" "$test_tmp/doubled-before"
+run_hook "$doubled_home" 2>"$test_tmp/stderr" && fail "the hook reports doubled markers"
+cmp -s "$doubled_home/.config/gtk-4.0/gtk.css" "$test_tmp/doubled-before" || fail "doubled markers leave the file untouched"
+grep -q "doubled or out of order" "$test_tmp/stderr" || fail "the hook names the marker problem"
+pass "doubled markers are refused rather than eating the user's CSS"
+
+shape_home="$test_tmp/shape-home"
+render_theme amethyst "$shape_home"
+mkdir -p "$shape_home/.config/gtk-4.0"
+gtk4="$shape_home/.config/gtk-4.0/gtk.css"
+printf '/* my theme */\n@import url(\r\n  "colors.css");\r\n\r\nlabel { color: red; }\r\n' >"$gtk4"
+chmod 600 "$gtk4"
+run_hook "$shape_home" 2>/dev/null
+cp "$gtk4" "$test_tmp/shape-before"
+run_hook "$shape_home" 2>/dev/null
+cmp -s "$gtk4" "$test_tmp/shape-before" || fail "a CRLF gtk.css gets one block however often the hook runs" "$(diff "$test_tmp/shape-before" "$gtk4")"
+[[ $(head -n 3 "$gtk4" | tr -d '\r') == $'/* my theme */\n@import url(\n  "colors.css");' ]] ||
+  fail "the leading comment and a multi-line @import stay whole above the block" "$(head -n 4 "$gtk4")"
+[[ $(sed -n 4p "$gtk4") == '/* >>> maitri theme (rewritten by maitri theme set) >>> */' ]] || fail "the block follows the prelude"
+[[ $(stat -c %a "$gtk4") == 600 ]] || fail "the hook keeps gtk.css's mode" "$(stat -c %a "$gtk4")"
+pass "the prelude stays whole, CRLF files stay at one block, and the file mode is kept"
+
+skip_home="$test_tmp/skip-home"
+render_theme amethyst "$skip_home"
+mkdir -p "$skip_home/.local/state/maitri/toggles"
+touch "$skip_home/.local/state/maitri/toggles/skip-gtk-theme-changes"
+run_hook "$skip_home" 2>/dev/null
+[[ ! -e $skip_home/.config/gtk-4.0 ]] || fail "skip-gtk-theme-changes leaves GTK alone"
+pass "skip-gtk-theme-changes leaves GTK alone"
+
+if /usr/bin/python3 -c 'import gi; gi.require_version("Gtk", "3.0")' 2>/dev/null &&
+  /usr/bin/python3 -c 'import gi; gi.require_version("Gtk", "4.0")' 2>/dev/null; then
+  for theme in "${themes[@]}"; do
+    run_hook "$test_tmp/render/$theme" 2>/dev/null
+    for version in 3.0 4.0; do
+      /usr/bin/python3 - "$version" "$test_tmp/render/$theme/.local/state/maitri/current/gtk-$version.css" <<'PY' ||
+import sys, gi
+gi.require_version("Gtk", sys.argv[1])
+from gi.repository import Gtk
+errors = []
+provider = Gtk.CssProvider()
+provider.connect("parsing-error", lambda _p, _section, error: errors.append(error.message))
+provider.load_from_path(sys.argv[2])
+sys.exit("\n".join(errors) if errors else 0)
+PY
+        fail "GTK $version parses the $theme block"
+    done
+  done
+  pass "GTK 3 and GTK 4 parse every theme's block without errors"
+fi
 
 # The GNOME hook maps each theme's accent onto the nearest GNOME preset.
 fake_bin="$test_tmp/fake-bin"

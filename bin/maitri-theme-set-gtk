@@ -3,84 +3,147 @@
 # maitri:summary=Apply the current maitri theme to GTK and libadwaita apps
 # maitri:hidden=true
 
-THEME_DIR="$HOME/.local/state/maitri/current/theme"
+STATE_DIR="$HOME/.local/state/maitri/current"
+THEME_DIR="$STATE_DIR/theme"
 CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 BLOCK_START="/* >>> maitri theme (rewritten by maitri theme set) >>> */"
 BLOCK_END="/* <<< maitri theme <<< */"
 
+maitri-toggle-enabled skip-gtk-theme-changes && exit 0
+
 colours="$THEME_DIR/gtk.css"
-[[ -f $colours ]] || exit 0
 
 # The colours are spliced into the user's own gtk.css, and a theme cloned with
 # `maitri theme install` can ship its own gtk.css or put anything in its
-# colors.toml, so only colour definitions get through.
-if grep -vxE '@define-color [a-z_]+ #[0-9A-Fa-f]{6};|/\*[^*]*\*/|[[:space:]]*' "$colours" | grep -q .; then
-  echo "GTK apps keep their current look: the theme's gtk.css has a line that isn't a colour definition." >&2
-  exit 0
+# colors.toml, so only colour definitions get through. Anything else, a NUL byte
+# that would turn grep's output off, or a line that would end the block early,
+# drops the block instead.
+colour_only() {
+  local stray
+
+  [[ -f $colours && -r $colours ]] || return 1
+  tr -d '\000' <"$colours" | cmp -s - "$colours" || return 1
+  grep -qxF -e "$BLOCK_START" -e "$BLOCK_END" "$colours" && return 1
+  stray=$(LC_ALL=C grep -avxE '@define-color [a-z_]+ #[0-9A-Fa-f]{6};|/\*[^*]*\*/|[[:space:]]*' "$colours")
+  (( $? <= 1 )) && [[ -z $stray ]]
+}
+
+vetted=""
+if colour_only; then
+  vetted=1
+elif [[ -e $colours ]]; then
+  echo "GTK apps go back to their own look: the theme's gtk.css has something that isn't a colour definition." >&2
 fi
 
 exec 9>"${XDG_RUNTIME_DIR:-/tmp}/maitri-theme-set-gtk.lock"
 flock 9
 
-# The block goes first, so anything the user writes after it wins, but after
-# any @import or @charset, which GTK only honours at the top.
+# The block goes right after the file's leading comments, @import and @charset
+# statements, so anything the user writes after it wins.
 splice() {
   local version="$1"
   local dir="$CONFIG_HOME/gtk-$version"
   local file="$dir/gtk.css"
-  local rules="$MAITRI_PATH/default/gtk/gtk-$version.css"
-  local block
+  local copy="$STATE_DIR/gtk-$version.css"
+  local block tmp status written=""
+
+  block=$(mktemp)
+  if [[ -n $vetted ]]; then
+    { echo "$BLOCK_START"; cat "$colours"; echo; cat "$MAITRI_PATH/default/gtk/gtk-$version.css"; echo "$BLOCK_END"; } >"$block"
+  fi
+  mkdir -p "$STATE_DIR"
+  cp "$block" "$copy.tmp" && mv "$copy.tmp" "$copy"
 
   if [[ -L $dir || -L $file ]]; then
-    grep -qF "$colours" "$file" 2>/dev/null ||
-      echo "$file is a symlink, so maitri left it alone. To follow the maitri theme, add these lines at its top: @import url(\"file://$colours\"); @import url(\"file://$rules\");" >&2
+    rm -f "$block"
+    grep -qF "$copy" "$file" 2>/dev/null ||
+      echo "$file is a symlink, so maitri left it alone. To follow the maitri theme, add this line at its top: @import url(\"file://$copy\");" >&2
     return
   fi
 
-  mkdir -p "$dir"
-  touch "$file"
+  if [[ ! -e $file ]]; then
+    [[ -s $block ]] || { rm -f "$block"; return; }
+    mkdir -p "$dir"
+    touch "$file"
+  fi
 
-  block=$(mktemp)
-  { echo "$BLOCK_START"; cat "$colours"; echo; cat "$rules"; echo "$BLOCK_END"; } >"$block"
+  if [[ ! -f $file || ! -r $file || ! -w $file ]]; then
+    rm -f "$block"
+    echo "maitri left $file alone: it can't be read and rewritten." >&2
+    refused=1
+    return
+  fi
 
+  tmp=$(mktemp "$dir/.gtk.css.XXXXXX") || { rm -f "$block"; refused=1; return; }
   awk -v start="$BLOCK_START" -v end="$BLOCK_END" -v block="$block" '
-    { all[NR] = $0 }
-    $0 == start && !s { s = NR }
-    $0 == end && s && !e { e = NR }
+    {
+      all[NR] = $0
+      text[NR] = $0
+      sub(/\r$/, "", text[NR])
+      if (text[NR] == start) starts[++ns] = NR
+      if (text[NR] == end) ends[++ne] = NR
+    }
 
     END {
-      if (!e) s = 0
+      if (ns > 1 || ne > 1 || ns != ne || (ns && ends[1] < starts[1])) exit 3
+
       for (i = 1; i <= NR; i++) {
-        if (s && i >= s && i <= e) continue
+        if (ns && i >= starts[1] && i <= ends[1]) continue
         lines[++n] = all[i]
+        plain[n] = text[i]
       }
 
-      for (top = 1; top <= n; top++) {
-        if (lines[top] !~ /^[[:space:]]*@(import|charset)[[:space:]]/) break
-        print lines[top]
+      top = 1
+      while (top <= n) {
+        line = plain[top]
+        if (open == "comment") { if (index(line, "*/")) open = ""; top++; continue }
+        if (open == "statement") { if (index(line, ";")) open = ""; top++; continue }
+        if (line ~ /^[[:space:]]*$/ || line ~ /^[[:space:]]*\/\*.*\*\/[[:space:]]*$/) { top++; continue }
+        if (line ~ /^[[:space:]]*\/\*/) { open = "comment"; top++; continue }
+        if (line ~ /^[[:space:]]*@(import|charset)([[:space:]]|$)/) { if (!index(line, ";")) open = "statement"; top++; continue }
+        break
       }
+      while (top > 1 && plain[top - 1] ~ /^[[:space:]]*$/) top--
 
-      while ((getline line < block) > 0) print line
+      for (i = 1; i < top; i++) print lines[i]
+      while ((getline line < block) > 0) { print line; spliced = 1 }
       close(block)
-
-      if (top <= n && lines[top] !~ /^[[:space:]]*$/) print ""
+      if (spliced && top <= n && plain[top] !~ /^[[:space:]]*$/) print ""
       for (i = top; i <= n; i++) print lines[i]
     }
-  ' "$file" >"$file.maitri-tmp"
+  ' "$file" >"$tmp"
+  status=$?
+
+  if (( status == 0 )); then
+    if [[ -s $block ]]; then
+      (( $(grep -cxF "$BLOCK_END" "$tmp") == 1 )) && written=1
+    else
+      grep -qxF "$BLOCK_END" "$tmp" || written=1
+    fi
+  fi
   rm -f "$block"
 
-  if cmp -s "$file.maitri-tmp" "$file"; then
-    rm -f "$file.maitri-tmp"
+  if [[ -z $written ]]; then
+    rm -f "$tmp"
+    if (( status == 3 )); then
+      echo "maitri left $file alone: its maitri theme markers are doubled or out of order. Remove them and run maitri theme set again." >&2
+    else
+      echo "maitri left $file alone: it couldn't be rewritten safely." >&2
+    fi
+    refused=1
+  elif cmp -s "$tmp" "$file"; then
+    rm -f "$tmp"
   else
-    mv "$file.maitri-tmp" "$file"
+    chmod --reference="$file" "$tmp"
+    mv "$tmp" "$file"
     changed=1
   fi
 }
 
 changed=""
+refused=""
 splice 3.0
 splice 4.0
 
 [[ -n $changed ]] && echo "GTK apps that are open pick up the new theme when they're restarted." >&2
-
-exit 0
+[[ -z $refused ]]
