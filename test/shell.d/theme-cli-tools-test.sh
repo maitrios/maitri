@@ -428,7 +428,7 @@ YAML
 
   fish_config=$(<"$config/fish/config.fish")
   fish_block=$({ echo "if command -q fzf"; sed 's/^/    /' "$rendered/fzf.fish"; echo "end"; echo "set -gx BAT_THEME maitri"; })
-  [[ $fish_config == *$'and the look. Add your own aliases, functions and exports below.\n\n# >>> maitri theme (rewritten by maitri theme set) >>>\n'"$fish_block"$'\n# <<< maitri theme <<<\n\n# MAITRI_PATH:'* ]] ||
+  [[ $fish_config == *$' below.\n\n# >>> maitri theme (rewritten by maitri theme set) >>>\n'"$fish_block"$'\n# <<< maitri theme <<<\n\n# MAITRI_PATH:'* ]] ||
     fail "config.fish gets the $theme fzf colours and BAT_THEME after its header" "$fish_config"
 
   flavor="$config/yazi/flavors/maitri.yazi"
