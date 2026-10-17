@@ -84,7 +84,7 @@ return function(p)
     DiffText = { bg = p.diff_text },
     DiffTextAdd = { bg = p.diff_add_text },
     Added = { fg = p.green },
-    Changed = { fg = p.orange },
+    Changed = { fg = p.blue },
     Removed = { fg = p.red },
     diffAdded = { link = "Added" },
     diffChanged = { link = "Changed" },
