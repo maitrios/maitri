@@ -251,6 +251,80 @@ add_mix_values() {
   done
 }
 
+# Blend a color toward a target in 2% steps until it reaches a WCAG contrast
+# against a third color, as maitri-theme-color's lift_color does.
+lift_color() {
+  awk -v start="${1#\#}" -v target="${2#\#}" -v against="${3#\#}" -v minimum="$4" '
+    function hex_value(char) {
+      return index("0123456789abcdef", tolower(char)) - 1
+    }
+
+    function pair(hex, idx) {
+      return hex_value(substr(hex, idx, 1)) * 16 + hex_value(substr(hex, idx + 1, 1))
+    }
+
+    function linear(c) {
+      c = c / 255
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ^ 2.4
+    }
+
+    function luminance(r, g, b) {
+      return 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b)
+    }
+
+    BEGIN {
+      against_l = luminance(pair(against, 1), pair(against, 3), pair(against, 5))
+      for (step = 0; step <= 50; step++) {
+        amount = step / 50
+        r = int(pair(start, 1) + (pair(target, 1) - pair(start, 1)) * amount + 0.5)
+        g = int(pair(start, 3) + (pair(target, 3) - pair(start, 3)) * amount + 0.5)
+        b = int(pair(start, 5) + (pair(target, 5) - pair(start, 5)) * amount + 0.5)
+        l = luminance(r, g, b)
+        high = l > against_l ? l : against_l
+        low = l > against_l ? against_l : l
+        if ((high + 0.05) / (low + 0.05) >= minimum) break
+      }
+      printf "#%02x%02x%02x\n", r, g, b
+    }
+  '
+}
+
+# {{ readable KEY SURFACE }} or {{ readable KEY SURFACE_A SURFACE_B AMOUNT }}:
+# KEY moved toward foreground until it clears 4.5:1 on SURFACE, or on the mix.
+add_readable_value() {
+  local token="$1"
+  local content fn key surface_a surface_b amount color surface target
+
+  content="${token#\{\{}"
+  content="${content%\}\}}"
+  read -r fn key surface_a surface_b amount <<<"$content"
+
+  color="${THEME_COLORS[$key]:-}"
+  surface="${THEME_COLORS[$surface_a]:-}"
+  target="${THEME_COLORS[foreground]:-}"
+  [[ $color =~ ^#[0-9A-Fa-f]{6}$ && $surface =~ ^#[0-9A-Fa-f]{6}$ && $target =~ ^#[0-9A-Fa-f]{6}$ ]] || return
+
+  if [[ -n $surface_b ]]; then
+    [[ ${THEME_COLORS[$surface_b]:-} =~ ^#[0-9A-Fa-f]{6}$ ]] || return
+    surface=$(mix_color "$surface" "${THEME_COLORS[$surface_b]}" "$amount")
+  fi
+
+  printf 's|%s|%s|g\n' "$token" "$(lift_color "$color" "$target" "$surface" 4.5)" >>"$sed_script"
+}
+
+add_readable_values() {
+  local tpl token
+  local -A seen=()
+
+  for tpl in "${template_files[@]}"; do
+    while IFS= read -r token; do
+      [[ -n ${seen[$token]:-} ]] && continue
+      seen[$token]=1
+      add_readable_value "$token"
+    done < <(grep -hEo '\{\{[[:space:]]*readable[[:space:]]+[A-Za-z0-9_]+[[:space:]]+[A-Za-z0-9_]+([[:space:]]+[A-Za-z0-9_]+[[:space:]]+[0-9]+([.][0-9]+)?%?)?[[:space:]]*\}\}' "$tpl" 2>/dev/null || true)
+  done
+}
+
 add_gradient_function_value() {
   local token="$1"
   local content fn key fallback value
@@ -385,6 +459,7 @@ if [[ -f $COLORS_FILE ]]; then
   done
 
   add_mix_values
+  add_readable_values
   add_gradient_function_values
 
   # Process user templates first, then built-in templates (user overrides built-in)

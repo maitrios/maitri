@@ -38,7 +38,7 @@ return function(p)
 
     RenderMarkdownCode = { bg = p.bg_dark },
     RenderMarkdownCodeInline = { fg = p.cyan, bg = p.bg_light },
-    RenderMarkdownCodeBorder = { bg = p.bg_darker },
+    RenderMarkdownCodeBorder = { bg = p.code_border },
     RenderMarkdownCodeInfo = { fg = p.comment, italic = true },
     RenderMarkdownCodeFallback = { fg = p.comment },
     RenderMarkdownBullet = { fg = p.accent },

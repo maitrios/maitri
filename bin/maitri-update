@@ -53,6 +53,10 @@ if [[ ${1:-} == "-y" ]] || maitri-update-confirm; then
   maitri-update-orphan-pkgs
   maitri-update-pacnew
 
+  # A wallpaper that fails verification is reported and left out, which is
+  # not worth stopping the rest of the update over.
+  maitri-update-wallpapers || true
+
   maitri-update-analyze-logs
   maitri-update-status
 

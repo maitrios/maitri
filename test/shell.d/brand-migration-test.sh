@@ -63,8 +63,8 @@ reset() {
 
 reset
 run_migration
-cmp -s "$about" "$ROOT/icon.txt" || fail "the shipped About heart is replaced with the open heart"
-pass "the shipped About heart is replaced with the open heart"
+cmp -s "$about" "$ROOT/icon.txt" || fail "the shipped About heart is replaced with the current icon.txt"
+pass "the shipped About heart is replaced with the current icon.txt"
 grep -qx 'limine-mkinitcpio' "$CALLS" || fail "a stale boot image is rebuilt with limine-mkinitcpio" "$(cat "$CALLS")"
 pass "a stale boot image is rebuilt with limine-mkinitcpio"
 

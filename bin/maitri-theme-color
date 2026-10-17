@@ -305,6 +305,7 @@ resolve_theme_colors() {
   [[ ${THEME_COLORS[lighter_background]} ]] || THEME_COLORS[lighter_background]="${THEME_COLORS[color0]:-${THEME_COLORS[background]}}"
   [[ ${THEME_COLORS[dark_foreground]} ]]    || THEME_COLORS[dark_foreground]="${THEME_COLORS[color8]:-${THEME_COLORS[foreground]}}"
   [[ ${THEME_COLORS[muted]} ]]      || THEME_COLORS[muted]="${THEME_COLORS[color8]:-${THEME_COLORS[dark_foreground]}}"
+  [[ ${THEME_COLORS[accent]} ]] || THEME_COLORS[accent]="${THEME_COLORS[blue]}"
   local tint="${THEME_COLORS[accent]:-${THEME_COLORS[blue]}}"
   if [[ -z ${THEME_COLORS[selection]} && -z ${THEME_COLORS[selection_background]} ]] &&
     is_hex_color "${THEME_COLORS[background]}" && is_hex_color "$tint"; then

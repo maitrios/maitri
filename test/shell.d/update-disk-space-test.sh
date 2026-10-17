@@ -75,6 +75,7 @@ for command in \
   maitri-update-aur-pkgs \
   maitri-update-mise \
   maitri-update-orphan-pkgs \
+  maitri-update-wallpapers \
   maitri-hook \
   maitri-update-analyze-logs \
   maitri-shell \
