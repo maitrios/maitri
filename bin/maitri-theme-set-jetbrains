@@ -1,0 +1,25 @@
+#!/bin/bash
+
+# maitri:summary=Install the current maitri theme as a colour scheme in each JetBrains IDE
+# maitri:hidden=true
+
+src="$HOME/.local/state/maitri/current/theme/jetbrains.icls"
+[[ -f $src ]] || exit 0
+
+# Toolbox and tarball installs put no command on PATH and no package in pacman,
+# so an IDE counts as present once it has created its versioned config dir.
+shopt -s nullglob
+ide_dirs=("$HOME"/.config/JetBrains/*[0-9][0-9][0-9][0-9].[0-9]*/ "$HOME"/.config/Google/AndroidStudio*/)
+(( ${#ide_dirs[@]} > 0 )) || exit 0
+
+# A template can't branch on mode, and the IDE takes every key the scheme leaves
+# out from its parent, so a light theme has to inherit from the light default.
+parent="Darcula"
+[[ $(maitri-theme-color mode) == "light" ]] && parent="Default"
+
+for ide_dir in "${ide_dirs[@]}"; do
+  mkdir -p "$ide_dir/colors"
+  sed "1s/parent_scheme=\"[^\"]*\"/parent_scheme=\"$parent\"/" "$src" >"$ide_dir/colors/maitri.icls"
+done
+
+echo "JetBrains IDEs pick up the maitri colour scheme after a restart (Settings > Editor > Color Scheme)." >&2

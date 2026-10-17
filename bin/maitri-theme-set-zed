@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# maitri:summary=Install the current maitri theme into Zed
+# maitri:hidden=true
+
+src="$HOME/.local/state/maitri/current/theme/zed.json"
+[[ -f $src ]] || exit 0
+maitri-cmd-present zeditor || maitri-cmd-present zed || exit 0
+
+themes_dir="$HOME/.config/zed/themes"
+mkdir -p "$themes_dir"
+cp "$src" "$themes_dir/maitri.json"
