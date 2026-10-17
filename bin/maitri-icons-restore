@@ -19,6 +19,10 @@ fi
 
 declare -A only=()
 for id in "$@"; do
+  [[ $id == *.desktop ]] || id="$id.desktop"
+  if ! cut -f1 "$manifest" | grep -Fxq "$id"; then
+    echo "No swapped icon for $id" >&2
+  fi
   only[$id]=1
 done
 

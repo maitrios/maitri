@@ -439,10 +439,11 @@ The set is opt-in, from Style > App Icons in the menu or the commands:
   every change, so a run cut short leaves nothing restore can't find, and it
   stops without touching anything when `default/icons/` is missing.
 - `maitri-icons-restore` undoes every swap still in place and clears the
-  record. Given desktop file names (`maitri-icons-restore code.desktop`), it
-  undoes only those.
+  record. Given desktop file names (`maitri-icons-restore code`, with or
+  without `.desktop`), it undoes only those.
 - Removing a swapped app from the launcher's Remove action drops its swap
-  first, so the app itself is uninstalled rather than just the icon override.
+  first, along with the copy even if you edited it, so the app itself is
+  uninstalled rather than just the icon override.
 
 The record lives in `~/.local/state/maitri/icons/`:
 

@@ -143,7 +143,7 @@ mkdir -p "$tmpdir/system-before"
 cp -r "$tmpdir/system" "$tmpdir/second" "$tmpdir/system-before/"
 
 sed -i 's/^Exec=gvim -f %F$/Exec=gvim -f --my-flag %F/' "$user_apps/gvim.desktop"
-run_icons restore gvim.desktop
+run_icons restore gvim
 grep -Fxq 'Exec=gvim -f --my-flag %F' "$user_apps/gvim.desktop" || fail "restore keeps an edited override"
 grep -Fxq 'Icon=gvim' "$user_apps/gvim.desktop" || fail "restore reverts the icon of an edited override"
 grep -q '^gvim.desktop' "$state/manifest" && fail "restore of one launcher drops its manifest line"
@@ -238,6 +238,7 @@ cat >"$tmpdir/stubs/maitri-launch-floating-terminal-with-presentation" <<'SCRIPT
 printf '%s\n' "$*" >>"$TEST_LOG"
 SCRIPT
 chmod +x "$tmpdir/stubs/pacman" "$tmpdir/stubs/maitri-launch-floating-terminal-with-presentation"
+sed -i 's/^Exec=code %F$/Exec=code --my-flag %F/' "$user_apps/code.desktop"
 HOME="$home" XDG_DATA_HOME="" XDG_DATA_DIRS="$tmpdir/system:$tmpdir/second" TEST_LOG="$tmpdir/remove.log" \
   MAITRI_PATH="$ROOT" PATH="$tmpdir/stubs:$ROOT/bin:$PATH" \
   "$ROOT/bin/maitri-remove-launcher-entry" code.desktop Code >"$tmpdir/out" 2>"$tmpdir/err" ||
@@ -247,7 +248,7 @@ grep -Fxq 'echo Uninstalling Code...; sudo pacman -Rns code' "$tmpdir/remove.log
 [[ ! -e $user_apps/code.desktop ]] || fail "launcher remove drops the icon override"
 grep -q '^code.desktop' "$state/manifest" && fail "launcher remove forgets the icon override"
 grep -q '^slack.desktop' "$state/manifest" || fail "launcher remove keeps the other swaps"
-pass "launcher remove uninstalls an app whose icon was swapped"
+pass "launcher remove uninstalls an app whose icon was swapped, even an edited copy"
 
 reset_fixture
 mkdir -p "$tmpdir/abort-stubs"
@@ -302,3 +303,7 @@ cmp -s "$state/manifest" "$tmpdir/manifest-before" || fail "set without an icon 
 [[ -e $user_apps/code.desktop ]] || fail "set without an icon set leaves the overrides alone"
 pass "set refuses to run without an icon set"
 
+run_icons restore nothere
+grep -Fq 'No swapped icon for nothere.desktop' "$tmpdir/err" || fail "restore names a launcher it has no swap for" "$(cat "$tmpdir/err")"
+grep -q '^code.desktop' "$state/manifest" || fail "restore of an unknown launcher keeps the others"
+pass "restore says when a launcher has no swap"
