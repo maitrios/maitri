@@ -13,12 +13,12 @@
     },
     "foreground": {
       "default": "{{ foreground }}",
-      "success": "{{ background }}",
-      "notice": "{{ background }}",
-      "warning": "{{ background }}",
-      "danger": "{{ background }}",
-      "surprise": "{{ background }}",
-      "info": "{{ background }}"
+      "success": "{{ bright_foreground }}",
+      "notice": "{{ bright_foreground }}",
+      "warning": "{{ bright_foreground }}",
+      "danger": "{{ bright_foreground }}",
+      "surprise": "{{ bright_foreground }}",
+      "info": "{{ bright_foreground }}"
     },
     "highlight": {
       "default": "{{ comment }}",

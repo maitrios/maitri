@@ -18,7 +18,8 @@ fi
 
 # The plugin is JavaScript Insomnia runs, so the theme only reaches index.js
 # re-serialised by jq: a theme file that isn't plain JSON can't put code there.
-if ! theme=$(jq -ce '{name: "maitri", displayName: "maitri", theme: (.theme | objects)}' "$src" 2>/dev/null); then
+# rawCss is dropped too, since Insomnia injects it as a stylesheet.
+if ! theme=$(jq -ce '{name: "maitri", displayName: "maitri", theme: (.theme | objects | del(.rawCss))}' "$src" 2>/dev/null); then
   echo "Skipping Insomnia theme: insomnia-theme.json is not a theme object." >&2
   exit 0
 fi

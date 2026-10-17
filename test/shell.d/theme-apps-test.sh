@@ -162,7 +162,9 @@ def insomnia(theme, p, path):
     for status in statuses:
         for name, surface in (("the app", bg), ("the sidebar", surfaces["the sidebar"]), ("a dialog", surfaces["a dialog"])):
             c.floor(f"{status} text on {name}", s["sidebar"]["background"][status] if name == "the sidebar" else t["background"][status], surface)
-        c.floor(f"{status} badge text", t["foreground"][status], t["background"][status])
+        for name, surface in (("the sidebar", surfaces["the sidebar"]), ("the app", bg), ("a pane", surfaces["a pane"])):
+            pill = s["sidebar"]["background"][status] if name == "the sidebar" else t["background"][status]
+            c.floor(f"{status} tag text on a half-strength pill on {name}", t["foreground"][status], flat("rgba(%d,%d,%d,0.5)" % parse(pill), surface))
         c.floor(f"editor {status} tokens", s["editor"]["background"][status], surfaces["the editor"])
     c.floor("links", s["link"]["foreground"]["default"], bg)
     c.floor("text over the overlay", t["foreground"]["default"], flat(s["transparentOverlay"]["background"]["default"], bg))
@@ -336,6 +338,10 @@ printf '{"theme": "#ffffff"}\n' >"$home/.local/state/maitri/current/theme/insomn
 run_hook "$home" maitri-theme-set-insomnia "$sandbox" || fail "maitri-theme-set-insomnia skips a theme file without a theme object"
 [[ ! -e $home/.config/Insomnia/plugins/insomnia-plugin-maitri/index.js ]] || fail "Insomnia never gets a plugin without a theme object"
 (( $(grep -c "Skipping Insomnia theme" "$home/hook.stderr") == 2 )) || fail "the Insomnia hook says why it skipped" "$(cat "$home/hook.stderr")"
+printf '{"theme": {"background": {"default": "#000000"}, "rawCss": "@import url(https://example.com/x.css);"}}\n' >"$home/.local/state/maitri/current/theme/insomnia-theme.json"
+run_hook "$home" maitri-theme-set-insomnia "$sandbox" || fail "maitri-theme-set-insomnia installs a theme that ships rawCss"
+plugin="$home/.config/Insomnia/plugins/insomnia-plugin-maitri"
+[[ -f $plugin/index.js ]] && ! grep -q rawCss "$plugin/index.js" || fail "Insomnia never gets a theme's rawCss" "$(cat "$plugin/index.js")"
 
 printf '#a1b2c3,#a1b2c3\n' >"$home/.local/state/maitri/current/theme/slack.txt"
 ! run_hook "$home" maitri-theme-slack-copy "$apps:$sandbox" >/dev/null || fail "maitri-theme-slack-copy refuses a slack.txt that isn't a Slack theme"
