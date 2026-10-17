@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# maitri:summary=Turn on the obsidian command for terminals and agents
+
+set -euo pipefail
+
+config="${XDG_CONFIG_HOME:-$HOME/.config}/obsidian"
+flags="$config/user-flags.conf"
+settings="$config/obsidian.json"
+
+# Through a symlink, so a file a dotfile manager links in stays linked.
+resolve() {
+  if [[ -L $1 ]]; then
+    readlink -f "$1"
+  else
+    printf '%s\n' "$1"
+  fi
+}
+
+# The Arch wrapper passes these flags ahead of the command's own arguments.
+# The single-dash typo shipped with the file reached Obsidian's CLI as a
+# command, so every `obsidian <command>` failed.
+flags=$(resolve "$flags")
+if [[ -f $flags ]] && grep -qx -- '-disable-gpu' "$flags"; then
+  sed -i 's/^-disable-gpu$/--disable-gpu/' "$flags"
+fi
+
+# The CLI answers only once Obsidian's own setting is on. Obsidian keeps the
+# rest of this file (vaults, window state), so only add the key, and leave it
+# alone where someone has turned it off.
+settings=$(resolve "$settings")
+mkdir -p "${settings%/*}"
+if [[ ! -e $settings ]]; then
+  printf '{"cli":true}\n' >"$settings"
+elif jq -e 'type == "object" and (has("cli") | not)' "$settings" >/dev/null 2>&1; then
+  tmp=$(mktemp "$settings.XXXXXX")
+  jq '.cli = true' "$settings" >"$tmp"
+  chmod --reference="$settings" "$tmp"
+  mv "$tmp" "$settings"
+fi
