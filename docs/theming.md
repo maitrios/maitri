@@ -129,8 +129,8 @@ shell palette is loaded from:
   `foreground` stays readable on it. Text on `selection` is `foreground` (or
   `bright_foreground`). `accent` isn't a text color there: on daybreak it's
   3.8:1. A theme with neither `selection` nor `selection_background` gets
-  `background` mixed 26% toward `accent` (or `blue`), so a selection is never
-  plain grey.
+  `background` mixed 26% toward `accent` (or `blue`), and further until it
+  sits 1.5:1 off the background, so a selection is never plain grey.
 - `border` — neutral lines that need to be seen: input outlines, panel and
   table edges. Unlike `muted` it clears 3:1 against `background`. Falls back to
   `muted` moved toward `foreground` until it clears 3:1.
@@ -143,7 +143,8 @@ shell palette is loaded from:
 - `link` — links, drawn underlined. It stays at least 60° of hue from
   `accent` so a link never reads as a heading. Falls back to the first of
   `blue`, `magenta`, `magenta` mixed half toward `red`, and `orange` that is
-  60° clear of the accent, the order the Neovim palette tries.
+  60° clear of the accent, the order the Neovim palette tries, moved toward
+  `foreground` until it clears 4.5:1.
 - `urgent` / `red` / `color1`
 
 Themes and user templates using the legacy short names remain supported.
