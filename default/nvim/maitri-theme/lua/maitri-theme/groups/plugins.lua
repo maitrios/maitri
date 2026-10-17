@@ -396,12 +396,45 @@ return function(p)
     OctoReviewDiffDelete = { bg = p.diff_delete },
     OctoReviewDiffAddText = { bg = p.diff_add_text },
     OctoReviewDiffDeleteText = { bg = p.diff_delete_text },
-    OctoStateMerged = { fg = p.magenta, bold = true },
-    OctoStateMergedBubble = { link = "OctoBubblePurple" },
-    OctoStateMergedFloat = { link = "OctoPurpleFloat" },
+    OctoSignColumn = { link = "SignColumn" },
+    OctoStatusColumn = { link = "SignColumn" },
+    OctoCursorLine = { link = "CursorLine" },
+    OctoWinSeparator = { link = "WinSeparator" },
+    OctoStatusLine = { link = "StatusLine" },
+    OctoStatusLineNC = { link = "StatusLineNC" },
+    OctoEndOfBuffer = { link = "EndOfBuffer" },
+    OctoFailingTest = { fg = p.red },
+    OctoPassingTest = { fg = p.green },
+    OctoPendingTest = { fg = p.orange },
+    OctoPullAdditions = { fg = p.green },
+    OctoPullDeletions = { fg = p.red },
+    OctoDiffstatAdditions = { fg = p.green },
+    OctoDiffstatDeletions = { fg = p.red },
+    OctoDiffstatNeutral = { fg = p.comment },
   }
   for name, hl in pairs(octo_more) do
     g[name] = hl
+  end
+
+  local octo_states = {
+    Open = "Green",
+    Closed = "Red",
+    Completed = "Purple",
+    NotPlanned = "Grey",
+    Draft = "Grey",
+    Queued = "Yellow",
+    Merged = "Purple",
+    Pending = "Yellow",
+    Approved = "Green",
+    ChangesRequested = "Red",
+    Dismissed = "Red",
+    Commented = "Blue",
+    Submitted = "Green",
+  }
+  for state, color in pairs(octo_states) do
+    g["OctoState" .. state] = { link = "Octo" .. color }
+    g["OctoState" .. state .. "Bubble"] = { link = "OctoBubble" .. color }
+    g["OctoState" .. state .. "Float"] = { link = "Octo" .. color .. "Float" }
   end
 
   return g
