@@ -475,7 +475,7 @@ awk '
 ' "$NEXT_THEME/shell.toml" || fail "theme shell section override is merged"
 pass "theme shell section override is merged"
 
-jq -e '.name == "maitri-system" and .vars.panel == "#0f0f0f" and .vars.border == "#4d4d4d" and .colors.accent == "accent"' "$NEXT_THEME/pi.json" >/dev/null
+jq -e '.name == "maitri-system" and .vars.panel == "#0f0f0f" and .vars.border == "#336699" and .colors.accent == "accent"' "$NEXT_THEME/pi.json" >/dev/null
 pass "pi theme template is generated from standard themed templates"
 cp "$NEXT_THEME/pi.json" "$CURRENT_THEME/pi.json"
 
