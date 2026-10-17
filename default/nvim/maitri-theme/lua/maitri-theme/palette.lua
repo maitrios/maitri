@@ -148,10 +148,10 @@ function M.build(c, mode)
     insert = apart(p.green, { p.cyan, p.blue }, { p.accent }),
     visual = apart(p.magenta, { p.blue, p.cyan }, { p.accent }),
     replace = apart(p.red, { p.yellow, p.magenta }, { p.accent }),
-    command = apart(p.orange, { p.yellow, p.cyan }, { p.accent }),
-    terminal = apart(p.cyan, { p.blue, p.green }, { p.accent }),
+    command = apart(p.orange, { p.cyan, p.yellow }, { p.accent }),
   }
-  p.jump_current = apart(p.orange, { p.yellow, p.red }, { p.accent })
+  p.modes.terminal = apart(p.cyan, { p.blue, p.green }, { p.accent, p.modes.command })
+  p.jump_current = apart(p.orange, { p.red, p.yellow }, { p.accent })
 
   p.visual = blend(p.bg, p.accent, light and 0.2 or 0.26)
   p.cursorline = p.bg_light
