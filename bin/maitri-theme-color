@@ -309,6 +309,7 @@ resolve_theme_colors() {
   if [[ -z ${THEME_COLORS[selection]} && -z ${THEME_COLORS[selection_background]} ]] &&
     is_hex_color "${THEME_COLORS[background]}" && is_hex_color "$tint"; then
     THEME_COLORS[selection]=$(mix_color "${THEME_COLORS[background]}" "$tint" 26%)
+    THEME_COLORS[selection]=$(lift_color "${THEME_COLORS[selection]}" "$tint" "${THEME_COLORS[background]}" 1.5)
   fi
   [[ ${THEME_COLORS[selection]} ]]            || THEME_COLORS[selection]="${THEME_COLORS[selection_background]:-${THEME_COLORS[color8]:-${THEME_COLORS[color0]:-${THEME_COLORS[background]}}}}"
   [[ ${THEME_COLORS[selection_background]} ]] || THEME_COLORS[selection_background]="${THEME_COLORS[selection]}"
@@ -336,6 +337,9 @@ resolve_theme_colors() {
           break
         fi
       done
+    fi
+    if is_hex_color "${THEME_COLORS[link]}" && is_hex_color "${THEME_COLORS[foreground]}" && is_hex_color "${THEME_COLORS[background]}"; then
+      THEME_COLORS[link]=$(lift_color "${THEME_COLORS[link]}" "${THEME_COLORS[foreground]}" "${THEME_COLORS[background]}" 4.5)
     fi
   fi
 
