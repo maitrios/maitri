@@ -1,0 +1,27 @@
+#!/bin/bash
+
+# maitri:summary=Install the current maitri theme into Emacs
+# maitri:hidden=true
+
+src="$HOME/.local/state/maitri/current/theme/emacs-theme.el"
+[[ -f $src ]] || exit 0
+maitri-cmd-present emacs || exit 0
+
+if grep -q '{{' "$src"; then
+  echo "Skipping Emacs theme: emacs-theme.el has unresolved colors." >&2
+  exit 0
+fi
+
+# Mirrors how Emacs picks user-emacs-directory, so the theme lands where Emacs
+# looks and a fresh machine isn't switched over to the XDG location.
+xdg_emacs="${XDG_CONFIG_HOME:-$HOME/.config}/emacs"
+if [[ -e $HOME/.emacs.d || -e $HOME/.emacs || -e $HOME/.emacs.el || ! -d $xdg_emacs ]]; then
+  themes_dir="$HOME/.emacs.d/themes"
+else
+  themes_dir="$xdg_emacs/themes"
+fi
+
+mkdir -p "$themes_dir"
+cp "$src" "$themes_dir/maitri-theme.el"
+
+echo "Emacs picks up the new maitri colours on the next (load-theme 'maitri t), with $themes_dir on custom-theme-load-path." >&2
