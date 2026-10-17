@@ -55,6 +55,7 @@ palette.setdefault("comment", palette["dark_foreground"])
 mode = palette.get("mode", "dark")
 
 TEXT, LINE = 4.5, 3.0
+SELECTION = 3.0
 rows = []
 
 def check(app, label, fg, bg, floor):
@@ -86,7 +87,7 @@ def claude():
     for key, value in o.items():
         if key in lines:
             check("claude", key, value, bg, LINE)
-        elif not re.search(r"Background|diff", key, re.I) and key not in fills:
+        elif not re.search(r"Background|diff", key) and key not in fills:
             check("claude", key, value, bg, TEXT)
     for key in ("userMessageBackground", "userMessageBackgroundHover", "bashMessageBackgroundColor", "memoryBackgroundColor", "composerSidebarBackground", "selectionBg"):
         check("claude", f"text on {key}", o["text"], o[key], TEXT)
@@ -115,7 +116,7 @@ def herdr():
             check("herdr", f"{key} on {name}", t[key], fill, TEXT)
         if name != "selection_bg":
             check("herdr", f"overlay0 on {name}", t["overlay0"], fill, TEXT)
-    check("herdr", "overlay0 on selection_bg", t["overlay0"], t["selection_bg"], LINE)
+    check("herdr", "overlay0 on selection_bg", t["overlay0"], t["selection_bg"], SELECTION)
     for key in ("accent", "mauve", "red", "green", "yellow", "blue", "peach", "teal"):
         check("herdr", f"{key} on panel_bg", t[key], panel, TEXT)
         check("herdr", f"{key} on sidebar_bg", t[key], sidebar, TEXT)
@@ -124,7 +125,6 @@ def herdr():
     check("herdr", "panel_bg on mauve", panel, t["mauve"], TEXT)
     check("herdr", "surface_dim on sidebar_bg", t["surface_dim"], sidebar, LINE)
     check("herdr", "surface_dim on panel_bg", t["surface_dim"], panel, LINE)
-    check("herdr", "unfocused pane border", t["overlay0"], panel, LINE)
     check("herdr", "focused pane border", t["accent"], panel, LINE)
     apart("herdr", "active_row_bg on sidebar_bg", t["active_row_bg"], sidebar, 1.05)
     apart("herdr", "selection_bg on sidebar_bg", t["selection_bg"], sidebar)
@@ -151,9 +151,9 @@ def pi():
     for key in ("userMessageBg", "customMessageBg", "toolPendingBg", "toolSuccessBg", "toolErrorBg", "selectedBg"):
         check("pi", f"text on {key}", c["text"], c[key], TEXT)
         check("pi", f"muted on {key}", c["muted"], c[key], TEXT)
-    for key in ("userMessageBg", "customMessageBg", "toolPendingBg", "toolSuccessBg", "toolErrorBg"):
+    for key in ("userMessageBg", "customMessageBg", "toolPendingBg", "toolSuccessBg", "toolErrorBg", "selectedBg"):
         check("pi", f"dim on {key}", c["dim"], c[key], TEXT)
-    check("pi", "accent on selectedBg", c["accent"], c["selectedBg"], LINE)
+    check("pi", "accent on selectedBg", c["accent"], c["selectedBg"], TEXT)
     check("pi", "search match", c["searchMatchText"], c["searchMatchBg"], TEXT)
     for key, role in (("warning", "orange"), ("error", "red"), ("success", "green"), ("dim", "comment"), ("syntaxComment", "comment"),
                       ("mdHeading", "accent"), ("mdLink", "link"), ("border", "border_focus"), ("borderMuted", "border"),
@@ -162,7 +162,7 @@ def pi():
     ramp = [c[k] for k in ("thinkingOff", "thinkingMinimal", "thinkingLow", "thinkingMedium", "thinkingHigh", "thinkingXhigh")]
     if len(set(ramp)) != len(ramp):
         fail("pi thinking levels repeat a colour")
-    syntax = {palette[h] for h in ("red", "green", "yellow", "blue", "cyan") if palette[h] != palette["accent"]}
+    syntax = {palette[h] for h in ("red", "green", "yellow", "blue", "magenta", "cyan") if palette[h] != palette["accent"]}
     if set(ramp) & syntax:
         fail("pi thinking levels use a syntax hue")
 
@@ -182,6 +182,7 @@ def t3code():
         ("codeForeground", "codeBackground"), ("searchMatchForeground", "searchMatchBackground"), ("searchMatchActiveForeground", "searchMatchActiveBackground"),
         ("sidebarForeground", "sidebar"), ("sidebarMutedForeground", "sidebar"), ("sidebarMutedForeground", "sidebarRowHover"),
         ("sidebarForeground", "sidebarRowHover"), ("sidebarForeground", "sidebarRowActive"), ("sidebarForeground", "sidebarRowSelected"),
+        ("sidebarMutedForeground", "sidebarRowActive"), ("sidebarMutedForeground", "sidebarRowSelected"),
         ("sidebarForeground", "sidebarControlSurface"), ("terminalForeground", "terminalBackground"), ("terminalForeground", "terminalSelection"),
     ]
     for fg, bg in pairs:
@@ -189,8 +190,8 @@ def t3code():
     for fg, bg in (("toolbarBorder", "toolbar"), ("border", "canvas"), ("input", "canvas"), ("focus", "canvas"), ("sidebarBorder", "sidebar"),
                    ("terminalScrollbar", "terminalBackground"), ("terminalScrollbarHover", "terminalBackground")):
         check("t3code", f"{fg} on {bg}", c[fg], c[bg], LINE)
-    apart("t3code", "sidebarRowSelected on sidebar", c["sidebarRowSelected"], c["sidebar"])
-    apart("t3code", "sidebarRowActive on sidebar", c["sidebarRowActive"], c["sidebar"])
+    apart("t3code", "sidebarRowSelected on sidebar", c["sidebarRowSelected"], c["sidebar"], 1.05)
+    apart("t3code", "sidebarRowActive on sidebar", c["sidebarRowActive"], c["sidebar"], 1.05)
     if norm(c["sidebarRowSelected"]) == palette["selection"]:
         fail("t3code sidebarRowSelected reuses selection")
     for key, role in (("warning", "orange"), ("error", "red"), ("textMuted", "comment"), ("border", "border"), ("toolbarBorder", "border"),
@@ -210,9 +211,11 @@ def hermes():
         check("hermes", f"ui_text on {fill}", h["ui_text"], h[fill], TEXT)
     for fill in ("completion_menu_bg", "completion_menu_meta_bg"):
         check("hermes", f"ui_thinking on {fill}", h["ui_thinking"], h[fill], TEXT)
+    check("hermes", "banner_title on completion_menu_current_bg", h["banner_title"], h["completion_menu_current_bg"], TEXT)
+    check("hermes", "ui_label on completion_menu_meta_current_bg", h["ui_label"], h["completion_menu_meta_current_bg"], TEXT)
     for key in ("ui_border", "banner_border", "input_rule", "response_border", "session_border"):
         check("hermes", key, h[key], bg, LINE)
-    apart("hermes", "completion_menu_current_bg on completion_menu_bg", h["completion_menu_current_bg"], h["completion_menu_bg"])
+    apart("hermes", "completion_menu_current_bg on completion_menu_bg", h["completion_menu_current_bg"], h["completion_menu_bg"], 1.05)
     if norm(h["completion_menu_current_bg"]) == palette["selection"]:
         fail("hermes completion_menu_current_bg reuses selection")
     for key, role in (("ui_warn", "orange"), ("status_bar_warn", "orange"), ("ui_error", "red"), ("status_bar_bad", "red"), ("ui_thinking", "comment"),
