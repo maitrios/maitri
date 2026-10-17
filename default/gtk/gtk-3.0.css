@@ -1,0 +1,165 @@
+.background {
+  background-color: @window_bg_color;
+  color: @window_fg_color;
+}
+
+.view, iconview, textview text, list {
+  background-color: @view_bg_color;
+  color: @view_fg_color;
+}
+
+.view:selected, row:selected, flowboxchild:selected, menu menuitem:hover, .menu menuitem:hover {
+  background-color: @selection_bg_color;
+  color: @selection_fg_color;
+}
+
+selection {
+  background-color: @selection_bg_color;
+  color: @selection_fg_color;
+}
+
+headerbar, .titlebar:not(headerbar) {
+  background: @headerbar_bg_color;
+  border-color: @headerbar_border_color;
+  box-shadow: none;
+  color: @headerbar_fg_color;
+}
+
+.sidebar, placessidebar list, stacksidebar list {
+  background-color: @sidebar_bg_color;
+  color: @sidebar_fg_color;
+}
+
+.sidebar, frame > border, .frame, scrolledwindow > undershoot {
+  border-color: @borders;
+}
+
+popover.background, menu, .menu, .context-menu {
+  background-color: @popover_bg_color;
+  color: @popover_fg_color;
+}
+
+popover.background {
+  border-color: @borders;
+}
+
+entry {
+  background-color: @view_bg_color;
+  color: @view_fg_color;
+}
+
+entry:focus {
+  border-color: @accent_bg_color;
+  box-shadow: inset 0 0 0 1px @accent_bg_color;
+}
+
+entry:disabled {
+  background-color: @insensitive_bg_color;
+  color: @insensitive_fg_color;
+}
+
+button {
+  background-image: none;
+  background-color: mix(@window_bg_color, @window_fg_color, 0.08);
+  border-color: @borders;
+  box-shadow: none;
+  text-shadow: none;
+  -gtk-icon-shadow: none;
+}
+
+button.flat, button.titlebutton, button:link, button:visited {
+  background-color: transparent;
+  border-color: transparent;
+}
+
+button:hover, button.flat:hover, button.titlebutton:hover {
+  background-color: mix(@window_bg_color, @window_fg_color, 0.14);
+}
+
+button:active, button:checked, button.flat:active, button.flat:checked, button.titlebutton:active {
+  background-color: mix(@window_bg_color, @window_fg_color, 0.2);
+}
+
+button:disabled {
+  background-color: @insensitive_bg_color;
+  color: @insensitive_fg_color;
+}
+
+button.flat:disabled {
+  background-color: transparent;
+}
+
+treeview.view header button {
+  background-color: @view_bg_color;
+  border-color: @borders;
+}
+
+button.suggested-action {
+  background-image: none;
+  background-color: @accent_bg_color;
+  border-color: @accent_bg_color;
+  box-shadow: none;
+  color: @accent_fg_color;
+  text-shadow: none;
+}
+
+button.suggested-action:hover {
+  background-color: mix(@accent_bg_color, @accent_fg_color, 0.12);
+}
+
+button.suggested-action:active, button.suggested-action:checked {
+  background-color: mix(@accent_bg_color, @accent_fg_color, 0.24);
+}
+
+button.suggested-action:disabled {
+  background-color: @insensitive_bg_color;
+  border-color: @borders;
+  color: @insensitive_fg_color;
+}
+
+notebook > header, notebook > stack:not(:only-child) {
+  background-color: @window_bg_color;
+  border-color: @borders;
+}
+
+notebook > header.top > tabs > tab:checked {
+  box-shadow: inset 0 -3px @accent_bg_color;
+}
+
+notebook > header.bottom > tabs > tab:checked {
+  box-shadow: inset 0 3px @accent_bg_color;
+}
+
+notebook > header.left > tabs > tab:checked {
+  box-shadow: inset -3px 0 @accent_bg_color;
+}
+
+notebook > header.right > tabs > tab:checked {
+  box-shadow: inset 3px 0 @accent_bg_color;
+}
+
+levelbar block.filled, levelbar block.high {
+  background-color: @accent_bg_color;
+  border-color: @accent_bg_color;
+}
+
+levelbar block.low {
+  background-color: @warning_color;
+  border-color: @warning_color;
+}
+
+levelbar block.full {
+  background-color: @success_color;
+  border-color: @success_color;
+}
+
+check:checked, check:indeterminate, radio:checked, radio:indeterminate, switch:checked, progressbar progress, scale highlight {
+  background-image: none;
+  background-color: @accent_bg_color;
+  border-color: @accent_bg_color;
+  color: @accent_fg_color;
+}
+
+*:link:not(:disabled), button:link > label:not(:disabled), button:visited > label:not(:disabled) {
+  color: @link_color;
+}

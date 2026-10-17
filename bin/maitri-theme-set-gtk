@@ -1,0 +1,86 @@
+#!/bin/bash
+
+# maitri:summary=Apply the current maitri theme to GTK and libadwaita apps
+# maitri:hidden=true
+
+THEME_DIR="$HOME/.local/state/maitri/current/theme"
+CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+BLOCK_START="/* >>> maitri theme (rewritten by maitri theme set) >>> */"
+BLOCK_END="/* <<< maitri theme <<< */"
+
+colours="$THEME_DIR/gtk.css"
+[[ -f $colours ]] || exit 0
+
+# The colours are spliced into the user's own gtk.css, and a theme cloned with
+# `maitri theme install` can ship its own gtk.css or put anything in its
+# colors.toml, so only colour definitions get through.
+if grep -vxE '@define-color [a-z_]+ #[0-9A-Fa-f]{6};|/\*[^*]*\*/|[[:space:]]*' "$colours" | grep -q .; then
+  echo "GTK apps keep their current look: the theme's gtk.css has a line that isn't a colour definition." >&2
+  exit 0
+fi
+
+exec 9>"${XDG_RUNTIME_DIR:-/tmp}/maitri-theme-set-gtk.lock"
+flock 9
+
+# The block goes first, so anything the user writes after it wins, but after
+# any @import or @charset, which GTK only honours at the top.
+splice() {
+  local version="$1"
+  local dir="$CONFIG_HOME/gtk-$version"
+  local file="$dir/gtk.css"
+  local rules="$MAITRI_PATH/default/gtk/gtk-$version.css"
+  local block
+
+  if [[ -L $dir || -L $file ]]; then
+    grep -qF "$colours" "$file" 2>/dev/null ||
+      echo "$file is a symlink, so maitri left it alone. To follow the maitri theme, add these lines at its top: @import url(\"file://$colours\"); @import url(\"file://$rules\");" >&2
+    return
+  fi
+
+  mkdir -p "$dir"
+  touch "$file"
+
+  block=$(mktemp)
+  { echo "$BLOCK_START"; cat "$colours"; echo; cat "$rules"; echo "$BLOCK_END"; } >"$block"
+
+  awk -v start="$BLOCK_START" -v end="$BLOCK_END" -v block="$block" '
+    { all[NR] = $0 }
+    $0 == start && !s { s = NR }
+    $0 == end && s && !e { e = NR }
+
+    END {
+      if (!e) s = 0
+      for (i = 1; i <= NR; i++) {
+        if (s && i >= s && i <= e) continue
+        lines[++n] = all[i]
+      }
+
+      for (top = 1; top <= n; top++) {
+        if (lines[top] !~ /^[[:space:]]*@(import|charset)[[:space:]]/) break
+        print lines[top]
+      }
+
+      while ((getline line < block) > 0) print line
+      close(block)
+
+      if (top <= n && lines[top] !~ /^[[:space:]]*$/) print ""
+      for (i = top; i <= n; i++) print lines[i]
+    }
+  ' "$file" >"$file.maitri-tmp"
+  rm -f "$block"
+
+  if cmp -s "$file.maitri-tmp" "$file"; then
+    rm -f "$file.maitri-tmp"
+  else
+    mv "$file.maitri-tmp" "$file"
+    changed=1
+  fi
+}
+
+changed=""
+splice 3.0
+splice 4.0
+
+[[ -n $changed ]] && echo "GTK apps that are open pick up the new theme when they're restarted." >&2
+
+exit 0
