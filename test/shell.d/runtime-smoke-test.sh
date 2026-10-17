@@ -577,6 +577,16 @@ for _ in {1..80}; do
 done
 pass "shell IPC summon and hide contract works"
 
+# The power panel used to close itself synchronously inside its own
+# opened-change handler (no battery: open, then close at once), which
+# QML reports as a binding loop for Panel.opened. Opening every panel
+# above must not bring it back.
+if grep -q 'Binding loop detected for property "opened"' "$log"; then
+  grep "Binding loop" "$log" | sed 's/^/  /' | head -5 >&2
+  fail_with_log "panel opens have no binding loop for opened"
+fi
+pass "panel opens have no binding loop for opened"
+
 HOME="$test_home" MAITRI_PATH="$test_root" PATH="$ROOT/bin:$PATH" "$ROOT/bin/maitri-plugin-disable" maitri.audio
 
 for _ in {1..80}; do
