@@ -552,3 +552,24 @@ run_icons restore
 [[ -z $(find "$theme_icons" -name 'maitri-*') ]] || fail "restore with an empty manifest still removes the copies" "$(find "$theme_icons" -name 'maitri-*')"
 [[ ! -e $state ]] || fail "restore with an empty manifest clears its state"
 pass "restore cleans up copies left by a set that wrote no swaps"
+
+reset_fixture
+run_icons set
+mkdir -p "$tmpdir/slow-stubs"
+cat >"$tmpdir/slow-stubs/maitri-icons-set" <<'SCRIPT'
+#!/bin/bash
+echo "start $$" >>"$TEST_LOG"
+sleep 0.5
+echo "end $$" >>"$TEST_LOG"
+SCRIPT
+chmod +x "$tmpdir/slow-stubs/maitri-icons-set"
+: >"$tmpdir/hooks.log"
+for _ in 1 2; do
+  HOME="$home" XDG_RUNTIME_DIR="$tmpdir" TEST_LOG="$tmpdir/hooks.log" PATH="$tmpdir/slow-stubs:$PATH" \
+    "$ROOT/bin/maitri-theme-set-icons" &
+done
+wait
+[[ $(awk '{ print $1 }' "$tmpdir/hooks.log" | tr '\n' ' ') == "start end start end " ]] ||
+  fail "two quick theme changes run the icon refresh one after the other" "$(cat "$tmpdir/hooks.log")"
+run_icons restore
+pass "two quick theme changes never refresh icons at the same time"
