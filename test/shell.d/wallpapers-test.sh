@@ -16,10 +16,35 @@ served="$test_tmp/served"
 test_home="$test_tmp/home"
 mkdir -p "$served/channels/stable" "$test_home"
 
-python3 -u -m http.server 0 --bind 127.0.0.1 --directory "$served" >"$test_tmp/server.log" 2>&1 &
+cat >"$test_tmp/server.py" <<'PY'
+import http.server, os, sys
+
+class Handler(http.server.SimpleHTTPRequestHandler):
+    protocol_version = "HTTP/1.0"
+
+    def do_GET(self):
+        if not (self.path.startswith("/stream/themes/") and self.path.endswith(".jpg")):
+            return super().do_GET()
+        self.send_response(200)
+        self.end_headers()
+        sent = 0
+        try:
+            while sent < 300 * 1024 * 1024:
+                self.wfile.write(b"\0" * 65536)
+                sent += 65536
+        except OSError:
+            pass
+        with open(os.environ["STREAM_LOG"], "a") as log:
+            log.write(f"{sent}\n")
+
+server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), lambda *a: Handler(*a, directory=sys.argv[1]))
+print(f"port {server.server_address[1]}", flush=True)
+server.serve_forever()
+PY
+STREAM_LOG="$test_tmp/stream.log" python3 -I "$test_tmp/server.py" "$served" >"$test_tmp/server.log" 2>&1 &
 server_pid=$!
 for _ in {1..50}; do
-  port=$(sed -n 's/.* port \([0-9]*\) .*/\1/p' "$test_tmp/server.log")
+  port=$(sed -n 's/^port \([0-9]*\)$/\1/p' "$test_tmp/server.log")
   [[ -z $port ]] || break
   sleep 0.1
 done
@@ -43,7 +68,17 @@ publish() {
 }
 
 write_manifest() {
-  jq -s --arg release "$1" '{release: $release, files: .}' >"$served/channels/stable/manifest.json"
+  mkdir -p "${2:-$served}/channels/stable"
+  jq -s --arg release "$1" '{release: $release, files: .}' >"${2:-$served}/channels/stable/manifest.json"
+}
+
+image() {
+  case $1 in
+    jpg) printf '\xff\xd8\xff\xe0' ;;
+    png) printf '\x89PNG\r\n\x1a\n' ;;
+    webp) printf 'RIFF\x00\x00\x00\x00WEBP' ;;
+  esac >"$3"
+  head -c "$2" /dev/urandom >>"$3"
 }
 
 run_updater() {
@@ -85,7 +120,7 @@ run_updater || fail "a re-run after deleting a wallpaper succeeds"
 [[ ! -e $backgrounds/amethyst/$dusk.jpg ]] || fail "a deleted wallpaper stays deleted"
 pass "a wallpaper the user deleted is not fetched again"
 
-head -c 4096 /dev/urandom >"$test_tmp/good.jpg"
+image jpg 4092 "$test_tmp/good.jpg"
 head -c 4096 /dev/urandom >"$test_tmp/tampered.jpg"
 head -c 4096 /dev/urandom >"$test_tmp/claimed.jpg"
 good=$(sha256_of "$test_tmp/good.jpg")
@@ -141,9 +176,9 @@ pass "a missing or unreadable manifest exits 0 and changes nothing"
 
 staging="$test_tmp/staging"
 mkdir -p "$staging/amethyst" "$staging/garnet"
-head -c 3000 /dev/urandom >"$staging/amethyst/New Dawn.JPEG"
+image jpg 2996 "$staging/amethyst/New Dawn.JPEG"
 cp "$test_tmp/good.jpg" "$staging/amethyst/good.jpg"
-head -c 1000 /dev/urandom >"$staging/garnet/glow.webp"
+image webp 988 "$staging/garnet/glow.webp"
 new_dawn=$(sha256_of "$staging/amethyst/New Dawn.JPEG")
 glow=$(sha256_of "$staging/garnet/glow.webp")
 
@@ -188,3 +223,47 @@ cmp -s "$staging/amethyst/New Dawn.JPEG" "$backgrounds/amethyst/$new_dawn.jpg" &
   fail "a manifest from the uploader round-trips through the updater"
 [[ ! -e $backgrounds/amethyst/$dusk.jpg ]] || fail "the round trip respects a deleted wallpaper"
 pass "a manifest from the uploader round-trips through the updater"
+
+oversized=$(head -c 5120 /dev/urandom | sha256sum | cut -d' ' -f1)
+mkdir -p "$served/huge/themes/amethyst" "$served/stream/themes/amethyst"
+printf '\xff\xd8\xff' >"$served/huge/themes/amethyst/$oversized.jpg"
+truncate -s 300M "$served/huge/themes/amethyst/$oversized.jpg"
+jq -nc --arg sha256 "$oversized" '{theme: "amethyst", file: ("themes/amethyst/" + $sha256 + ".jpg"), sha256: $sha256, size: 5120}' |
+  write_manifest v9.0.0 "$served/huge"
+
+if (ulimit -f 20480; URL="$base_url/huge" run_updater); then
+  fail "a file far larger than its manifest size reports a failure"
+fi
+grep -q "rejected themes/amethyst/$oversized.jpg (download failed)" "$test_tmp/err" ||
+  fail "a file larger than its manifest size is rejected before it is written" "$(cat "$test_tmp/out" "$test_tmp/err")"
+[[ ! -e $backgrounds/amethyst/$oversized.jpg ]] || fail "an oversized file is not installed"
+grep -q "1 rejected, nothing installed" "$test_tmp/out" || fail "a run with only rejections says so" "$(cat "$test_tmp/out")"
+[[ $(<"$test_home/.local/state/maitri/wallpapers/release") == "v1.2.0" ]] ||
+  fail "a run with only rejections does not record the release"
+pass "a 300 MB body for a 5 KB entry is refused up front and nothing large lands on disk"
+
+{
+  jq -nc --arg sha256 "$oversized" '{theme: "amethyst", file: ("themes/amethyst/" + $sha256 + ".jpg"), sha256: $sha256, size: 5120}'
+  jq -nc --arg sha256 "$dusk" '{theme: "amethyst", file: ("themes/amethyst/" + $sha256 + ".jpg"), sha256: $sha256, size: 67108865}'
+} | write_manifest v9.0.0 "$served/stream"
+: >"$test_tmp/stream.log"
+if (ulimit -f 20480; URL="$base_url/stream" run_updater); then
+  fail "a body with no length that runs past the manifest size reports a failure"
+fi
+grep -q "rejected themes/amethyst/$oversized.jpg (download failed)" "$test_tmp/err" ||
+  fail "a body with no length is cut off at the manifest size" "$(cat "$test_tmp/out" "$test_tmp/err")"
+for _ in {1..50}; do
+  [[ ! -s $test_tmp/stream.log ]] || break
+  sleep 0.1
+done
+(( $(<"$test_tmp/stream.log") < 16 * 1024 * 1024 )) ||
+  fail "the download stops soon after the manifest size" "$(cat "$test_tmp/stream.log") bytes sent"
+grep -q "rejected themes/amethyst/$dusk.jpg (larger than 67108864 bytes)" "$test_tmp/err" ||
+  fail "an entry declaring more than 64 MiB is rejected" "$(cat "$test_tmp/err")"
+pass "a body with no length is cut off at the manifest size, and entries over 64 MiB are refused"
+
+mkdir -p "$served/bigmanifest/channels/stable"
+truncate -s 2M "$served/bigmanifest/channels/stable/manifest.json"
+URL="$base_url/bigmanifest" run_updater || fail "a manifest over 1 MiB exits 0"
+grep -q "could not be fetched, nothing changed" "$test_tmp/out" || fail "a manifest over 1 MiB is not read" "$(cat "$test_tmp/out")"
+pass "a manifest over 1 MiB is refused"
