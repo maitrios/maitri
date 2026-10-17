@@ -98,6 +98,12 @@ for _, name in ipairs({ "@markup.link.label", "RenderMarkdownLink" }) do
   end
 end
 
+for _, key in ipairs({ "comment", "accent", "hint", "link", "red", "green", "yellow", "blue", "magenta", "cyan", "orange" }) do
+  for _, surface in ipairs({ "Normal", "CursorLine", "NormalFloat" }) do
+    floor(palette.contrast(p[key], hex(hl(surface).bg)), 4.5, key .. " on " .. surface)
+  end
+end
+
 floor(ratio("PmenuExtraSel", "fg", "PmenuSel", "bg"), 3, "PmenuExtraSel")
 floor(ratio("SnacksPickerUnselected", "fg", "NormalFloat", "bg"), 3, "SnacksPickerUnselected")
 

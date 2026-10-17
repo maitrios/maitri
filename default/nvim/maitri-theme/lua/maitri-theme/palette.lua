@@ -162,7 +162,7 @@ function M.build(c, mode)
   end
 
   for _, key in ipairs({ "comment", "accent", "red", "green", "yellow", "blue", "magenta", "cyan", "orange" }) do
-    p[key] = M.readable(p[key], light and p.bg_light or p.bg, p.fg)
+    p[key] = M.readable(p[key], light and p.bg_dark or p.bg, p.fg)
   end
 
   local tint = light and 0.16 or 0.13
@@ -197,7 +197,7 @@ function M.build(c, mode)
   p.link = p.magenta
   for _, candidate in ipairs({ p.magenta, blend(p.magenta, p.red, 0.5), p.blue, p.orange }) do
     if M.hue_distance(candidate, p.accent) >= 60 then
-      p.link = M.readable(candidate, p.bg, p.fg)
+      p.link = M.readable(candidate, light and p.bg_dark or p.bg, p.fg)
       break
     end
   end
