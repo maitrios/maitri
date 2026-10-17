@@ -50,7 +50,8 @@ import json, re, sys
 text = open(sys.argv[1]).read()
 text = re.sub(r"/\*.*?\*/|//[^\n]*", "", text, flags=re.S)
 text = re.sub(r",(\s*[}\]])", r"\1", text)
-sys.exit(0 if sys.argv[2] in json.loads(text) else 1)
+pairs = json.loads(text, object_pairs_hook=lambda pairs: pairs)
+sys.exit(0 if any(key == sys.argv[2] for key, _ in pairs) else 1)
 ' "$settings" "$1"
 }
 
@@ -127,3 +128,28 @@ printf '{\n  "workbench.colorTheme": "Old Theme"\n  "editor.fontSize": 14\n}\n' 
 theme_set
 cmp -s "$settings" "$test_tmp/invalid.json" || fail "invalid settings stay byte-identical when dropping the theme" "$(cat "$settings")"
 pass "maitri-theme-set-vscode leaves invalid settings byte-identical when dropping the theme"
+
+unset_case() {
+  local description="$1" input="$2" expected="$3"
+  printf '%b' "$input" >"$test_tmp/unset.json"
+  "$ROOT/bin/maitri-vscode-settings-set" "$test_tmp/unset.json" --unset workbench.colorTheme 2>"$test_tmp/stderr" ||
+    fail "$description: the helper runs"
+  [[ $(cat "$test_tmp/unset.json") == "$(printf '%b' "$expected")" ]] || fail "$description" "$(cat "$test_tmp/unset.json")"
+  [[ ! -s $test_tmp/stderr ]] || fail "$description: no notice" "$(cat "$test_tmp/stderr")"
+}
+
+unset_case "the only key goes" '{\n  "workbench.colorTheme": "Old"\n}\n' '{\n}\n'
+unset_case "the only key goes with its trailing comma" '{\n  "workbench.colorTheme": "Old",\n}\n' '{\n}\n'
+unset_case "the only key on one line goes with its trailing comma" '{"workbench.colorTheme":"Old",}' '{}'
+unset_case "a first key goes with its comma" '{\n  "workbench.colorTheme": "Old",\n  "a": 1\n}\n' '{\n  "a": 1\n}\n'
+unset_case "a middle key goes with its comma" '{\n  "a": 1,\n  "workbench.colorTheme": "Old",\n  "b": 2\n}\n' '{\n  "a": 1,\n  "b": 2\n}\n'
+unset_case "a last key takes the comma before it" '{\n  "a": 1,\n  "workbench.colorTheme": "Old"\n}\n' '{\n  "a": 1\n}\n'
+unset_case "a last key with a trailing comma keeps the file's trailing comma" '{\n  "a": 1,\n  "workbench.colorTheme": "Old",\n}\n' '{\n  "a": 1,\n}\n'
+unset_case "duplicate keys with a trailing comma all go" '{\n  "workbench.colorTheme": "A",\n  "workbench.colorTheme": "B",\n}\n' '{\n}\n'
+unset_case "duplicate keys around another all go" '{\n  "workbench.colorTheme": "A",\n  "a": 1,\n  "workbench.colorTheme": "B"\n}\n' '{\n  "a": 1\n}\n'
+unset_case "line comments before a last key stay" '{\n  "a": 1, // keep size\n  // note\n  "workbench.colorTheme": "Old"\n}\n' '{\n  "a": 1 // keep size\n  // note\n}\n'
+unset_case "a block comment before a last key stays" '{\n  "a": 1,\n  /* block */\n  "workbench.colorTheme": "Old"\n}\n' '{\n  "a": 1\n  /* block */\n}\n'
+unset_case "a first key on one line goes" '{"workbench.colorTheme": "Old", "a": 1}' '{"a": 1}'
+unset_case "a middle key on one line goes" '{"a": 1, "workbench.colorTheme": "Old", "b": 2}' '{"a": 1, "b": 2}'
+unset_case "a last key on one line goes" '{"a": 1, "workbench.colorTheme": "Old"}' '{"a": 1}'
+pass "maitri-vscode-settings-set removes a key and its separator in every position and keeps comments"

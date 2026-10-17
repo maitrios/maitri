@@ -68,17 +68,17 @@ while i < len(text):
         j = i + 1
         parts.append(text[i])
     i = j
-plain = "".join(parts)
+stripped = "".join(parts)
 
 parts, i = [], 0
-while i < len(plain):
-    if plain[i] == '"':
-        j = string_end(plain, i)
-        parts.append(plain[i:j])
+while i < len(stripped):
+    if stripped[i] == '"':
+        j = string_end(stripped, i)
+        parts.append(stripped[i:j])
         i = j
         continue
-    trailing = plain[i] == "," and re.match(r"\s*[}\]]", plain[i + 1:])
-    parts.append(" " if trailing else plain[i])
+    trailing = stripped[i] == "," and re.match(r"\s*[}\]]", stripped[i + 1:])
+    parts.append(" " if trailing else stripped[i])
     i += 1
 plain = "".join(parts)
 
@@ -102,41 +102,44 @@ while True:
     key, pos = json.decoder.scanstring(plain, pos + 1)
     pos = ws.match(plain, ws.match(plain, pos).end() + 1).end()
     _, end = decoder.raw_decode(plain, pos)
-    after = ws.match(plain, end).end()
-    comma = plain[after] == ","
-    members.append((key, key_start, pos, end, after + 1 if comma else None))
-    pos = after + 1 if comma else after
+    after = ws.match(stripped, end).end()
+    members.append((key, key_start, pos, end, after if stripped[after] == "," else None))
+    pos = after + 1 if plain[after] == "," else after
 
-edits, removals, present = [], [], set()
-for index, (key, key_start, start, end, comma_end) in enumerate(members):
+edits, removals, present, survivors = [], [], set(), []
+for key, key_start, start, end, comma in members:
     if key in sets:
         present.add(key)
         edits.append((start, end, json.dumps(sets[key], ensure_ascii=False)))
-    elif key in unsets:
-        if comma_end is not None:
-            a, b = key_start, comma_end
-            while b < len(text) and text[b] in " \t":
-                b += 1
-            if b < len(text) and text[b] == "\n":
-                b += 1
+    if key in unsets and key not in sets:
+        if comma is not None and not text[end:comma].strip():
+            removals.append((key_start, comma + 1))
         else:
-            a, b = key_start, end
-            prev = plain[:key_start].rstrip()
-            if prev.endswith(","):
-                a = len(prev) - 1
-        line_start = text.rfind("\n", 0, a) + 1
-        if not text[line_start:a].strip() and (b == len(text) or text[b - 1] == "\n"):
-            a = line_start
-        removals.append((a, b))
+            removals.append((key_start, end))
+            if comma is not None:
+                removals.append((comma, comma + 1))
+    else:
+        survivors.append(comma)
+if removals and survivors and survivors[-1] is not None and members[-1][4] is None:
+    removals.append((survivors[-1], survivors[-1] + 1))
 
 removals.sort()
 merged = []
 for a, b in removals:
-    if merged and a <= merged[-1][1]:
+    if merged and not text[merged[-1][1]:a].strip():
         merged[-1] = (merged[-1][0], max(merged[-1][1], b))
     else:
         merged.append((a, b))
-edits += [(a, b, "") for a, b in merged]
+for a, b in merged:
+    line_start = text.rfind("\n", 0, a) + 1
+    line_end = text.find("\n", b)
+    line_end = len(text) if line_end < 0 else line_end + 1
+    if not text[line_start:a].strip() and not text[b:line_end].strip():
+        a, b = line_start, line_end
+    elif a > 0 and text[a - 1] in " \t{":
+        while b < len(text) and text[b] in " \t":
+            b += 1
+    edits.append((a, b, ""))
 
 missing = [f"\n  {json.dumps(k)}: {json.dumps(v, ensure_ascii=False)}" for k, v in sets.items() if k not in present]
 if missing:
