@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# maitri:summary=Restore the launcher icons maitri-icons-set swapped
+
+set -e
+
+state_dir="$HOME/.local/state/maitri/icons"
+manifest="$state_dir/manifest"
+originals_dir="$state_dir/originals"
+user_dir="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+
+if [[ ! -s $manifest ]]; then
+  rm -rf "$state_dir"
+  echo "No swapped icons to restore"
+  exit 0
+fi
+
+while IFS=$'\t' read -r id kind icon; do
+  [[ -n $id ]] || continue
+
+  desktop_file="$user_dir/$id"
+  [[ -f $desktop_file ]] && grep -Fxq "Icon=$icon" "$desktop_file" || continue
+
+  if [[ $kind == "replaced" && ( -e $originals_dir/$id || -L $originals_dir/$id ) ]]; then
+    mv "$originals_dir/$id" "$desktop_file"
+  else
+    rm "$desktop_file"
+  fi
+  echo "Restored icon for $id"
+done <"$manifest"
+
+rm -rf "$state_dir"
+
+update-desktop-database "$user_dir" &>/dev/null || true
