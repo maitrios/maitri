@@ -312,3 +312,66 @@ border=$(PATH="$ROOT/bin:$PATH" maitri-theme-color --file "$next_theme/colors.to
 grep -qF "normal-border       = \"$border\"" "$next_theme/shell.toml" ||
   fail "a shell.menu.toml override leaves [controls] on the theme roles"
 pass "shell section overrides still replace their section"
+
+THEME_RENDERS="$test_tmp" run_node_test <<'JS'
+const fs = require('fs')
+const vm = require('vm')
+
+const read = file => fs.readFileSync(path.join(root, file), 'utf8')
+const functions = source => source.match(/^  function [^\n]*\{[^\n]*\}$|^  function [\s\S]*?\n  \}$/gm)
+const byte = v => Math.round(v * 255).toString(16).padStart(2, '0')
+const rgba = (r, g, b, a) => ({ r, g, b, a, toString: () => '#' + (a < 1 ? byte(a) : '') + byte(r) + byte(g) + byte(b) })
+const hex = value => {
+  const h = value.replace('#', '')
+  return rgba(parseInt(h.slice(0, 2), 16) / 255, parseInt(h.slice(2, 4), 16) / 255, parseInt(h.slice(4, 6), 16) / 255, 1)
+}
+
+function shellRuntime(overrides, palette) {
+  const geometry = vm.createContext({})
+  vm.runInContext(read('shell/Commons/BorderGeometry.js').replace(/^\.pragma library\n/, ''), geometry)
+  const color = { ...palette, shellValues: {} }
+  const style = vm.createContext({ styleOverrides: overrides, Qt: { rgba }, Util: { clampAlpha: geometry.clampAlpha, alpha: (c, a) => rgba(c.r, c.g, c.b, a) } })
+  const border = vm.createContext({ Style: style, Geometry: geometry, Commons: { Color: color } })
+  style.Commons = { Color: color, Border: border }
+  for (const fn of functions(read('shell/Commons/Border.qml'))) vm.runInContext(fn, border)
+  const source = read('shell/Commons/Style.qml')
+  for (const fn of functions(source)) vm.runInContext(fn, style)
+  for (const [, name, expression] of source.matchAll(/^  readonly property (?:string|real|int) (\w+): (.+)$/gm)) {
+    Object.defineProperty(style, name, { get: () => vm.runInContext(expression, style) })
+  }
+  return style
+}
+
+function controls(file) {
+  const out = {}
+  let section = null
+  for (const line of fs.readFileSync(file, 'utf8').split('\n')) {
+    const header = line.match(/^\[([\w-]+)\]$/)
+    if (header) section = header[1]
+    const entry = line.match(/^([\w-]+)\s*=\s*(?:"([^"]*)"|([^\s#]+))/)
+    if (section === 'controls' && entry) out[entry[1]] = entry[2] ?? entry[3]
+  }
+  return out
+}
+
+const expectBorder = (value, alpha) => {
+  const byte = Math.round(Number(alpha) * 255).toString(16).padStart(2, '0')
+  return (byte === 'ff' ? value : value + byte).toLowerCase()
+}
+
+for (const theme of fs.readdirSync(path.join(root, 'themes'))) {
+  const file = path.join(process.env.THEME_RENDERS, theme, '.local/state/maitri/current/next-theme/shell.toml')
+  const c = controls(file)
+  const palette = { foreground: c['normal-color'], accent: '#000001', urgent: '#000002', background: '#000003' }
+  const style = shellRuntime(c, palette)
+  const fg = hex(c['normal-color'])
+  for (const [helper, prefix] of [['normalBorderFor', 'normal'], ['hoverBorderFor', 'hover-cursor'], ['focusBorderFor', 'focus'], ['selectedBorderFor', 'selected']]) {
+    assertEqual(String(style[helper](fg, hex('#000001'))).toLowerCase(), expectBorder(c[`${prefix}-border`], c[`${prefix}-border-alpha`]),
+      `${theme} Style.${helper} draws ${prefix}-border at ${prefix}-border-alpha`)
+  }
+}
+
+const legacy = shellRuntime({ 'normal-color': '#e6e9f0', 'normal-border-alpha': '0.4' }, { foreground: '#e6e9f0', accent: '#000001', urgent: '#000002', background: '#000003' })
+assertEqual(String(legacy.normalBorderFor(hex('#e6e9f0'), hex('#000001'))).toLowerCase(), '#e6e9f066',
+  'a shell.toml without normal-border still blends the state color at normal-border-alpha')
+JS

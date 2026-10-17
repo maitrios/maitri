@@ -159,10 +159,10 @@ QtObject {
   function focusFillFor(foreground, accent, urgent) { return Util.alpha(focusStateColor(foreground, accent, urgent), focusFillAlpha) }
   function selectionFillFor(foreground, accent, urgent) { return Util.alpha(selectionStateColor(foreground, accent, urgent), selectionFillAlpha) }
 
-  function normalBorderFor(foreground, accent, urgent) { return Util.alpha(normalStateColor(foreground, accent, urgent), normalBorderAlpha) }
-  function hoverBorderFor(foreground, accent, urgent) { return Util.alpha(hoverStateColor(foreground, accent, urgent), hoverBorderAlpha) }
-  function selectedBorderFor(foreground, accent, urgent) { return Util.alpha(selectedStateColor(foreground, accent, urgent), selectedBorderAlpha) }
-  function focusBorderFor(foreground, accent, urgent) { return Util.alpha(focusStateColor(foreground, accent, urgent), focusBorderAlpha) }
+  function normalBorderFor(foreground, accent, urgent) { return Commons.Border.controlSpec("normal", foreground, accent, urgent).color }
+  function hoverBorderFor(foreground, accent, urgent) { return Commons.Border.controlSpec("hover", foreground, accent, urgent).color }
+  function selectedBorderFor(foreground, accent, urgent) { return Commons.Border.controlSpec("selected", foreground, accent, urgent).color }
+  function focusBorderFor(foreground, accent, urgent) { return Commons.Border.controlSpec("focus", foreground, accent, urgent).color }
 
   // Composite helpers for the focus > hover > normal priority chain used by
   // every form control surface (TextField, NumberField, Dropdown, Toggle,
