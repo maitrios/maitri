@@ -242,13 +242,12 @@ def fallbacks():
     dim += [("t3code", k, t3[k]) for k in ("textMuted", "placeholder", "secondaryLabel", "iconMuted")]
     dim += [("hermes", k, hermes[k]) for k in ("ui_thinking", "banner_dim", "status_bar_dim")]
     for app, key, value in dim:
-        check(app, f"{key} on background", value, bg, TEXT)
+        check(app, f"{key} on background", value, bg, min(TEXT, contrast(palette["foreground"], bg)))
     focus = [("claude", "promptBorder", claude["promptBorder"]), ("pi", "border", pi["border"]),
              ("t3code", "focus", t3["focus"]), ("hermes", "response_border", hermes["response_border"])]
     for app, key, value in focus:
         check(app, f"{key} on background", value, bg, LINE)
-        if norm(value) == palette["accent"]:
-            fail(f"{app} {key} collapses into the accent")
+        apart(app, f"{key} against the accent", value, palette["accent"], 1.3)
     ramp = [pi[k] for k in ("thinkingOff", "thinkingMinimal", "thinkingLow", "thinkingMedium", "thinkingHigh", "thinkingXhigh")]
     if len(set(ramp)) != len(ramp):
         fail("pi thinking levels repeat a colour")
@@ -263,7 +262,7 @@ for app, label, fg, bg, ratio, floor in rows:
     print(f"{'ok' if ratio >= floor else 'FAIL'}\t{app}\t{label}\t{fg}\t{bg}\t{ratio:.2f}\t{floor}")
 PY
 
-mkdir -p "$test_tmp/themes/ansi-only"
+mkdir -p "$test_tmp/themes/ansi-only" "$test_tmp/themes/ansi-only-light"
 cat >"$test_tmp/themes/ansi-only/colors.toml" <<'EOF'
 accent = "#7aa2f7"
 color0 = "#1a1b26"
@@ -283,8 +282,27 @@ color13 = "#bb9af7"
 color14 = "#7dcfff"
 color15 = "#c0caf5"
 EOF
+cat >"$test_tmp/themes/ansi-only-light/colors.toml" <<'EOF'
+accent = "#268bd2"
+color0 = "#fdf6e3"
+color1 = "#dc322f"
+color2 = "#859900"
+color3 = "#b58900"
+color4 = "#268bd2"
+color5 = "#d33682"
+color6 = "#2aa198"
+color7 = "#657b83"
+color8 = "#93a1a1"
+color9 = "#cb4b16"
+color10 = "#586e75"
+color11 = "#657b83"
+color12 = "#839496"
+color13 = "#6c71c4"
+color14 = "#93a1a1"
+color15 = "#002b36"
+EOF
 
-for theme_dir in "$ROOT"/themes/*/ "$test_tmp/themes/ansi-only/"; do
+for theme_dir in "$ROOT"/themes/*/ "$test_tmp/themes/ansi-only/" "$test_tmp/themes/ansi-only-light/"; do
   theme=$(basename "$theme_dir")
   home="$test_tmp/$theme"
   next_theme="$home/.local/state/maitri/current/next-theme"
@@ -300,7 +318,7 @@ for theme_dir in "$ROOT"/themes/*/ "$test_tmp/themes/ansi-only/"; do
 
   checks=()
   claim="dev tool colors keep their roles and clear 4.5:1 for text and 3:1 for lines"
-  if [[ $theme == "ansi-only" ]]; then
+  if [[ $theme == ansi-only* ]]; then
     checks=(fallbacks)
     claim="dev tools get readable dim text and a focus border apart from the accent from the fallbacks"
   fi

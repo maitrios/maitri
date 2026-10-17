@@ -126,7 +126,8 @@ shell palette is loaded from:
 - `comment` — the same value as `dark_foreground`, under the name editors use.
   Falls back to `dark_foreground` moved toward `foreground` until it clears
   4.5:1, so a theme with only `color0` to `color15` doesn't get a `color8`
-  comment at 2:1.
+  comment at 2:1. When `foreground` itself is under 4.5:1, the fallback stops
+  at `foreground`, so comments are never louder than body text.
 - `selection` — the selection fill: a tint of `accent`, light enough that
   `foreground` stays readable on it. Text on `selection` is `foreground` (or
   `bright_foreground`). `accent` isn't a text color there: on daybreak it's
@@ -139,7 +140,10 @@ shell palette is loaded from:
 - `border_focus` — the focused or floating border, a step of `accent` toward
   `background` that clears 3:1. Falls back to `background` mixed 60% toward
   `accent`, then moved back toward `accent` until it clears 3:1, the same
-  step the Neovim palette takes, so it never collapses into the accent.
+  step the Neovim palette takes. If that lands within 1.3:1 of the accent
+  (an accent that only just clears 3:1 itself), it steps the other way, from
+  the accent toward black on a light background or white on a dark one,
+  until it sits 1.3:1 off the accent.
 - `hint` — hint diagnostics. It's `accent` unless the accent sits near `red`,
   `orange`, `cyan` or `green` (error, warning, info, ok), when it's the next
   hue that doesn't. Falls back to `accent`, so a theme whose accent is orange,

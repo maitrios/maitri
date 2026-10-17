@@ -185,6 +185,32 @@ lift_color() {
   '
 }
 
+# Succeeds when two hex colors sit under a WCAG contrast ratio of each other.
+contrast_below() {
+  awk -v a="${1#\#}" -v b="${2#\#}" -v minimum="$3" '
+    function hex_value(char) {
+      return index("0123456789abcdef", tolower(char)) - 1
+    }
+
+    function linear(hex, idx,   c) {
+      c = (hex_value(substr(hex, idx, 1)) * 16 + hex_value(substr(hex, idx + 1, 1))) / 255
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ^ 2.4
+    }
+
+    function luminance(hex) {
+      return 0.2126 * linear(hex, 1) + 0.7152 * linear(hex, 3) + 0.0722 * linear(hex, 5)
+    }
+
+    BEGIN {
+      la = luminance(a)
+      lb = luminance(b)
+      high = la > lb ? la : lb
+      low = la > lb ? lb : la
+      exit((high + 0.05) / (low + 0.05) < minimum ? 0 : 1)
+    }
+  '
+}
+
 is_hex_color() {
   [[ $1 =~ ^#[0-9A-Fa-f]{6}$ ]]
 }
@@ -334,9 +360,10 @@ resolve_theme_colors() {
     if is_hex_color "${THEME_COLORS[accent]}" && is_hex_color "${THEME_COLORS[foreground]}" && is_hex_color "${THEME_COLORS[background]}"; then
       THEME_COLORS[border_focus]=$(mix_color "${THEME_COLORS[background]}" "${THEME_COLORS[accent]}" 60%)
       THEME_COLORS[border_focus]=$(lift_color "${THEME_COLORS[border_focus]}" "${THEME_COLORS[accent]}" "${THEME_COLORS[background]}" 3)
-      if [[ ${THEME_COLORS[border_focus],,} == "${THEME_COLORS[accent],,}" ]]; then
-        THEME_COLORS[border_focus]=$(mix_color "${THEME_COLORS[accent]}" "${THEME_COLORS[foreground]}" 20%)
-        THEME_COLORS[border_focus]=$(lift_color "${THEME_COLORS[border_focus]}" "${THEME_COLORS[foreground]}" "${THEME_COLORS[background]}" 3)
+      if contrast_below "${THEME_COLORS[border_focus]}" "${THEME_COLORS[accent]}" 1.3; then
+        local away="#000000"
+        contrast_below "${THEME_COLORS[background]}" "#000000" 4.58 && away="#ffffff"
+        THEME_COLORS[border_focus]=$(lift_color "${THEME_COLORS[accent]}" "$away" "${THEME_COLORS[accent]}" 1.3)
       fi
     fi
   fi
