@@ -295,6 +295,9 @@ cat >"$USER_THEMED/mix-test.txt.tpl" <<'EOF'
 mix={{ mix background foreground 50% }}
 strip={{ mix_strip background foreground 50% }}
 rgb={{ mix_rgb background foreground 50% }}
+readable={{ readable blue background }}
+readable-mix={{ readable blue background accent 50% }}
+readable-unchanged={{ readable yellow background }}
 EOF
 
 cat >"$USER_THEMED/gradient-test.txt.tpl" <<'EOF'
@@ -346,6 +349,11 @@ grep -qx 'mix=#808080' "$NEXT_THEME/mix-test.txt" || fail "theme template mix he
 grep -qx 'strip=808080' "$NEXT_THEME/mix-test.txt" || fail "theme template mix_strip helper works"
 grep -qx 'rgb=128,128,128' "$NEXT_THEME/mix-test.txt" || fail "theme template mix_rgb helper works"
 pass "theme template color mix helpers work"
+
+grep -qx 'readable=#6161ff' "$NEXT_THEME/mix-test.txt" || fail "theme template readable helper lifts a color to 4.5:1 on a key"
+grep -qx 'readable-mix=#8f8fff' "$NEXT_THEME/mix-test.txt" || fail "theme template readable helper lifts a color to 4.5:1 on a mix"
+grep -qx 'readable-unchanged=#ffff00' "$NEXT_THEME/mix-test.txt" || fail "theme template readable helper leaves a readable color alone"
+pass "theme template readable helper works"
 
 grep -qx 'color=#ff0000' "$NEXT_THEME/alias-test.txt" || fail "theme template semantic aliases expose legacy colorN"
 grep -qx 'strip=ff0000' "$NEXT_THEME/alias-test.txt" || fail "theme template legacy colorN_strip works"

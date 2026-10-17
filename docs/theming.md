@@ -113,8 +113,7 @@ shell palette is loaded from:
 
 - `foreground` — primary readable text color
 - `background` — primary background color
-- `accent` — preferred when present; otherwise some places fall back to
-  `color4`
+- `accent` — the theme's highlight color. Falls back to `blue` (`color4`).
 - `muted` — structural de-emphasis: dividers, borders, separators, indent
   guides, scrollbar tracks; also serves as ANSI `color8`. It is a *line* color,
   not a text color — in the shipped palettes it sits at 1.5–3.9:1 against
@@ -227,6 +226,20 @@ percentage:
 {{ mix_strip background accent 0.35 }}
 {{ mix_rgb color0 color7 50 }}
 ```
+
+### Readable text
+
+`readable` moves a color toward `foreground` until it clears 4.5:1 on a
+surface, given as a key or as the same arguments `mix` takes:
+
+```text
+{{ readable green background }}
+{{ readable green dark_background accent 30% }}
+```
+
+Use it for text drawn on a fill the theme doesn't define, such as git colors
+on a selected row. On a fill where the color already clears 4.5:1 it comes
+back unchanged.
 
 ### Gradient helpers
 
