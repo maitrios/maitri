@@ -1,52 +1,50 @@
 return {
   {
-    "bjarneo/aether.nvim",
-    branch = "v3",
-    name = "aether",
+    "maitri-theme",
+    dir = vim.env.MAITRI_PATH .. "/default/nvim/maitri-theme",
+    lazy = false,
     priority = 1000,
     opts = {
+      mode = "{{ mode }}",
       colors = {
-        bg = "{{ background }}",
-        dark_bg = "{{ dark_background }}",
-        darker_bg = "{{ darker_background }}",
-        lighter_bg = "{{ lighter_background }}",
-
-        fg = "{{ foreground }}",
-        dark_fg = "{{ dark_foreground }}",
-        light_fg = "{{ light_foreground }}",
-        bright_fg = "{{ bright_foreground }}",
+        accent = "{{ accent }}",
+        selection = "{{ selection }}",
         muted = "{{ muted }}",
 
+        background = "{{ background }}",
+        dark_background = "{{ dark_background }}",
+        darker_background = "{{ darker_background }}",
+        lighter_background = "{{ lighter_background }}",
+
+        foreground = "{{ foreground }}",
+        dark_foreground = "{{ dark_foreground }}",
+        light_foreground = "{{ light_foreground }}",
+        bright_foreground = "{{ bright_foreground }}",
+
         red = "{{ red }}",
-        yellow = "{{ yellow }}",
-        orange = "{{ orange }}",
         green = "{{ green }}",
-        cyan = "{{ cyan }}",
+        yellow = "{{ yellow }}",
         blue = "{{ blue }}",
         magenta = "{{ magenta }}",
-        brown = "{{ brown }}",
+        cyan = "{{ cyan }}",
+        orange = "{{ orange }}",
 
         bright_red = "{{ bright_red }}",
-        bright_yellow = "{{ bright_yellow }}",
         bright_green = "{{ bright_green }}",
-        bright_cyan = "{{ bright_cyan }}",
+        bright_yellow = "{{ bright_yellow }}",
         bright_blue = "{{ bright_blue }}",
         bright_magenta = "{{ bright_magenta }}",
-
-        accent = "{{ accent }}",
-        cursor = "{{ bright_foreground }}",
-        foreground = "{{ foreground }}",
-        background = "{{ background }}",
-        selection = "{{ selection }}",
-        selection_foreground = "{{ selection_foreground }}",
-        selection_background = "{{ selection_background }}",
+        bright_cyan = "{{ bright_cyan }}",
       },
     },
+    config = function(_, opts)
+      require("maitri-theme").setup(opts)
+    end,
   },
   {
     "LazyVim/LazyVim",
     opts = {
-      colorscheme = "aether",
+      colorscheme = "maitri",
     },
   },
 }
