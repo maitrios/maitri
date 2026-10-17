@@ -340,6 +340,8 @@ post_theme_commands=(
   maitri-theme-set-sublime
   maitri-theme-set-zed maitri-theme-set-jetbrains maitri-theme-set-emacs
   maitri-theme-set-firefox maitri-theme-set-chromium
+  # fzf only points fish's BAT_THEME at maitri once bat's cache has the theme.
+  maitri-theme-set-lazygit "maitri-theme-set-bat; maitri-theme-set-fzf" maitri-theme-set-yazi
 )
 
 if [[ $THEME_HEADLESS != "1" ]]; then
