@@ -1,0 +1,193 @@
+#!/bin/bash
+
+# maitri:summary=Apply the current maitri theme to GTK and libadwaita apps
+# maitri:hidden=true
+
+STATE_DIR="$HOME/.local/state/maitri/current"
+THEME_DIR="$STATE_DIR/theme"
+CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+BLOCK_START="/* >>> maitri theme (rewritten by maitri theme set) >>> */"
+BLOCK_END="/* <<< maitri theme <<< */"
+
+maitri-toggle-enabled skip-gtk-theme-changes && exit 0
+
+colours="$THEME_DIR/gtk.css"
+snapshot=$(mktemp)
+block=""
+tmp=""
+trap 'rm -f "$snapshot" "$block" "$tmp"' EXIT
+
+# The colours are spliced into the user's own gtk.css, and a theme cloned with
+# `maitri theme install` can ship its own gtk.css or put anything in its
+# colors.toml, so only colour definitions get through. Anything else, a NUL byte
+# that would turn grep's output off, or a line that would end the block early,
+# drops the block instead. The check and the splice read the same copy, so a
+# theme swapped in meanwhile can't slip past.
+colour_only() {
+  local stray
+
+  [[ -f $colours && -r $colours ]] && cp "$colours" "$snapshot" || return 1
+  tr -d '\000' <"$snapshot" | cmp -s - "$snapshot" || return 1
+  grep -qxF -e "$BLOCK_START" -e "$BLOCK_END" "$snapshot" && return 1
+  stray=$(LC_ALL=C grep -avxE '@define-color [a-z_]+ #[0-9A-Fa-f]{6};|/\*[^*]*\*/|[[:space:]]*' "$snapshot")
+  (( $? <= 1 )) && [[ -z $stray ]]
+}
+
+vetted=""
+if colour_only; then
+  vetted=1
+elif [[ -e $colours ]]; then
+  echo "GTK apps go back to their own look: the theme's gtk.css has something that isn't a colour definition." >&2
+fi
+
+exec 9>"${XDG_RUNTIME_DIR:-/tmp}/maitri-theme-set-gtk.lock"
+flock 9
+
+refuse() {
+  echo "maitri left $1 alone: $2" >&2
+  refused=1
+}
+
+# The block goes after the file's prelude, the comments, blank lines and
+# complete @import and @charset statements before its first rule, so anything
+# the user writes after it wins. A comment that shares a line with CSS ends the
+# prelude, and the block goes above it.
+splice() {
+  local version="$1"
+  local dir="$CONFIG_HOME/gtk-$version"
+  local file="$dir/gtk.css"
+  local copy="$STATE_DIR/gtk-$version.css"
+  local staged status written=""
+
+  rm -f "$block" "$tmp"
+  tmp=""
+  block=$(mktemp)
+  if [[ -n $vetted ]]; then
+    { echo "$BLOCK_START"; cat "$snapshot"; echo; cat "$MAITRI_PATH/default/gtk/gtk-$version.css"; echo "$BLOCK_END"; } >"$block"
+  fi
+  mkdir -p "$STATE_DIR"
+  staged=$(mktemp "$STATE_DIR/.gtk-$version.XXXXXX") && cp "$block" "$staged" && mv "$staged" "$copy" || rm -f "$staged"
+
+  if [[ -L $dir || -L $file ]] || { [[ -f $file ]] && (( $(stat -c %h "$file") > 1 )); }; then
+    grep -qF "$copy" "$file" 2>/dev/null ||
+      echo "$file is a symlink or a hard link, so maitri left it alone. To follow the maitri theme, add this line at its top: @import url(\"file://$copy\");" >&2
+    return
+  fi
+
+  if [[ ! -e $file ]]; then
+    [[ -s $block ]] || return
+    mkdir -p "$dir" && touch "$file" || { refuse "$file" "it can't be created."; return; }
+  fi
+
+  if [[ ! -f $file || ! -r $file || ! -w $file ]]; then
+    refuse "$file" "it can't be read and rewritten."
+    return
+  fi
+
+  tmp=$(mktemp "$dir/.gtk.css.XXXXXX" 2>/dev/null) || { refuse "$file" "its directory can't be written to."; return; }
+  awk -v start="$BLOCK_START" -v end="$BLOCK_END" -v block="$block" -v strip="$([[ -s $block ]] || echo 1)" '
+    {
+      all[NR] = $0
+      text[NR] = $0
+      sub(/\r$/, "", text[NR])
+      if (text[NR] == start) starts[++ns] = NR
+      if (text[NR] == end) ends[++ne] = NR
+    }
+
+    function newlines(s) { return gsub(/\n/, "", s) }
+
+    END {
+      if (ns > 1 || ne > 1 || ns != ne || (ns && ends[1] < starts[1])) exit 3
+
+      for (i = 1; i <= NR; i++) {
+        if (ns && i >= starts[1] && i <= ends[1]) continue
+        if (strip && ns && i == ends[1] + 1 && text[i] ~ /^[[:space:]]*$/) continue
+        lines[++n] = all[i]
+        plain[n] = text[i]
+        source = source plain[n] "\n"
+      }
+
+      insert = n + 1
+      line = 1
+      size = length(source)
+      for (i = 1; i <= size; ) {
+        c = substr(source, i, 1)
+        if (c == "\n") { line++; i++; continue }
+        if (c ~ /[ \t\f]/) { i++; continue }
+
+        if (substr(source, i, 2) == "/*") {
+          close_at = index(substr(source, i + 2), "*/")
+          if (!close_at) { insert = line; break }
+          item_start[++items] = line
+          line += newlines(substr(source, i, close_at + 3))
+          item_end[items] = line
+          i += close_at + 3
+          continue
+        }
+
+        if (substr(source, i, 8) ~ /^@import[ \t\n"'\''u]/ || substr(source, i, 9) ~ /^@charset[ \t\n"]/) {
+          item_start[++items] = line
+          quote = ""
+          for (j = i; j <= size; j++) {
+            ch = substr(source, j, 1)
+            if (ch == "\n") line++
+            if (quote) { if (ch == quote) quote = ""; continue }
+            if (ch == "\"" || ch == "'\''") { quote = ch; continue }
+            if (ch == ";") break
+          }
+          if (j > size) { insert = item_start[items]; break }
+          item_end[items] = line
+          i = j + 1
+          continue
+        }
+
+        insert = line
+        for (k = 1; k <= items; k++) {
+          if (item_end[k] >= line) { insert = item_start[k]; break }
+        }
+        break
+      }
+      while (insert > 1 && plain[insert - 1] ~ /^[[:space:]]*$/) insert--
+
+      for (i = 1; i < insert; i++) print lines[i]
+      while ((getline row < block) > 0) { print row; spliced = 1 }
+      close(block)
+      if (spliced && insert <= n && plain[insert] !~ /^[[:space:]]*$/) print ""
+      for (i = insert; i <= n; i++) print lines[i]
+    }
+  ' "$file" >"$tmp"
+  status=$?
+
+  if (( status == 0 )); then
+    if [[ -s $block ]]; then
+      (( $(grep -cxF "$BLOCK_END" "$tmp") == 1 )) && written=1
+    else
+      grep -qxF "$BLOCK_END" "$tmp" || written=1
+    fi
+  fi
+
+  if [[ -z $written ]]; then
+    if (( status == 3 )); then
+      refuse "$file" "its maitri theme markers are doubled or out of order. Remove them and run maitri theme set again."
+    else
+      refuse "$file" "it couldn't be rewritten safely."
+    fi
+  elif ! cmp -s "$tmp" "$file"; then
+    if chmod --reference="$file" "$tmp" && mv "$tmp" "$file"; then
+      changed=1
+    else
+      refuse "$file" "the rewritten copy couldn't be moved into place."
+    fi
+  fi
+  rm -f "$tmp" "$block"
+  tmp=""
+  block=""
+}
+
+changed=""
+refused=""
+splice 3.0
+splice 4.0
+
+[[ -n $changed ]] && echo "GTK apps that are open pick up the new theme when they're restarted." >&2
+[[ -z $refused ]]

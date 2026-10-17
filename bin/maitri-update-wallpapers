@@ -9,17 +9,21 @@ base_url=${MAITRI_WALLPAPERS_URL:-https://maitri.cdn.k7.dev}
 backgrounds_dir="$HOME/.config/maitri/backgrounds"
 state_dir="$HOME/.local/state/maitri/wallpapers"
 installed_list="$state_dir/installed"
+max_size=$((64 * 1024 * 1024))
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
 fetch() {
-  local url=$1 out=$2 status
+  local url=$1 out=$2 max=$3 status
 
-  status=$(curl -sS --connect-timeout 10 --max-time 300 -o "$out" -w '%{http_code}' "$url" 2>/dev/null) || return 2
+  status=$(curl -sS --connect-timeout 10 --max-time 300 --max-filesize "$max" -o "$out" -w '%{http_code}' "$url" 2>/dev/null) || {
+    (( $? == 63 )) && return 1
+    return 2
+  }
   if (( status == 200 )); then
     return 0
-  elif (( status >= 500 )); then
+  elif (( status >= 500 || status == 429 )); then
     return 2
   fi
   return 1
@@ -38,7 +42,7 @@ reject() {
 
 echo -e "\e[32m\nUpdate wallpapers\e[0m"
 
-fetch "$base_url/channels/stable/manifest.json" "$work/manifest.json" ||
+fetch "$base_url/channels/stable/manifest.json" "$work/manifest.json" 1048576 ||
   skip_run "the manifest could not be fetched"
 jq -e '(.release | type == "string" and test("^[0-9A-Za-z.+-]+$")) and (.files | type == "array")' "$work/manifest.json" >/dev/null 2>&1 ||
   skip_run "the manifest could not be read"
@@ -68,6 +72,10 @@ while IFS=$'\x1f' read -r theme file sha256 size; do
     reject "$file" "invalid size"
     continue
   fi
+  if (( size > max_size )); then
+    reject "$file" "larger than $max_size bytes"
+    continue
+  fi
 
   record="$sha256 $theme/${file##*/}"
   [[ -z ${seen[$record]:-} ]] || continue
@@ -84,19 +92,22 @@ while IFS=$'\x1f' read -r theme file sha256 size; do
   download="$work/files/$theme/${file##*/}"
   mkdir -p "${download%/*}"
   status=0
-  fetch "$base_url/$file" "$download" || status=$?
+  fetch "$base_url/$file" "$download" $((size + 1)) || status=$?
   if (( status == 2 )); then
     skip_run "$file is unreachable"
   elif (( status != 0 )); then
+    rm -f "$download"
     reject "$file" "download failed"
     continue
   fi
 
   if (( $(stat -c %s "$download") != size )); then
+    rm -f "$download"
     reject "$file" "size mismatch"
     continue
   fi
   if [[ $(sha256sum "$download" | cut -d' ' -f1) != "$sha256" ]]; then
+    rm -f "$download"
     reject "$file" "sha256 mismatch"
     continue
   fi
@@ -114,6 +125,12 @@ done
 
 mkdir -p "$state_dir"
 (( ${#records[@]} == 0 )) || printf '%s\n' "${records[@]}" >>"$installed_list"
+
+if (( ${#records[@]} == 0 && rejected > 0 )); then
+  echo "Wallpapers: $rejected rejected, nothing installed."
+  exit 1
+fi
+
 jq -r '.release' "$work/manifest.json" >"$state_dir/release"
 
 if (( ${#downloads[@]} > 0 )); then

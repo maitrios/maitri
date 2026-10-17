@@ -2,14 +2,14 @@ name: Wallpapers
 
 # Publishes the wallpapers attached to a release as wallpapers.tar, and points
 # the stable manifest that `maitri update` installs from at that release. A
-# release without the tar carries the current wallpapers forward. Runs on the
-# published release rather than the tag push: RELEASING.md pushes the tag
-# before the packages reach stable, and the wallpapers should land with them.
-# See docs/wallpapers.md.
+# release without the tar carries the current wallpapers forward.
+#
+# Only a run started on main reaches the release environment, which holds the
+# bucket token and only accepts main, so the steps that see the token always
+# come from main's reviewed copy of this file. The tag is only data: it must be
+# a release tag on main, and nothing from its tree runs. See docs/wallpapers.md.
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       tag:
@@ -29,30 +29,38 @@ concurrency:
 
 jobs:
   publish:
-    if: startsWith(github.event.release.tag_name || inputs.tag, 'v')
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: release
     env:
-      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      TAG: ${{ inputs.tag }}
     steps:
-      - name: Check out maitri
+      - name: Check out main
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ env.TAG }}
+          fetch-depth: 0
           persist-credentials: false
 
+      - name: Refuse a tag that is not a release tag on main
+        run: |
+          [[ $GITHUB_REF == "refs/heads/main" ]] || { echo "Start the run on main (--ref main), not $GITHUB_REF" >&2; exit 1; }
+          tools/wallpapers-check-tag.sh "$TAG"
+
       - name: Fetch the release's wallpapers
+        id: release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          assets=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')
-          if grep -qx wallpapers.tar <<<"$assets"; then
-            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern wallpapers.tar --dir "$RUNNER_TEMP"
-            tar -xf "$RUNNER_TEMP/wallpapers.tar" -C wallpapers --no-same-owner --no-same-permissions
-            find wallpapers -mindepth 1 -not -name README.md -print
-          else
+          release=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isPrerelease,assets)
+          echo "prerelease=$(jq -r '.isPrerelease' <<<"$release")" >>"$GITHUB_OUTPUT"
+          size=$(jq -r '[.assets[] | select(.name == "wallpapers.tar") | .size] | first // empty' <<<"$release")
+          if [[ -z $size ]]; then
             echo "$TAG has no wallpapers.tar; carrying the current wallpapers forward"
+            exit 0
           fi
+          (( size <= 1073741824 )) || { echo "wallpapers.tar is $size bytes, over the 1 GiB limit" >&2; exit 1; }
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern wallpapers.tar --dir "$RUNNER_TEMP"
+          echo "tar=$RUNNER_TEMP/wallpapers.tar" >>"$GITHUB_OUTPUT"
 
       - name: Publish
         env:
@@ -60,4 +68,6 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
           DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
-        run: tools/wallpapers-upload.sh ${DRY_RUN:+--dry-run} "$TAG"
+          PRERELEASE: ${{ steps.release.outputs.prerelease == 'true' && '1' || '' }}
+          WALLPAPERS_TAR: ${{ steps.release.outputs.tar }}
+        run: tools/wallpapers-upload.sh ${DRY_RUN:+--dry-run} ${PRERELEASE:+--prerelease} ${WALLPAPERS_TAR:+--tar "$WALLPAPERS_TAR"} "$TAG"
