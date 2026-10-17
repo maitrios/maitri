@@ -497,6 +497,14 @@ grep -q '^volume=50$' "$home/.config/mpv/mpv.conf" && [[ $(grep -c '<<< maitri t
   fail "a dangling marker in mpv.conf loses nothing" "$(cat "$home/.config/mpv/mpv.conf")"
 pass "a start marker without an end never costs the user a line"
 
+home=$(new_home crlf amethyst)
+mkdir -p "$home/.config/mpv"
+printf '# >>> maitri theme (rewritten by maitri theme set) >>>\r\nosd-color="#000000"\r\n# <<< maitri theme <<<\r\n\r\nvolume=50\r\n' >"$home/.config/mpv/mpv.conf"
+run_hook "$home" maitri-theme-set-mpv "$apps:$sandbox" || fail "maitri-theme-set-mpv runs over a CRLF mpv.conf"
+[[ $(grep -c '>>> maitri theme' "$home/.config/mpv/mpv.conf") == 1 ]] && ! grep -q '#000000' "$home/.config/mpv/mpv.conf" &&
+  grep -q $'^volume=50\r$' "$home/.config/mpv/mpv.conf" || fail "a CRLF mpv.conf gets its old block replaced" "$(cat -A "$home/.config/mpv/mpv.conf")"
+pass "mpv.conf with CRLF line endings gets its block replaced in place"
+
 home=$(new_home hostile amethyst)
 rendered="$home/.local/state/maitri/current/theme"
 mkdir -p "$home/.config/voxtype" "$home/.config/lazydocker"

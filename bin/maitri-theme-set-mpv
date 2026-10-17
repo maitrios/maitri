@@ -40,9 +40,14 @@ awk -v start="$block_start" -v end="$block_end" -v block="$src" '
     done = 1
   }
 
+  function bare(line) {
+    sub(/\r$/, "", line)
+    return line
+  }
+
   NR == FNR {
-    if ($0 == start && !e) s = FNR
-    else if ($0 == end && s && !e) e = FNR
+    if (bare($0) == start && !e) s = FNR
+    else if (bare($0) == end && s && !e) e = FNR
     if (!first && $0 ~ /^[[:space:]]*$/) gap = FNR
     else if (!first && $0 !~ /^[[:space:]]*#/) first = FNR
     next
