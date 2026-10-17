@@ -670,7 +670,7 @@ Panel {
                       // over a grid this quiet.
                       color: "transparent"
                       border.width: modelData.today ? Style.spacing.hairline : 0
-                      border.color: Style.normalBorderFor(root.contentForeground, Commons.Color.accent)
+                      border.color: Border.color(Border.controlSpec("normal", root.contentForeground, Commons.Color.accent))
 
                       Text {
                         textFormat: Text.PlainText

@@ -8,7 +8,12 @@ return {
       mode = "{{ mode }}",
       colors = {
         accent = "{{ accent }}",
+        selection = "{{ selection }}",
         muted = "{{ muted }}",
+        border = "{{ border }}",
+        border_focus = "{{ border_focus }}",
+        hint = "{{ hint }}",
+        link = "{{ link }}",
 
         background = "{{ background }}",
         dark_background = "{{ dark_background }}",
@@ -19,6 +24,7 @@ return {
         dark_foreground = "{{ dark_foreground }}",
         light_foreground = "{{ light_foreground }}",
         bright_foreground = "{{ bright_foreground }}",
+        comment = "{{ comment }}",
 
         red = "{{ red }}",
         green = "{{ green }}",
