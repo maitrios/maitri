@@ -30,8 +30,9 @@ drops only what runs code: any `*.lua` (Hyprland requires a theme's
 `hyprland.lua` and `gum_env.lua` at login, Neovim loads `neovim.lua` at startup),
 the terminal configs `alacritty.toml`, `foot.ini`, `ghostty.conf` and
 `kitty.conf` (each names the program the terminal launches), `vscode.json`
-(names a VS Code extension to install) and `emacs-theme.el` (Elisp Emacs runs
-when it loads the theme). Those are regenerated from `colors.toml`
+(names a VS Code extension to install), `emacs-theme.el` (Elisp Emacs runs
+when it loads the theme) and `glamour.json` (gh and glow print its prefixes to
+the terminal as they are). Those are regenerated from `colors.toml`
 through `$MAITRI_PATH/default/themed/*.tpl`, and named on stderr.
 
 Everything else a cloned theme ships is kept, including `btop.theme`,
