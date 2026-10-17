@@ -118,6 +118,19 @@ function M.build(c, mode)
     end
   end
 
+  c = vim.tbl_extend("force", {}, c)
+  for _, key in ipairs({ "selection", "border", "border_focus", "hint", "link", "comment" }) do
+    if type(c[key]) ~= "string" or not c[key]:match("^#%x%x%x%x%x%x$") then
+      c[key] = nil
+    end
+  end
+  if c.selection and M.contrast(c.selection, c.background) < 1.3 then
+    c.selection = nil
+  end
+  if c.border_focus and c.border_focus:lower() == c.accent:lower() then
+    c.border_focus = nil
+  end
+
   local blend = M.blend
   local light = mode == "light"
 
@@ -134,7 +147,7 @@ function M.build(c, mode)
     fg = c.foreground,
     fg_dim = c.light_foreground,
     fg_bright = c.bright_foreground,
-    comment = c.dark_foreground,
+    comment = c.comment or c.dark_foreground,
     line = c.muted,
     accent = c.accent,
 
@@ -167,23 +180,30 @@ function M.build(c, mode)
 
   local tint = light and 0.16 or 0.13
 
+  local function clear(color, avoid)
+    for _, other in ipairs(avoid) do
+      if near(color, other) then
+        return false
+      end
+    end
+    return true
+  end
+
   local function apart(color, alternatives, avoid)
     for _, candidate in ipairs({ color, unpack(alternatives) }) do
-      local clear = true
-      for _, other in ipairs(avoid) do
-        if near(candidate, other) then
-          clear = false
-          break
-        end
-      end
-      if clear then
+      if clear(candidate, avoid) then
         return candidate
       end
     end
     return color
   end
 
-  p.hint = apart(p.accent, { p.magenta, p.blue }, { p.red, p.orange, p.cyan, p.green })
+  local diagnostics = { p.red, p.orange, p.cyan, p.green }
+  if c.hint and clear(c.hint, diagnostics) then
+    p.hint = M.readable(c.hint, light and p.bg_dark or p.bg, p.fg)
+  else
+    p.hint = apart(p.accent, { p.magenta, p.blue }, diagnostics)
+  end
   p.modes = {
     normal = p.accent,
     insert = apart(p.green, { p.cyan, p.blue }, { p.accent }),
@@ -195,18 +215,22 @@ function M.build(c, mode)
   p.jump_current = apart(p.orange, { p.red, p.yellow }, { p.accent })
 
   p.link = p.magenta
-  for _, candidate in ipairs({ p.magenta, blend(p.magenta, p.red, 0.5), p.blue, p.orange }) do
+  local links = { p.magenta, blend(p.magenta, p.red, 0.5), p.blue, p.orange }
+  if c.link then
+    table.insert(links, 1, c.link)
+  end
+  for _, candidate in ipairs(links) do
     if M.hue_distance(candidate, p.accent) >= 60 then
       p.link = M.readable(candidate, light and p.bg_dark or p.bg, p.fg)
       break
     end
   end
 
-  p.visual = light and M.toward(p.bg, p.accent, p.bg, 1.5) or blend(p.bg, p.accent, 0.26)
+  p.visual = c.selection or light and M.toward(p.bg, p.accent, p.bg, 1.5) or blend(p.bg, p.accent, 0.26)
   p.cursorline = p.bg_light
   p.float = p.bg_dark
-  p.border = light and M.toward(p.bg, p.accent, p.float, 3) or blend(p.bg, p.accent, 0.6)
-  p.border_dim = p.line
+  p.border = c.border_focus or light and M.toward(p.bg, p.accent, p.float, 3) or blend(p.bg, p.accent, 0.6)
+  p.border_dim = c.border or p.line
   p.nontext = light and blend(p.bg, p.comment, 0.55) or blend(p.line, p.comment, 0.35)
   p.reference = blend(p.bg, p.accent, light and 0.12 or 0.16)
   p.menu_sel = blend(p.bg_dark, p.accent, light and 0.22 or 0.3)
