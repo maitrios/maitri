@@ -59,4 +59,5 @@
 @define-color insensitive_fg_color {{ comment }};
 @define-color insensitive_base_color {{ background }};
 @define-color borders {{ border }};
+@define-color raised_borders {{ outline border lighter_background background 50% }};
 @define-color unfocused_borders {{ border }};

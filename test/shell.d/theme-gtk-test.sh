@@ -120,6 +120,8 @@ for theme in themes:
 
     for surface in ["window", "view", "headerbar", "sidebar"]:
         floor(f"borders on {surface}", "borders", f"{surface}_bg_color", LINE)
+    for surface in ["card", "popover", "thumbnail"]:
+        floor(f"raised borders on {surface}", "raised_borders", f"{surface}_bg_color", LINE)
     floor("headerbar border", "headerbar_border_color", "headerbar_bg_color", LINE)
     floor("sidebar border against the view", "sidebar_border_color", "view_bg_color", LINE)
     floor("sidebar border against the sidebar", "sidebar_border_color", "sidebar_bg_color", LINE)

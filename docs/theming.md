@@ -241,6 +241,10 @@ Use it for text drawn on a fill the theme doesn't define, such as git colors
 on a selected row. On a fill where the color already clears 4.5:1 it comes
 back unchanged.
 
+`outline` takes the same arguments and stops at 3:1, for borders and other
+lines, such as `{{ outline border lighter_background background 50% }}` for an
+outline on a raised surface.
+
 ### Gradient helpers
 
 Some theme keys can be either a solid color or a Hyprland-style gradient:

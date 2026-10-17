@@ -40,7 +40,18 @@ popover.background, menu, .menu, .context-menu {
 }
 
 popover.background {
-  border-color: @borders;
+  border-color: @raised_borders;
+}
+
+tooltip.background {
+  background-color: @popover_bg_color;
+  border-color: @raised_borders;
+}
+
+tooltip, tooltip * {
+  color: @popover_fg_color;
+  text-shadow: none;
+  -gtk-icon-shadow: none;
 }
 
 entry {
@@ -56,6 +67,10 @@ entry:focus {
 entry:disabled {
   background-color: @insensitive_bg_color;
   color: @insensitive_fg_color;
+}
+
+entry.flat, entry.flat:disabled {
+  background-color: transparent;
 }
 
 button {
@@ -117,6 +132,81 @@ button.suggested-action:disabled {
   color: @insensitive_fg_color;
 }
 
+button.destructive-action {
+  background-image: none;
+  background-color: @destructive_bg_color;
+  border-color: @destructive_bg_color;
+  box-shadow: none;
+  color: @destructive_fg_color;
+  text-shadow: none;
+  -gtk-icon-shadow: none;
+}
+
+button.destructive-action:hover {
+  background-color: mix(@destructive_bg_color, @destructive_fg_color, 0.12);
+}
+
+button.destructive-action:active, button.destructive-action:checked {
+  background-color: mix(@destructive_bg_color, @destructive_fg_color, 0.24);
+}
+
+button.destructive-action:disabled {
+  background-color: @insensitive_bg_color;
+  border-color: @borders;
+  color: @insensitive_fg_color;
+}
+
+button.suggested-action.flat, button.destructive-action.flat {
+  background-color: transparent;
+  border-color: transparent;
+}
+
+button.suggested-action.flat {
+  color: @accent_color;
+}
+
+button.destructive-action.flat {
+  color: @destructive_color;
+}
+
+button.suggested-action.flat:disabled, button.destructive-action.flat:disabled {
+  color: @insensitive_fg_color;
+}
+
+button.osd, .osd button, .app-notification button, popover.background.touch-selection button, popover.background.magnifier button {
+  background-color: transparent;
+  background-image: image(rgba(53, 53, 53, 0.9));
+  border-color: rgba(0, 0, 0, 0.7);
+  color: #eeeeec;
+}
+
+button.osd:hover, .osd button:hover, .app-notification button:hover, popover.background.touch-selection button:hover, popover.background.magnifier button:hover {
+  background-color: transparent;
+  background-image: image(rgba(83, 83, 83, 0.9));
+  color: white;
+}
+
+button.osd:active, button.osd:checked, .osd button:active, .osd button:checked, .app-notification button:active, .app-notification button:checked {
+  background-color: transparent;
+  background-image: image(rgba(0, 0, 0, 0.7));
+  color: white;
+}
+
+button.osd:disabled, .osd button:disabled, .app-notification button:disabled {
+  background-color: transparent;
+  background-image: image(rgba(71, 71, 71, 0.5));
+  color: #919190;
+}
+
+button.osd.flat, .osd button.flat, .app-notification button.flat {
+  background-image: none;
+}
+
+popover.background.osd, popover.background.touch-selection, popover.background.magnifier {
+  background-color: rgba(53, 53, 53, 0.9);
+  color: #eeeeec;
+}
+
 notebook > header, notebook > stack:not(:only-child) {
   background-color: @window_bg_color;
   border-color: @borders;
@@ -158,6 +248,19 @@ check:checked, check:indeterminate, radio:checked, radio:indeterminate, switch:c
   background-color: @accent_bg_color;
   border-color: @accent_bg_color;
   color: @accent_fg_color;
+}
+
+check:checked:disabled, check:indeterminate:disabled, radio:checked:disabled, radio:indeterminate:disabled, switch:checked:disabled {
+  background-color: @insensitive_bg_color;
+  border-color: @borders;
+  color: @insensitive_fg_color;
+}
+
+menu check, menu radio, .menu check, .menu radio, modelbutton check, modelbutton radio {
+  background-image: none;
+  background-color: transparent;
+  border-color: transparent;
+  color: @popover_fg_color;
 }
 
 *:link:not(:disabled), button:link > label:not(:disabled), button:visited > label:not(:disabled) {
