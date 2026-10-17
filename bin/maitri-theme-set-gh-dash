@@ -1,0 +1,157 @@
+#!/bin/bash
+
+# maitri:summary=Apply the current maitri theme to gh-dash
+# maitri:hidden=true
+
+src="$HOME/.local/state/maitri/current/theme/gh-dash.yml"
+config_file="${XDG_CONFIG_HOME:-$HOME/.config}/gh-dash/config.yml"
+
+# gh-dash usually runs as a gh extension, off PATH, and writes its config on
+# first run, so the config is what says it's installed.
+[[ -f $src && -f $config_file ]] || exit 0
+
+splice_py=$(cat <<'PY'
+import os, re, sys, tempfile, yaml
+
+src, path = sys.argv[1:]
+start = "# >>> maitri theme (rewritten by maitri theme set) >>>"
+end = "# <<< maitri theme <<<"
+groups = {
+    "text": ("primary", "secondary", "inverted", "faint", "warning", "success", "error", "actor"),
+    "background": ("selected",),
+    "border": ("primary", "secondary", "faint"),
+    "icon": ("newcontributor", "contributor", "collaborator", "member", "owner", "unknownrole"),
+}
+
+
+def leave(message):
+    print(message, file=sys.stderr)
+    sys.exit(0)
+
+
+# Only theme.colors is taken from the rendered file, and only known keys with a
+# colour, so a theme can't reach gh-dash's keybindings or anything else in its
+# config.
+try:
+    with open(src, encoding="utf-8") as f:
+        colors = yaml.safe_load(f)["theme"]["colors"]
+    assert isinstance(colors, dict) and colors
+    for group, values in colors.items():
+        assert group in groups and isinstance(values, dict) and values
+        for key, value in values.items():
+            assert key in groups[group] and isinstance(value, str) and re.fullmatch(r"#[0-9A-Fa-f]{6}", value)
+except Exception:
+    leave("Skipping gh-dash theme: gh-dash.yml has a line maitri doesn't apply.")
+
+real = os.path.realpath(path)
+with open(real, encoding="utf-8") as f:
+    original = f.read()
+
+try:
+    yaml.safe_load(original)
+except yaml.YAMLError:
+    leave(f"Leaving {path} as is: it isn't valid YAML.")
+
+lines = original.splitlines(keepends=True)
+s = next((i for i, line in enumerate(lines) if line.strip() == start), None)
+e = next((i for i, line in enumerate(lines) if s is not None and i > s and line.strip() == end), None)
+if e is not None:
+    del lines[s:e + 1]
+text = "".join(lines)
+
+before = yaml.safe_load(text)
+before = {} if before is None else before
+if not isinstance(before, dict):
+    leave(f"Leaving {path} as is: it isn't a gh-dash config.")
+if isinstance(before.get("theme"), dict) and "colors" in before["theme"]:
+    leave("gh-dash's config.yml sets its own theme.colors, so it stays as it is. Remove it to follow the maitri theme.")
+
+theme = next((i for i, line in enumerate(lines) if re.match(r"theme[ \t]*:", line)), None)
+if theme is not None and not re.fullmatch(r"theme[ \t]*:[ \t]*(#.*)?\n?", lines[theme]):
+    leave("gh-dash's config.yml writes theme on one line, so maitri leaves it as it is.")
+
+
+def indent(rows):
+    for line in rows:
+        if line.strip() and not line.lstrip().startswith("#"):
+            width = len(line) - len(line.lstrip(" "))
+            return width or None
+    return None
+
+
+# The block takes the indent theme's own keys use, else the file's, so it
+# reads like the rest of the config.
+unit = None
+if theme is not None:
+    stop = next((i for i in range(theme + 1, len(lines)) if lines[i].strip() and not lines[i].startswith((" ", "#"))), len(lines))
+    unit = indent(lines[theme + 1:stop])
+unit = unit or indent(line for line in lines if line.startswith(" ")) or 2
+
+block = [" " * unit + start, " " * unit + "colors:"]
+for group, values in colors.items():
+    block.append(" " * unit * 2 + f"{group}:")
+    block += [" " * unit * 3 + f'{key}: "{value}"' for key, value in values.items()]
+block.append(" " * unit + end)
+block = "".join(line + "\n" for line in block)
+
+if theme is None:
+    if lines and not lines[-1].endswith("\n"):
+        lines[-1] += "\n"
+    if lines and lines[-1].strip():
+        lines.append("\n")
+    lines += ["theme:\n", block]
+else:
+    if not lines[theme].endswith("\n"):
+        lines[theme] += "\n"
+    lines.insert(theme + 1, block)
+updated = "".join(lines)
+
+
+def rest(data):
+    data = dict(data)
+    theme = data.pop("theme", None)
+    theme = {k: v for k, v in theme.items() if k != "colors"} if isinstance(theme, dict) else theme
+    if theme:
+        data["theme"] = theme
+    return data
+
+
+# Whatever the splice did, gh-dash has to read the same config with only
+# theme.colors added, or the file stays as it was.
+try:
+    after = yaml.safe_load(updated)
+    assert after["theme"]["colors"] == colors and rest(after) == rest(before)
+except Exception:
+    leave(f"Leaving {path} as is: maitri couldn't add theme.colors to it.")
+
+if updated == original:
+    sys.exit(0)
+
+# Replaced through the symlink's target, so a config kept in a dotfiles repo
+# stays a symlink and keeps its permissions.
+fd, tmp = tempfile.mkstemp(dir=os.path.dirname(real), prefix=".config.yml.")
+try:
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(updated)
+    os.chmod(tmp, os.stat(real).st_mode & 0o7777)
+    os.replace(tmp, real)
+except BaseException:
+    os.unlink(tmp)
+    raise
+sys.exit(3)
+PY
+)
+
+exec 9>"${XDG_RUNTIME_DIR:-/tmp}/maitri-theme-set-gh-dash.lock"
+flock 9
+
+python3 -I -c "$splice_py" "$src" "$config_file"
+case $? in
+  0) ;;
+  3)
+    if pgrep -x gh-dash >/dev/null; then
+      echo "gh-dash reads its config at startup; restart it for the new colours." >&2
+    fi
+    ;;
+  *) exit 1 ;;
+esac
