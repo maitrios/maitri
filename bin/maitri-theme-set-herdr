@@ -1,0 +1,74 @@
+#!/bin/bash
+
+# maitri:summary=Apply the current maitri theme to herdr
+# maitri:hidden=true
+
+theme_file="$HOME/.local/state/maitri/current/theme/herdr.toml"
+config_file="$HOME/.config/herdr/config.toml"
+
+maitri-cmd-present herdr || exit 0
+[[ -f $theme_file && -f $config_file ]] || exit 0
+
+header_re='^[[:space:]]*[[]'
+theme_header_re='^[[:space:]]*[[][[:space:]]*theme[[:space:]]*([.][^]]*)?[]][[:space:]]*(#.*)?$'
+
+theme_tables=$(mktemp)
+spliced=$(mktemp)
+trap 'rm -f "$theme_tables" "$spliced"' EXIT
+
+# Only the theme tables are taken from the rendered file, so a theme that ships
+# its own herdr.toml can't reach keys, commands or anything else in the config.
+awk -v header_re="$header_re" -v theme_header_re="$theme_header_re" '
+  $0 ~ header_re { in_theme = ($0 ~ theme_header_re) }
+  in_theme { print }
+' "$theme_file" >"$theme_tables"
+
+[[ -s $theme_tables ]] || exit 0
+
+# herdr reads config.toml alone and has no include, so the theme tables replace
+# the ones already there, in place of the first. Comments and blank lines that
+# trail a theme table belong to the table after it and are kept.
+awk -v header_re="$header_re" -v theme_header_re="$theme_header_re" -v theme_tables="$theme_tables" '
+  function emit_theme(line) {
+    if (emitted) return
+    while ((getline line < theme_tables) > 0) print line
+    close(theme_tables)
+    emitted = 1
+  }
+
+  $0 ~ header_re {
+    if ($0 ~ theme_header_re) {
+      emit_theme()
+      in_theme = 1
+      pending = ""
+      next
+    }
+    if (in_theme) {
+      printf "%s", pending
+      in_theme = 0
+    }
+  }
+
+  in_theme {
+    if ($0 ~ /^[[:space:]]*(#.*)?$/) pending = pending $0 "\n"
+    else pending = ""
+    next
+  }
+
+  { print; last = $0 }
+
+  END {
+    if (!emitted) {
+      if (NR > 0 && last !~ /^[[:space:]]*$/) print ""
+      emit_theme()
+    }
+  }
+' "$config_file" >"$spliced"
+
+cmp -s "$spliced" "$config_file" && exit 0
+
+# Written through rather than moved over, so a config symlinked from a dotfiles
+# repo stays a symlink and keeps its permissions.
+cat "$spliced" >"$config_file"
+
+maitri-restart-herdr
