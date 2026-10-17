@@ -205,6 +205,8 @@ RENAMED = [
     ("toolbox-background-color", "lwt-accent-color"),
     ("toolbox-text-color", "lwt-text-color"),
     ("urlbarView-url-color", "urlbar-popup-url-color"),
+    ("toolbox-text-color", "toolbox-textcolor"),
+    ("zen-main-browser-background", "zen-main-browser-background-old"),
     ("urlbarView-highlight-background", "urlbarview-background-color-selected"),
     ("urlbarView-highlight-color", "urlbarview-text-color-selected"),
     ("urlbarView-hover-background", "urlbarview-background-color-hover"),
@@ -222,12 +224,19 @@ for theme in themes:
 
     chrome = Check(theme, "firefox userChrome")
     rules = parse(open(f"{out}/firefox-userChrome.css").read())
-    v = {k[2:]: val.lower() for k, val in block(rules, None, ":root").items() if k.startswith("--")}
-    chrome.expect(block(rules, None, ":root").get("color-scheme") == mode, "color-scheme does not follow the theme mode")
+    v = {k[2:]: val.lower() for k, val in block(rules, None, ":root, .smartbar").items() if k.startswith("--")}
+    chrome.expect(block(rules, None, ":root, .smartbar").get("color-scheme") == mode, "color-scheme does not follow the theme mode")
     for fg, bg in CHROME_TEXT:
         chrome.floor(f"--{fg} on --{bg}", v.get(fg), v.get(bg))
     for fg, bg in CHROME_LINE:
         chrome.floor(f"--{fg} on --{bg}", v.get(fg), v.get(bg), LINE)
+    menus = block(rules, None, ":is(menupopup, panel)")
+    chrome.floor("context menu text", menus.get("--panel-text-color"), menus.get("--panel-background-color"))
+    chrome.floor("context menu border", menus.get("--panel-border-color"), menus.get("--panel-background-color"), LINE)
+    space = block(rules, None, "zen-workspace")
+    chrome.floor("Zen space text", space.get("--toolbox-textcolor"), v.get("zen-main-browser-background"))
+    chrome.floor("Zen space accent", space.get("--zen-primary-color"), v.get("zen-main-browser-background"), LINE)
+    chrome.expect(space.get("color-scheme") == mode, "Zen spaces do not follow the theme mode")
     for new, old in RENAMED:
         chrome.expect(v.get(new) and v.get(new) == v.get(old), f"--{old} does not match --{new}")
     chrome.expect(v.get("toolbar-background-color") == p["background"], "the toolbar is not the theme background")
@@ -250,7 +259,7 @@ for theme in themes:
     content.floor("new tab focused search box", nt.get("newtab-textbox-focus-color"), nt.get("newtab-textbox-background-color"), LINE)
     content.floor("new tab primary action", nt.get("newtab-primary-action-background"), nt.get("newtab-background-color"), LINE)
 
-    reader_body = block(rules, "about:reader", "body:is(.light, .dark)")
+    reader_body = block(rules, "about:reader", f"body.{mode}")
     rd = {k[2:]: val.lower() for k, val in reader_body.items() if k.startswith("--")}
     bg = rd["main-background"]
     content.expect(bg == p["background"], "reader view background is not the theme background")
@@ -264,23 +273,23 @@ for theme in themes:
     content.floor("reader --icon-fill", rd.get("icon-fill"), bg, LINE)
     content.expect(rd.get("link-foreground") == p["link"], "reader links are not link")
     for level in range(1, 7):
-        selector = ("body:is(.light, .dark) :is(.header > h1, .moz-reader-content h1)" if level == 1
-                    else f"body:is(.light, .dark) .moz-reader-content h{level}")
+        selector = (f"body.{mode} :is(.header > h1, .moz-reader-content h1)" if level == 1
+                    else f"body.{mode} .moz-reader-content h{level}")
         decl = block(rules, "about:reader", selector)
         color = decl.get("color", "").lower()
         content.expect(color == heading[level - 1], f"reader H{level} is {color}, expected {heading[level - 1]}")
         content.expect(decl.get("font-weight") == "bold", f"reader H{level} is not bold")
         content.floor(f"reader H{level}", color, bg)
-    meta = block(rules, "about:reader", "body:is(.light, .dark) :is(.credits, .meta-data, .reader-estimated-time, .domain, figcaption, .wp-caption-text)")
+    meta = block(rules, "about:reader", f"body.{mode} :is(.credits, .meta-data, .reader-estimated-time, .domain, figcaption, .wp-caption-text)")
     content.expect(meta["color"].lower() == p["comment"], "reader metadata is not comment")
     content.floor("reader metadata", meta["color"], bg)
-    code = block(rules, "about:reader", "body:is(.light, .dark) .moz-reader-content code")["color"]
+    code = block(rules, "about:reader", f"body.{mode} .moz-reader-content code")["color"]
     content.floor("reader inline code", code, bg)
-    pre = block(rules, "about:reader", "body:is(.light, .dark) .moz-reader-content pre")
-    pre_code = block(rules, "about:reader", "body:is(.light, .dark) .moz-reader-content pre code")["color"]
+    pre = block(rules, "about:reader", f"body.{mode} .moz-reader-content pre")
+    pre_code = block(rules, "about:reader", f"body.{mode} .moz-reader-content pre code")["color"]
     content.floor("reader code block", pre_code, pre["background-color"])
     content.floor("reader code block border", pre["border"].split()[-1], bg, LINE)
-    quote = block(rules, "about:reader", "body:is(.light, .dark) .moz-reader-content blockquote")
+    quote = block(rules, "about:reader", f"body.{mode} .moz-reader-content blockquote")
     content.floor("reader quote", quote["color"], bg)
     content.floor("reader quote border", quote["border-inline-start-color"], bg, LINE)
 
@@ -333,7 +342,7 @@ PY
 # Commands the hooks run, without whatever browsers this machine has installed.
 tools="$test_tmp/tools"
 mkdir -p "$tools"
-for tool in awk bash cat cp dirname env flock grep jq mkdir mktemp mv python3 readlink rm sed setsid sleep sort tail; do
+for tool in awk bash cat cp dirname env flock grep jq mkdir mktemp mv python3 readlink rm sed setsid sleep sort tail uname; do
   ln -s "$(command -v "$tool")" "$tools/$tool"
 done
 
@@ -399,14 +408,21 @@ Default=abc.default
 INI
 printf 'user_pref("browser.startup.page", 3);\nuser_pref("toolkit.legacyUserProfileCustomizations.stylesheets", false);\n' >"$fx_root/abc.default/user.js"
 printf '#nav-bar { min-height: 40px; }\n' >"$fx_root/abc.default/chrome/userChrome.css"
+printf '#main { color: blue; }\n' >"$test_tmp/dotfiles-userContent.css"
+ln -s "$test_tmp/dotfiles-userContent.css" "$fx_root/abc.default/chrome/userContent.css"
 printf 'user_pref("extensions.activeThemeID", "firefox-alpenglow@mozilla.org");\n' >"$fx_root/themed/prefs.js"
 printf '@import url("maitri-userChrome.css");\n#tabbrowser-tabs { color: red; }\n' >"$fx_root/themed/chrome/userChrome.css"
 printf 'stale\n' >"$fx_root/themed/chrome/maitri-userChrome.css"
+printf '// user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);\n' >"$elsewhere/user.js"
 ln -s "127.0.0.1:+4242" "$elsewhere/lock"
 
 zen_profile="$fx_home/.zen/xyz.Default (release)"
-mkdir -p "$zen_profile"
-printf '[Profile0]\nName=Default (release)\nIsRelative=1\nPath=xyz.Default (release)\n' >"$fx_home/.zen/profiles.ini"
+zen_accent="$fx_home/.zen/accent"
+mkdir -p "$zen_profile/chrome" "$zen_accent"
+: >"$zen_profile/chrome/userChrome.css"
+printf 'user_pref("zen.theme.accent-color", "AccentColor");\n' >"$zen_profile/prefs.js"
+printf 'user_pref("zen.theme.accent-color", "#ffb787");\n' >"$zen_accent/prefs.js"
+printf '[Profile0]\nName=Default (release)\nIsRelative=1\nPath=xyz.Default (release)\n\n[Profile1]\nName=accent\nIsRelative=1\nPath=accent\n' >"$fx_home/.zen/profiles.ini"
 
 run_hook "$fx_home" "$fx_stubs" maitri-theme-set-firefox 2>"$test_tmp/fx-stderr"
 
@@ -414,12 +430,13 @@ current="$fx_home/.local/state/maitri/current/theme"
 for profile in "$fx_root/abc.default" "$elsewhere" "$zen_profile"; do
   for part in userChrome userContent; do
     cmp -s "$current/firefox-$part.css" "$profile/chrome/maitri-$part.css" ||
-      fail "the rendered $part.css lands in $(basename "$profile")"
+      fail "the rendered $part.css lands in $(basename "$profile")" "$(cat "$test_tmp/fx-stderr")"
+    [[ $profile/chrome/$part.css == "$fx_root/abc.default/chrome/userContent.css" ]] && continue
     head -n 1 "$profile/chrome/$part.css" | grep -qxF "@import url(\"maitri-$part.css\");" ||
       fail "$part.css in $(basename "$profile") imports maitri's stylesheet first"
   done
   grep -qxF 'user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);' "$profile/user.js" ||
-    fail "user.js in $(basename "$profile") turns on userChrome.css"
+    fail "user.js in $(basename "$profile") turns on userChrome.css" "$(cat "$profile/user.js")"
 done
 pass "every Firefox and Zen profile on a built-in theme gets maitri's stylesheets"
 
@@ -431,11 +448,18 @@ grep -qxF 'user_pref("browser.startup.page", 3);' "$fx_root/abc.default/user.js"
   fail "user.js sets the stylesheet pref once"
 pass "an existing userChrome.css and user.js are added to, not replaced"
 
+[[ -L $fx_root/abc.default/chrome/userContent.css ]] || fail "a symlinked userContent.css stays a symlink"
+[[ $(cat "$test_tmp/dotfiles-userContent.css") == '#main { color: blue; }' ]] || fail "maitri does not write through a symlinked userContent.css"
+grep -qF "chrome/userContent.css is a symlink, so maitri left it alone" "$test_tmp/fx-stderr" ||
+  fail "a symlinked userContent.css is reported" "$(cat "$test_tmp/fx-stderr")"
+pass "a symlinked stylesheet from the user's dotfiles is left alone and reported"
+
 [[ ! -e $fx_root/themed/chrome/maitri-userChrome.css ]] || fail "a profile with its own Firefox theme loses maitri's stylesheet"
 ! grep -qF 'maitri-userChrome.css' "$fx_root/themed/chrome/userChrome.css" || fail "a profile with its own Firefox theme loses the import"
 grep -qxF '#tabbrowser-tabs { color: red; }' "$fx_root/themed/chrome/userChrome.css" || fail "a profile with its own Firefox theme keeps its rules"
 [[ ! -e $fx_root/themed/user.js ]] || fail "a profile with its own Firefox theme gets no user.js"
-pass "a profile with its own Firefox theme keeps it"
+[[ ! -e $zen_accent/chrome && ! -e $zen_accent/user.js ]] || fail "a Zen profile with its own accent is left alone"
+pass "a profile with its own Firefox theme or Zen accent keeps it"
 
 grep -qx 'Firefox is open, so restart it to pick up the new theme.' "$test_tmp/fx-stderr" ||
   fail "an open Firefox is told to restart" "$(cat "$test_tmp/fx-stderr")"
@@ -457,6 +481,12 @@ run_hook "$fresh_home" "$bare_stubs" maitri-theme-set-firefox
 [[ ! -e $fresh_home/.mozilla/firefox/p.default/chrome ]] || fail "Firefox profiles are left alone when Firefox is not installed"
 pass "nothing is written for a browser that is not installed"
 
+sed -i '0,/#[0-9A-Fa-f]\{6\} !important/s//url(https:\/\/example.org\/x) !important/' "$fresh_home/.local/state/maitri/current/theme/firefox-userChrome.css"
+run_hook "$fresh_home" "$fx_stubs" maitri-theme-set-firefox 2>"$test_tmp/fx-stderr"
+[[ ! -e $fresh_home/.mozilla/firefox/p.default/chrome ]] || fail "a stylesheet with a value that isn't a colour is not installed"
+grep -qF "isn't a #rrggbb colour" "$test_tmp/fx-stderr" || fail "a stylesheet that isn't colour only is reported"
+pass "only stylesheets made of plain colours reach a profile"
+
 # Chromium-family browsers.
 cr_home="$test_tmp/chromium-home"
 cr_stubs="$test_tmp/chromium-stubs"
@@ -464,13 +494,19 @@ stub_browsers "$cr_stubs" chromium helium
 mkdir -p "$cr_home/run"
 activate_theme amethyst "$cr_home"
 
+true &
+dead_pid=$!
+wait "$dead_pid"
+host=$(uname -n)
+
 cr_root="$cr_home/.config/chromium"
 mkdir -p "$cr_root/Default" "$cr_root/Profile 1" "$cr_root/Profile 2" "$cr_root/Profile 3"
 printf '{}\n' >"$cr_root/Local State"
-printf '{"foo":{"bar":1},"browser":{"theme":{"color_scheme2":0}}}\n' >"$cr_root/Default/Preferences"
+printf '{"foo":{"bar":1},"browser":{"theme":{"color_scheme2":1}}}\n' >"$cr_root/Default/Preferences"
 printf '{"extensions":{"theme":{"id":"user_color_theme_id"}},"browser":{"theme":{"user_color2":-16776961}}}\n' >"$cr_root/Profile 1/Preferences"
 printf '{"extensions":{"theme":{"id":"autogenerated_theme_id"}},"autogenerated":{"theme":{"color":-15584170}}}\n' >"$cr_root/Profile 2/Preferences"
 printf '{"browser":{"theme":{"is_grayscale2":true}}}\n' >"$cr_root/Profile 3/Preferences"
+ln -s "$host-$dead_pid" "$cr_root/SingletonLock"
 
 chrome_root="$cr_home/.config/google-chrome"
 mkdir -p "$chrome_root/Default"
@@ -486,13 +522,13 @@ cp "$cr_root/Profile 2/Preferences" "$test_tmp/p2"
 cp "$cr_root/Profile 3/Preferences" "$test_tmp/p3"
 
 run_hook "$cr_home" "$cr_stubs" maitri-theme-set-chromium 2>"$test_tmp/cr-stderr"
-[[ ! -s $test_tmp/cr-stderr ]] || fail "a closed Chromium needs no restart notice" "$(cat "$test_tmp/cr-stderr")"
+[[ ! -s $test_tmp/cr-stderr ]] || fail "a Chromium left with a stale lock by a crash counts as closed" "$(cat "$test_tmp/cr-stderr")"
 
 amethyst_bg=$(jq -r .BrowserThemeColor "$cr_home/.local/state/maitri/current/theme/chromium-policy.json")
 prefs="$cr_root/Default/Preferences"
 [[ $(jq -r '.extensions.theme.id' "$prefs") == "autogenerated_theme_id" ]] || fail "a default profile switches to a color theme" "$(cat "$prefs")"
 [[ $(jq -r '.autogenerated.theme.color' "$prefs") == "$(skcolor "$amethyst_bg")" ]] || fail "a default profile takes the theme background" "$(cat "$prefs")"
-[[ $(jq -r '.browser.theme.color_scheme2' "$prefs") == "2" ]] || fail "a dark theme puts the profile in dark mode"
+[[ $(jq -r '.browser.theme.color_scheme2' "$prefs") == "1" ]] || fail "the profile keeps its own light or dark setting"
 [[ $(jq -r '.foo.bar' "$prefs") == "1" ]] || fail "the profile keeps its other preferences"
 pass "a Chromium profile on the default theme takes the theme color"
 
@@ -506,21 +542,30 @@ activate_theme daybreak "$cr_home"
 run_hook "$cr_home" "$cr_stubs" maitri-theme-set-chromium
 daybreak_bg=$(jq -r .BrowserThemeColor "$cr_home/.local/state/maitri/current/theme/chromium-policy.json")
 [[ $(jq -r '.autogenerated.theme.color' "$prefs") == "$(skcolor "$daybreak_bg")" ]] || fail "a color maitri wrote follows the next theme"
-[[ $(jq -r '.browser.theme.color_scheme2' "$prefs") == "1" ]] || fail "a light theme puts the profile in light mode"
 pass "a profile maitri colored follows the next theme change"
 
+sleep 60 &
+helium_pid=$!
+trap 'kill "$helium_pid" 2>/dev/null; rm -rf "$test_tmp"' EXIT
 helium_root="$cr_home/.config/net.imput.helium"
 mkdir -p "$helium_root/Default"
 printf '{}\n' >"$helium_root/Local State"
 printf '{}\n' >"$helium_root/Default/Preferences"
-ln -s "andrew-box-4242" "$helium_root/SingletonLock"
+ln -s "$host-$helium_pid" "$helium_root/SingletonLock"
 
 run_hook "$cr_home" "$cr_stubs" maitri-theme-set-chromium 2>"$test_tmp/cr-stderr"
 grep -qx "Helium is open, so it picks up the new theme once it's closed and started again." "$test_tmp/cr-stderr" ||
   fail "an open Helium says when it picks up the theme" "$(cat "$test_tmp/cr-stderr")"
 [[ $(jq -r '.extensions.theme.id // ""' "$helium_root/Default/Preferences") == "" ]] || fail "an open Helium's preferences are not written under it"
 
+# Chromium drops its lock before its last write of Preferences, so only the
+# process going away counts as closed.
 rm "$helium_root/SingletonLock"
+sleep 3
+[[ $(jq -r '.extensions.theme.id // ""' "$helium_root/Default/Preferences") == "" ]] || fail "Helium is not colored while its process is still shutting down"
+
+kill "$helium_pid"
+wait "$helium_pid" 2>/dev/null || true
 for _ in $(seq 1 40); do
   [[ $(jq -r '.extensions.theme.id // ""' "$helium_root/Default/Preferences") == "autogenerated_theme_id" ]] && break
   sleep 0.25
@@ -528,8 +573,15 @@ done
 [[ $(jq -r '.autogenerated.theme.color' "$helium_root/Default/Preferences") == "$(skcolor "$daybreak_bg")" ]] ||
   fail "Helium is colored once it closes" "$(cat "$helium_root/Default/Preferences")"
 for _ in $(seq 1 20); do
-  flock -n "$cr_home/run/maitri-theme-set-chromium.lock" true && break
+  flock -n "$cr_home/.local/state/maitri/chromium-theme-waiter.lock" true && break
   sleep 0.25
 done
-flock -n "$cr_home/run/maitri-theme-set-chromium.lock" true || fail "the waiter exits once every browser is colored"
-pass "an open browser is colored after it closes, without being restarted"
+flock -n "$cr_home/.local/state/maitri/chromium-theme-waiter.lock" true || fail "the waiter exits once every browser is colored"
+pass "an open browser is colored after its process exits, without being restarted"
+
+sleep 60 &
+helium_pid=$!
+ln -sf "$host-$helium_pid" "$helium_root/SingletonLock"
+run_hook "$cr_home" "$cr_stubs" maitri-theme-set-chromium 2>"$test_tmp/cr-stderr"
+[[ ! -s $test_tmp/cr-stderr ]] || fail "an open browser with nothing to change gets no notice" "$(cat "$test_tmp/cr-stderr")"
+pass "an open browser already on the theme color is not told to restart"
