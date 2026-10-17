@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# maitri:summary=Apply the current theme to GNOME color mode and icon settings
+# maitri:summary=Apply the current theme to GNOME color mode, accent and icon settings
 # maitri:hidden=true
 
 # gsettings needs a user DBus session. During ISO installs this command can be
@@ -23,6 +23,54 @@ if [[ $mode == "light" ]]; then
 else
   gsettings set org.gnome.desktop.interface color-scheme "prefer-dark"
   gsettings set org.gnome.desktop.interface gtk-theme "Adwaita-dark"
+fi
+
+# GNOME only offers nine accent presets, so the theme's accent picks the one
+# nearest in hue, or slate when it is close to grey.
+accent_preset() {
+  awk -v hex="${1#\#}" '
+    function hex_value(char) {
+      return index("0123456789abcdef", tolower(char)) - 1
+    }
+
+    function channel(idx) {
+      return (hex_value(substr(hex, idx, 1)) * 16 + hex_value(substr(hex, idx + 1, 1))) / 255
+    }
+
+    BEGIN {
+      if (hex !~ /^[0-9A-Fa-f]{6}$/) exit 1
+      r = channel(1); g = channel(3); b = channel(5)
+      max = r > g ? (r > b ? r : b) : (g > b ? g : b)
+      min = r < g ? (r < b ? r : b) : (g < b ? g : b)
+      delta = max - min
+      light = (max + min) / 2
+      spread = 2 * light - 1
+      if (spread < 0) spread = -spread
+      sat = delta == 0 ? 0 : delta / (1 - spread)
+      if (sat < 0.25) { print "slate"; exit }
+
+      if (max == r) hue = 60 * (((g - b) / delta) % 6)
+      else if (max == g) hue = 60 * ((b - r) / delta + 2)
+      else hue = 60 * ((r - g) / delta + 4)
+      if (hue < 0) hue += 360
+
+      split("blue 213 teal 189 green 131 yellow 41 orange 23 red 353 pink 331 purple 285", presets, " ")
+      best = 360
+      for (i = 1; i <= 16; i += 2) {
+        distance = hue - presets[i + 1]
+        if (distance < 0) distance = -distance
+        if (distance > 180) distance = 360 - distance
+        if (distance < best) { best = distance; name = presets[i] }
+      }
+      print name
+    }
+  '
+}
+
+# accent-color only exists in GNOME 47's schemas and later.
+if accent=$(accent_preset "$(maitri-theme-color --file "$COLORS_FILE" accent)") &&
+  gsettings range org.gnome.desktop.interface accent-color >/dev/null 2>&1; then
+  gsettings set org.gnome.desktop.interface accent-color "$accent"
 fi
 
 # Change gnome icon theme color

@@ -6,6 +6,11 @@
 mkdir -p ~/.local/share/applications
 cp "$MAITRI_PATH"/applications/*.desktop ~/.local/share/applications/
 
+herdr_entry=~/.local/share/applications/herdr.desktop
+if [[ ! -e $herdr_entry && ! -L $herdr_entry ]]; then
+  cp "$MAITRI_PATH/default/applications/herdr.desktop" "$herdr_entry"
+fi
+
 if maitri-cmd-present alacritty; then
   cp "$MAITRI_PATH/default/alacritty/Alacritty.desktop" ~/.local/share/applications/
 fi

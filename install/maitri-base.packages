@@ -50,6 +50,7 @@ fish-pure-prompt
 fontconfig
 foot
 fzf
+ghostty
 git
 gnome-calculator
 gnome-disk-utility
