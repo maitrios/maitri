@@ -7,6 +7,7 @@ source "$(dirname "$0")/base-test.sh"
 require_command jq
 require_command python3
 require_command curl
+require_command vips
 
 test_tmp=$(mktemp -d)
 server_pid=""
@@ -81,6 +82,24 @@ image() {
   head -c "$2" /dev/urandom >>"$3"
 }
 
+picture() {
+  local extension=$1 out=$2 width=${3:-64} height=${4:-40}
+  vips gaussnoise "$test_tmp/picture.$extension" "$width" "$height" 2>/dev/null
+  mv "$test_tmp/picture.$extension" "$out"
+}
+
+with_exif() {
+  python3 -I -c 'import struct, sys
+data = open(sys.argv[1], "rb").read()
+tiff = b"II*\x00" + struct.pack("<IH", 8, 1) + struct.pack("<HHII", 0x013B, 2, 5, 26) + struct.pack("<I", 0) + b"test\x00"
+app1 = b"Exif\x00\x00" + tiff
+open(sys.argv[2], "wb").write(data[:2] + b"\xff\xe1" + struct.pack(">H", len(app1) + 2) + app1 + data[2:])' "$1" "$2"
+}
+
+dimensions() {
+  echo "$(vipsheader -f width "$1" 2>/dev/null)x$(vipsheader -f height "$1" 2>/dev/null)"
+}
+
 run_updater() {
   HOME="$test_home" MAITRI_WALLPAPERS_URL="${URL:-$base_url}" \
     "$ROOT/bin/maitri-update-wallpapers" >"$test_tmp/out" 2>"$test_tmp/err"
@@ -120,7 +139,7 @@ run_updater || fail "a re-run after deleting a wallpaper succeeds"
 [[ ! -e $backgrounds/amethyst/$dusk.jpg ]] || fail "a deleted wallpaper stays deleted"
 pass "a wallpaper the user deleted is not fetched again"
 
-image jpg 4092 "$test_tmp/good.jpg"
+picture jpg "$test_tmp/good.jpg"
 head -c 4096 /dev/urandom >"$test_tmp/tampered.jpg"
 head -c 4096 /dev/urandom >"$test_tmp/claimed.jpg"
 good=$(sha256_of "$test_tmp/good.jpg")
@@ -176,9 +195,9 @@ pass "a missing or unreadable manifest exits 0 and changes nothing"
 
 staging="$test_tmp/staging"
 mkdir -p "$staging/amethyst" "$staging/garnet"
-image jpg 2996 "$staging/amethyst/New Dawn.JPEG"
+picture jpg "$staging/amethyst/New Dawn.JPEG" 1920 1200
 cp "$test_tmp/good.jpg" "$staging/amethyst/good.jpg"
-image webp 988 "$staging/garnet/glow.webp"
+picture webp "$staging/garnet/glow.webp"
 new_dawn=$(sha256_of "$staging/amethyst/New Dawn.JPEG")
 glow=$(sha256_of "$staging/garnet/glow.webp")
 
@@ -186,20 +205,29 @@ MAITRI_WALLPAPERS_URL="$base_url" "$ROOT/tools/wallpapers-upload.sh" --dry-run -
   >"$test_tmp/manifest.json" 2>"$test_tmp/plan" ||
   fail "a dry run of the upload succeeds" "$(cat "$test_tmp/plan")"
 grep -qx "would upload themes/amethyst/$new_dawn.jpg" "$test_tmp/plan" &&
+  grep -qx "would upload themes/amethyst/$new_dawn.preview.webp" "$test_tmp/plan" &&
   grep -qx "would upload themes/garnet/$glow.webp" "$test_tmp/plan" &&
+  grep -qx "would upload themes/garnet/$glow.preview.webp" "$test_tmp/plan" &&
   grep -q "^already published themes/amethyst/$good.jpg" "$test_tmp/plan" &&
+  grep -qx "would upload themes/amethyst/$good.preview.webp" "$test_tmp/plan" &&
   grep -qx "would upload releases/v1.2.0/manifest.json" "$test_tmp/plan" &&
   grep -qx "would upload channels/stable/manifest.json" "$test_tmp/plan" ||
   fail "a dry run says what it would upload and skips what is already there" "$(cat "$test_tmp/plan")"
-pass "a dry run of the upload plans only the new files and both manifests"
+pass "a dry run of the upload plans only the new files, their previews and both manifests"
 
 [[ $(jq -r '.release' "$test_tmp/manifest.json") == "v1.2.0" ]] ||
   fail "the new manifest carries the release tag"
 [[ $(jq -r '.files[].file' "$test_tmp/manifest.json" | sort -u | wc -l) == $(jq '.files | length' "$test_tmp/manifest.json") ]] ||
   fail "the new manifest lists each file once"
-jq -e --arg file "themes/garnet/$glow.webp" --arg sha256 "$glow" \
-  '.files | any(.file == $file and .sha256 == $sha256 and .size == 1000 and .theme == "garnet")' \
+jq -e --arg file "themes/garnet/$glow.webp" --arg sha256 "$glow" --argjson size "$(stat -c %s "$staging/garnet/glow.webp")" \
+  '.files | any(.file == $file and .sha256 == $sha256 and .size == $size and .theme == "garnet")' \
   "$test_tmp/manifest.json" >/dev/null || fail "the new manifest lists the staged files" "$(cat "$test_tmp/manifest.json")"
+jq -e --arg glow "$glow" --arg new_dawn "$new_dawn" --arg good "$good" '.files | any(.preview == "themes/garnet/\($glow).preview.webp")
+  and any(.preview == "themes/amethyst/\($new_dawn).preview.webp") and any(.preview == "themes/amethyst/\($good).preview.webp")' \
+  "$test_tmp/manifest.json" >/dev/null ||
+  fail "each staged file's entry names its preview" "$(cat "$test_tmp/manifest.json")"
+jq -e --arg file "themes/ember/$ember.png" '.files | any(.file == $file and (has("preview") | not))' "$test_tmp/manifest.json" >/dev/null ||
+  fail "a published entry without a preview is carried forward as it was" "$(cat "$test_tmp/manifest.json")"
 jq -e --arg file "themes/ember/$ember.png" '.files | any(.file == $file)' "$test_tmp/manifest.json" >/dev/null ||
   fail "the new manifest carries the published wallpapers forward"
 pass "the upload builds a manifest from the published one plus the staged files"
@@ -301,6 +329,11 @@ tar -cf "$test_tmp/not-an-image.tar" -C "$bad" .
 refuse_tar not-an-image "not a jpg image"
 rm "$bad/amethyst/fake.jpg"
 
+image jpg 4096 "$bad/amethyst/broken.jpg"
+tar -cf "$test_tmp/undecodable.tar" -C "$bad" .
+refuse_tar undecodable "could not be decoded to make its preview"
+rm "$bad/amethyst/broken.jpg"
+
 image png 16 "$bad/amethyst/huge.png"
 truncate -s 65M "$bad/amethyst/huge.png"
 tar -cf "$test_tmp/too-big.tar" -S -C "$bad" .
@@ -320,7 +353,7 @@ with tarfile.open(sys.argv[1], "w") as t:
     t.addfile(info, io.BytesIO(data))' "$test_tmp/escape.tar"
 refuse_tar escape "could not be unpacked"
 [[ ! -e $test_tmp/escaped.jpg && ! -e ${TMPDIR:-/tmp}/escaped.jpg ]] || fail "a member with .. is never written outside the staging directory"
-pass "the uploader refuses symlinks, non-images, files over 64 MiB, loose files and .. in wallpapers.tar"
+pass "the uploader refuses symlinks, non-images, undecodable images, files over 64 MiB, loose files and .. in wallpapers.tar"
 
 fake_bin="$test_tmp/bin"
 mkdir -p "$fake_bin"
@@ -365,23 +398,45 @@ publish_release() {
 : >"$served.log"
 staging2="$test_tmp/staging2"
 mkdir -p "$staging2/harbor"
-image png 2040 "$staging2/harbor/tide.png"
+picture png "$staging2/harbor/tide.png" 2400 1500
 tide=$(sha256_of "$staging2/harbor/tide.png")
 cp "$test_tmp/good.jpg" "$staging2/harbor/good.jpg"
+picture jpg "$test_tmp/plain.jpg" 1920 1200
+with_exif "$test_tmp/plain.jpg" "$staging2/harbor/camera.jpg"
+camera=$(sha256_of "$staging2/harbor/camera.jpg")
 tar -cf "$test_tmp/wallpapers.tar" -C "$staging2" .
 publish_release --tar "$test_tmp/wallpapers.tar" v1.3.0 || fail "a release with wallpapers.tar publishes" "$(cat "$test_tmp/plan")"
 grep -qx "themes/harbor/$tide.png|image/png|public, max-age=31536000, immutable" "$served.log" ||
   fail "a new wallpaper is uploaded under its hash with its type and a year's cache" "$(cat "$served.log")"
+grep -qx "themes/harbor/$tide.preview.webp|image/webp|public, max-age=31536000, immutable" "$served.log" ||
+  fail "its preview is uploaded next to it as WebP with a year's cache" "$(cat "$served.log")"
 grep -qx "releases/v1.3.0/manifest.json|application/json|public, max-age=60" "$served.log" &&
   grep -qx "channels/stable/manifest.json|application/json|public, max-age=60" "$served.log" ||
   fail "the release and stable manifests are written with a short cache" "$(cat "$served.log")"
-[[ $(grep -c '^themes/' "$served.log") == 2 ]] || fail "only files not yet in the bucket are uploaded" "$(cat "$served.log")"
+[[ $(grep '^themes/' "$served.log" | grep -vc '\.preview\.webp|') == 3 && $(grep -c '^themes/.*\.preview\.webp|' "$served.log") == 3 ]] ||
+  fail "only files and previews not yet in the bucket are uploaded" "$(cat "$served.log")"
 [[ $(jq -r '.release' "$served/channels/stable/manifest.json") == "v1.3.0" ]] || fail "stable moves to the release"
 run_updater || fail "a published release installs" "$(cat "$test_tmp/out" "$test_tmp/err")"
 cmp -s "$staging2/harbor/tide.png" "$backgrounds/harbor/$tide.png" || fail "the published wallpaper installs"
 pass "a release with wallpapers.tar uploads content-addressed files, both manifests, and installs"
 
-image webp 500 "$staging2/harbor/rc.webp"
+previews="$served/themes/harbor"
+[[ $(dimensions "$previews/$tide.preview.webp") == "960x600" && $(dimensions "$previews/$camera.preview.webp") == "960x600" ]] ||
+  fail "a large wallpaper's preview is 960 pixels wide" "$(dimensions "$previews/$tide.preview.webp") $(dimensions "$previews/$camera.preview.webp")"
+[[ $(dimensions "$previews/$good.preview.webp") == "64x40" ]] ||
+  fail "a wallpaper narrower than 960 pixels is never scaled up" "$(dimensions "$previews/$good.preview.webp")"
+[[ $(od -An -tx1 -N12 "$previews/$tide.preview.webp" | tr -d ' \n') == 52494646????????57454250 ]] ||
+  fail "a preview is a WebP"
+vipsheader -a "$staging2/harbor/camera.jpg" 2>/dev/null | grep -q '^exif-data' || fail "the test wallpaper carries EXIF"
+! vipsheader -a "$previews/$camera.preview.webp" 2>/dev/null | grep -qE '^(exif|icc|xmp)' &&
+  ! LC_ALL=C grep -aqE 'EXIF|ICCP|XMP ' "$previews/$camera.preview.webp" ||
+  fail "a preview carries no metadata"
+jq -e --arg tide "$tide" '.files | any(.file == "themes/harbor/\($tide).png" and .preview == "themes/harbor/\($tide).preview.webp")' \
+  "$served/channels/stable/manifest.json" >/dev/null || fail "the published manifest names each preview"
+[[ ! -e $backgrounds/harbor/$tide.preview.webp ]] || fail "the updater never installs a preview"
+pass "previews are 960-pixel WebPs with no metadata, never scaled up, and the updater ignores them"
+
+picture webp "$staging2/harbor/rc.webp"
 tar -cf "$test_tmp/wallpapers.tar" -C "$staging2" .
 publish_release --tar "$test_tmp/wallpapers.tar" v1.4.0-rc.1 || fail "a prerelease publishes" "$(cat "$test_tmp/plan")"
 [[ -f $served/releases/v1.4.0-rc.1/manifest.json ]] || fail "a prerelease writes its own manifest"
@@ -396,7 +451,7 @@ mkdir -p "$empty"
 publish_release --from "$empty" v1.5.0 || fail "a release without wallpapers publishes" "$(cat "$test_tmp/plan")"
 [[ $(jq -cS '.files' "$served/releases/v1.5.0/manifest.json") == "$(jq -cS '.files' "$served/releases/v1.3.0/manifest.json")" ]] ||
   fail "a release without wallpapers carries the stable ones forward"
-image jpg 700 "$staging2/harbor/late.jpg"
+picture jpg "$staging2/harbor/late.jpg"
 late=$(sha256_of "$staging2/harbor/late.jpg")
 tar -cf "$test_tmp/wallpapers.tar" -C "$staging2" .
 publish_release --tar "$test_tmp/wallpapers.tar" v1.5.0 || fail "wallpapers attached after the release publish" "$(cat "$test_tmp/plan")"
@@ -409,6 +464,47 @@ publish_release --tar "$test_tmp/wallpapers.tar" v1.5.0 || fail "an identical re
 grep -qx "already published releases/v1.5.0/manifest.json" "$test_tmp/plan" ||
   fail "an identical rerun leaves the release manifest as it is" "$(cat "$test_tmp/plan")"
 pass "an identical rerun publishes nothing new"
+
+for manifest in releases/v1.5.0 channels/stable; do
+  jq '.files |= map(del(.preview))' "$served/$manifest/manifest.json" >"$test_tmp/old.json"
+  cp "$test_tmp/old.json" "$served/$manifest/manifest.json"
+done
+cp "$previews/$camera.preview.webp" "$test_tmp/camera.preview.webp"
+find "$served/themes" -name '*.preview.webp' -delete
+: >"$served.log"
+publish_release --tar "$test_tmp/wallpapers.tar" v1.5.0 || fail "a rerun over manifests without previews succeeds" "$(cat "$test_tmp/plan")"
+! grep '^themes/' "$served.log" | grep -vq '\.preview\.webp|' || fail "backfilling previews uploads no original again" "$(cat "$served.log")"
+grep -qx "themes/harbor/$camera.preview.webp|image/webp|public, max-age=31536000, immutable" "$served.log" ||
+  fail "backfilling uploads the missing previews" "$(cat "$served.log")"
+for manifest in releases/v1.5.0 channels/stable; do
+  jq -e --arg late "$late" '(.files | map(select(.theme == "harbor")) | length > 0 and all(.preview == "themes/harbor/\(.sha256).preview.webp"))
+    and (.files | map(select(.theme == "garnet")) | all(has("preview") | not))
+    and (.files | any(.file == "themes/harbor/\($late).jpg"))' "$served/$manifest/manifest.json" >/dev/null ||
+    fail "$manifest gains previews for the files in the tar and keeps every entry" "$(cat "$served/$manifest/manifest.json")"
+done
+cmp -s "$test_tmp/camera.preview.webp" "$previews/$camera.preview.webp" ||
+  fail "a preview made again from the same original is byte for byte the same"
+publish_release --tar "$test_tmp/wallpapers.tar" v1.5.0 || fail "a rerun after backfilling succeeds" "$(cat "$test_tmp/plan")"
+grep -qx "already published releases/v1.5.0/manifest.json" "$test_tmp/plan" &&
+  grep -qx "already published themes/harbor/$camera.preview.webp" "$test_tmp/plan" ||
+  fail "a rerun after backfilling publishes nothing new" "$(cat "$test_tmp/plan")"
+pass "rerunning a release backfills previews into manifests published without them, the same bytes every time"
+
+cp "$served/channels/stable/manifest.json" "$test_tmp/stable-before.json"
+for preview in "themes/harbor/$tide.preview.png" "themes/garnet/$camera.preview.webp" "themes/harbor/$late.preview.webp" 42; do
+  jq --arg camera "$camera" --argjson preview "$(jq -n --arg p "$preview" '$p | tonumber? // $p')" \
+    '.files |= map(if .sha256 == $camera then .preview = $preview else . end)' \
+    "$test_tmp/stable-before.json" >"$served/channels/stable/manifest.json"
+  : >"$served.log"
+  if publish_release --from "$empty" v1.5.1; then
+    fail "a stable manifest whose preview is not its own entry's is refused ($preview)"
+  fi
+  grep -q "channels/stable/manifest.json is not a valid manifest" "$test_tmp/plan" ||
+    fail "the uploader says why it refuses a bad preview" "$(cat "$test_tmp/plan")"
+  [[ ! -s $served.log ]] || fail "a bad preview uploads nothing" "$(cat "$served.log")"
+done
+cp "$test_tmp/stable-before.json" "$served/channels/stable/manifest.json"
+pass "a preview must be themes/<theme>/<sha256>.preview.webp for its own entry"
 
 jq --arg sha256 "$oversized" '.files += [{theme: "amethyst", file: ("themes/amethyst/" + $sha256 + ".jpg"), sha256: $sha256, size: 5120}]' \
   "$served/releases/v1.5.0/manifest.json" >"$test_tmp/grown.json"

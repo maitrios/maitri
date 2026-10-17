@@ -46,6 +46,11 @@ jobs:
           [[ $GITHUB_REF == "refs/heads/main" ]] || { echo "Start the run on main (--ref main), not $GITHUB_REF" >&2; exit 1; }
           tools/wallpapers-check-tag.sh "$TAG"
 
+      - name: Install vips for the previews
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libvips-tools
+
       - name: Fetch the release's wallpapers
         id: release
         env:

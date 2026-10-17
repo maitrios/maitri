@@ -1,17 +1,18 @@
 #!/bin/bash
 
 # Publish the wallpapers staged under wallpapers/<theme>/ to the maitri-assets
-# bucket under their content hashes, write the release's manifest and point the
-# stable channel at it. .github/workflows/wallpapers.yml runs this on a release;
-# see docs/wallpapers.md.
+# bucket under their content hashes, each with a WebP preview, write the
+# release's manifest and point the stable channel at it.
+# .github/workflows/wallpapers.yml runs this on a release; see docs/wallpapers.md.
 #
 #   tools/wallpapers-upload.sh [--dry-run] [--prerelease] [--from <dir> | --tar <file>] <tag>
 #
-# A real run needs the aws CLI and R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and
-# R2_ENDPOINT. --dry-run needs neither: it reads the public bucket, says what it
-# would upload and prints the manifest it would publish. --tar takes the staged
-# wallpapers from a wallpapers.tar instead of a directory. --prerelease, or a tag
-# with a prerelease suffix, writes only the release's manifest and leaves stable.
+# Every run needs vips for the previews. A real run also needs the aws CLI and
+# R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_ENDPOINT. --dry-run needs
+# neither: it reads the public bucket, says what it would upload and prints the
+# manifest it would publish. --tar takes the staged wallpapers from a
+# wallpapers.tar instead of a directory. --prerelease, or a tag with a
+# prerelease suffix, writes only the release's manifest and leaves stable.
 
 set -euo pipefail
 
@@ -61,6 +62,8 @@ file_cache="public, max-age=31536000, immutable"
 manifest_cache="public, max-age=60"
 max_size=$((64 * 1024 * 1024))
 max_manifest_size=1048576
+preview_width=960
+preview_options="Q=80,effort=6,keep=none"
 
 if (( dry_run == 0 )); then
   : "${R2_ACCESS_KEY_ID:?R2_ACCESS_KEY_ID is not set}"
@@ -129,6 +132,7 @@ valid_manifest() {
       and (.size | type == "number" and . >= 0 and . <= $max and floor == .)
       and (.file | type == "string" and test("^themes/[a-z0-9-]+/[0-9a-f]{64}\\.(jpg|png|webp|avif)$"))
       and (. as $entry | $entry.file | startswith("themes/\($entry.theme)/\($entry.sha256)."))
+      and ((has("preview") | not) or (. as $entry | $entry.preview == "themes/\($entry.theme)/\($entry.sha256).preview.webp"))
     ))' "$1" >/dev/null
 }
 
@@ -159,10 +163,18 @@ image_type() {
   esac
 }
 
+make_preview() {
+  local error
+  ln -sfn "$(realpath -- "$1")" "$work/source"
+  error=$(vips thumbnail "$work/source" "$2[$preview_options]" "$preview_width" --height 10000000 --size down 2>&1) ||
+    die "$1: could not be decoded to make its preview: $error"
+}
+
 : >"$work/added.jsonl"
 upload_files=()
 upload_keys=()
 upload_types=()
+preview_keys=()
 shopt -s nullglob dotglob
 for entry in "$from"/*; do
   [[ ${entry##*/} != "README.md" ]] || continue
@@ -190,17 +202,24 @@ for entry in "$from"/*; do
     sha256=$(sha256sum <"$wallpaper" | cut -d' ' -f1)
     [[ $sha256 =~ ^[0-9a-f]{64}$ ]] || die "$wallpaper: could not hash it"
     key="themes/$theme/$sha256.$extension"
+    preview_key="themes/$theme/$sha256.preview.webp"
 
     upload_files+=("$wallpaper")
     upload_keys+=("$key")
     upload_types+=("$content_type")
-    jq -nc --arg theme "$theme" --arg file "$key" --arg sha256 "$sha256" --argjson size "$size" \
-      '{theme: $theme, file: $file, sha256: $sha256, size: $size}' >>"$work/added.jsonl"
+    preview_keys+=("$preview_key")
+    jq -nc --arg theme "$theme" --arg file "$key" --arg sha256 "$sha256" --argjson size "$size" --arg preview "$preview_key" \
+      '{theme: $theme, file: $file, sha256: $sha256, size: $size, preview: $preview}' >>"$work/added.jsonl"
   done
 done
 
+for i in "${!preview_keys[@]}"; do
+  mkdir -p "$work/${preview_keys[$i]%/*}"
+  make_preview "${upload_files[$i]}" "$work/${preview_keys[$i]}"
+done
+
 jq --arg release "$tag" --slurpfile added "$work/added.jsonl" \
-  '{release: $release, files: (.files + $added | unique_by(.file) | sort_by(.theme, .file))}' \
+  '{release: $release, files: (.files + $added | group_by(.file) | map(add) | sort_by(.theme, .file))}' \
   "$work/stable.json" >"$work/manifest.json"
 valid_manifest "$work/manifest.json" || die "the manifest for $tag would not be valid; nothing was uploaded"
 (( $(stat -c %s "$work/manifest.json") <= max_manifest_size )) ||
@@ -209,7 +228,9 @@ valid_manifest "$work/manifest.json" || die "the manifest for $tag would not be 
 release_key="releases/$tag/manifest.json"
 write_release=1
 if get "$release_key" "$work/published.json"; then
-  jq -e --slurpfile new "$work/manifest.json" '.files - $new[0].files == []' "$work/published.json" >/dev/null ||
+  jq -e --slurpfile new "$work/manifest.json" \
+    '(.files | map({theme, file, sha256, size})) - ($new[0].files | map({theme, file, sha256, size})) == []' \
+    "$work/published.json" >/dev/null ||
     die "$release_key is already published with files this run would drop; a release's wallpapers only grow, so ship them with the next release"
   if [[ $(jq -cS '.files' "$work/published.json") == "$(jq -cS '.files' "$work/manifest.json")" ]]; then
     echo "already published $release_key" >&2
@@ -222,6 +243,11 @@ for i in "${!upload_keys[@]}"; do
     echo "already published ${upload_keys[$i]} (${upload_files[$i]})" >&2
   else
     put "${upload_files[$i]}" "${upload_keys[$i]}" "${upload_types[$i]}" "$file_cache"
+  fi
+  if exists "${preview_keys[$i]}"; then
+    echo "already published ${preview_keys[$i]}" >&2
+  else
+    put "$work/${preview_keys[$i]}" "${preview_keys[$i]}" image/webp "$file_cache"
   fi
 done
 

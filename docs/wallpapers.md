@@ -13,11 +13,13 @@ layout is fixed:
 | Key | Written | Cache |
 | --- | --- | --- |
 | `themes/<theme>/<sha256>.<ext>` | once, never overwritten | a year, immutable |
+| `themes/<theme>/<sha256>.preview.webp` | once, never overwritten | a year, immutable |
 | `releases/<tag>/manifest.json` | once per release | 60 s |
 | `channels/stable/manifest.json` | rewritten for each release | 60 s |
 
 `<theme>` is `[a-z0-9-]+`, `<sha256>` is the lowercase hex sha256 of the
-file's bytes, and `<ext>` is `jpg`, `png`, `webp` or `avif`. Nothing else goes
+file's bytes, and `<ext>` is `jpg`, `png`, `webp` or `avif`. A preview sits next
+to its original under the original's sha256. Nothing else goes
 at the top level apart from infra's `smoke/`.
 
 A manifest looks like this:
@@ -30,7 +32,8 @@ A manifest looks like this:
       "theme": "amethyst",
       "file": "themes/amethyst/<sha256>.jpg",
       "sha256": "<sha256>",
-      "size": 812345
+      "size": 812345,
+      "preview": "themes/amethyst/<sha256>.preview.webp"
     }
   ]
 }
@@ -38,6 +41,26 @@ A manifest looks like this:
 
 Every release's manifest lists every wallpaper published so far; nothing is
 pruned.
+
+`preview` is optional. When it's there it's exactly
+`themes/<theme>/<sha256>.preview.webp` for the entry's own theme and sha256: a
+WebP of the original at most 960 pixels wide (never scaled up), for pages that
+show a lot of wallpapers at once, like the theme browser on the site. A consumer
+that wants a preview falls back to `file` when an entry has none. Entries
+published before previews existed have none until their release is published
+again (see [Backfilling previews](#backfilling-previews)).
+
+`maitri-update-wallpapers` ignores `preview` and only installs originals, and
+so does every updater shipped before the field existed, since they only read
+`theme`, `file`, `sha256` and `size`. A manifest without `preview` is as valid
+as it ever was.
+
+The uploader makes each preview with vips from the original:
+`vips thumbnail` to 960 pixels wide with `--size down`, saved as WebP with
+`Q=80,effort=6,keep=none`, so no EXIF, XMP or ICC profile survives. The same
+original and the same vips give the same bytes. Previews aren't hashed in the
+manifest; their key comes from the original's sha256 and is never overwritten,
+so a rerun under a newer vips keeps the first preview.
 
 ## Installing: `maitri-update-wallpapers`
 
@@ -94,8 +117,9 @@ The picked wallpapers aren't in git, so they ride along on the release as a
 1. Stage each pick as `wallpapers/<theme>/<any name>.<ext>`, where `<theme>` is
    a directory under `themes/` and `<ext>` is `jpg`, `jpeg`, `png` or `webp`.
    `wallpapers/` is gitignored apart from its README.
-2. Check the plan without credentials. It reads the live stable manifest, says
-   which files it would upload, and prints the manifest it would publish:
+2. Check the plan without credentials. It reads the live stable manifest, makes
+   the previews with vips (part of maitri's base packages), says which files
+   it would upload, and prints the manifest it would publish:
 
    ```bash
    tools/wallpapers-upload.sh --dry-run vX.Y.Z
@@ -126,6 +150,19 @@ To add wallpapers to a release that was already published, repeat steps 1 to 5
 for it. A release's manifest only grows, so the rerun adds the new files and
 keeps everything it already listed.
 
+### Backfilling previews
+
+Wallpapers published before previews existed have no `preview` in the
+manifest. Publishing their release again puts it there: the run finds the
+originals already in the bucket, uploads only the missing previews, and
+rewrites the release's manifest and stable with them. It needs the release's
+`wallpapers.tar` still attached, and stable only moves if that release is still
+the newest. For v0.7.0:
+
+```bash
+gh workflow run wallpapers.yml --repo maitrios/maitri --ref main -f tag=v0.7.0
+```
+
 To rehearse a run in CI without uploading anything:
 
 ```bash
@@ -139,26 +176,32 @@ gh workflow run wallpapers.yml --repo maitrios/maitri --ref main -f tag=vX.Y.Z -
    `vX.Y.Z` or `vX.Y.Z-<pre>`, exists on the remote, and points at a commit in
    `main`'s history. This runs before any step that sees a secret. Nothing from
    the tag's tree is checked out or run.
-2. Reads the release. A release marked as a prerelease only gets its own
+2. Installs `libvips-tools` from Ubuntu's archive for the previews.
+3. Reads the release. A release marked as a prerelease only gets its own
    manifest. If `wallpapers.tar` is attached and is at most 1 GiB, it's
    downloaded.
-3. Runs `tools/wallpapers-upload.sh --tar wallpapers.tar vX.Y.Z`, which:
+4. Runs `tools/wallpapers-upload.sh --tar wallpapers.tar vX.Y.Z`, which:
    1. Refuses a tar holding anything but directories and plain files, or a
       member that climbs out with `..`.
    2. Checks every file: a plain file directly in a directory named after a
       maitri theme, a name with no control characters or backslashes, a `jpg`,
       `png` or `webp` by both its name and its first bytes, and between 1 byte
       and 64 MiB. It hashes each one.
-   3. Reads the current stable manifest straight from the bucket and builds
-      the release's manifest from it plus the new files. The whole manifest
-      must pass the same checks the stable one does (paths, 64-hex sha256s,
-      whole-number sizes) and fit in the 1 MiB the updater reads.
-   4. Stops before uploading anything if `releases/<tag>/manifest.json`
-      already lists a file the new manifest doesn't.
-   5. HEADs `themes/<theme>/<sha256>.<ext>` for each file and uploads it only
-      if it isn't there, with its Content-Type and
+   3. Makes each file's preview. A file vips can't decode stops the run here.
+   4. Reads the current stable manifest straight from the bucket and builds
+      the release's manifest from it plus the new files, each with its
+      `preview`. A file that's already listed gains its `preview`. The whole
+      manifest must pass the same checks the stable one does (paths, 64-hex
+      sha256s, whole-number sizes, previews) and fit in the 1 MiB the updater
+      reads.
+   5. Stops before uploading anything if `releases/<tag>/manifest.json`
+      already lists a file the new manifest doesn't. Only `theme`, `file`,
+      `sha256` and `size` count, so gaining a preview isn't a change.
+   6. HEADs `themes/<theme>/<sha256>.<ext>` and
+      `themes/<theme>/<sha256>.preview.webp` for each file and uploads each one
+      only if it isn't there, with its Content-Type and
       `Cache-Control: public, max-age=31536000, immutable`.
-   6. Writes `releases/<tag>/manifest.json`, then rewrites
+   7. Writes `releases/<tag>/manifest.json`, then rewrites
       `channels/stable/manifest.json` with the same content, unless the
       release is a prerelease (marked as one, or a tag like `v1.2.0-rc.1`) or
       stable is already on a newer release. Both get
@@ -190,7 +233,12 @@ builds a manifest with `tools/wallpapers-upload.sh --dry-run` from both a
 staging directory and a `wallpapers.tar`, refuses bad tars and file names, and
 runs a real upload against a stub `aws` to check the keys, headers, prerelease
 handling, attaching wallpapers after a release, the grow-only release manifest
-and the manifest size limit, then installs from the result.
+and the manifest size limit, then installs from the result. For previews it
+checks that each staged file gets a 960-pixel WebP with no metadata, a small
+one isn't scaled up, an undecodable image is refused before anything uploads,
+a preview that isn't the entry's own is refused, and that rerunning a release
+whose manifests have no previews uploads only the previews, the same bytes as
+before, and adds them to both manifests.
 `test/shell.d/wallpapers-release-guard-test.sh` runs
 `tools/wallpapers-check-tag.sh` against a scratch remote (tags on and off
 `main`, moved, local, malformed and missing) and checks that the workflow only
