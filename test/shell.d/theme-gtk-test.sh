@@ -366,3 +366,29 @@ NO_ACCENT_KEY=1 GSETTINGS_LOG="$old_home/log" DBUS_SESSION_BUS_ADDRESS="unix:pat
 ! grep -q "accent-color" <(grep '^set' "$old_home/log") || fail "schemas without accent-color are left alone"
 grep -qxF "set org.gnome.desktop.interface color-scheme prefer-dark" "$old_home/log" || fail "color-scheme is still set without accent-color"
 pass "GNOME schemas older than accent-color still get the colour scheme"
+
+# Existing installs get the block from a migration: the hook straight away when
+# the theme already rendered gtk.css, a re-stage when it didn't.
+migration=$(grep -l 'maitri-theme-set-gtk' "$ROOT"/migrations/*.sh | tail -n 1)
+migration_bin="$test_tmp/migration-bin"
+mkdir -p "$migration_bin"
+printf '#!/bin/bash\necho gtk >>"$MIGRATION_LOG"\nexit 1\n' >"$migration_bin/maitri-theme-set-gtk"
+printf '#!/bin/bash\necho refresh >>"$MIGRATION_LOG"\n' >"$migration_bin/maitri-theme-refresh"
+chmod +x "$migration_bin/"*
+
+run_migration() {
+  HOME="$1" MAITRI_PATH="$ROOT" MIGRATION_LOG="$1/log" PATH="$migration_bin:$PATH" bash -euo pipefail "$migration" >/dev/null
+}
+
+migrated="$test_tmp/migrated"
+render_theme amethyst "$migrated"
+run_migration "$migrated" || fail "the migration never stalls on a gtk.css the hook refuses"
+[[ $(cat "$migrated/log") == "gtk" ]] || fail "a rendered theme runs the GTK hook" "$(cat "$migrated/log")"
+rm "$migrated/.local/state/maitri/current/theme/gtk.css" "$migrated/log"
+run_migration "$migrated"
+[[ $(cat "$migrated/log") == "refresh" ]] || fail "a theme rendered before gtk.css existed is re-staged" "$(cat "$migrated/log")"
+fresh="$test_tmp/fresh"
+mkdir -p "$fresh"
+run_migration "$fresh"
+[[ ! -e $fresh/log ]] || fail "a home without a theme is left alone"
+pass "the migration themes GTK on existing installs"
