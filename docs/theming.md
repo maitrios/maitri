@@ -89,6 +89,10 @@ mode = "dark"
 accent = "#7aa2f7"
 selection = "#292e42"
 muted = "#414868"
+border = "#5b6382"
+border_focus = "#4f6aa8"
+hint = "#7aa2f7"
+link = "#bb9af7"
 
 background = "#1a1b26"
 dark_background = "#13141c"
@@ -119,6 +123,21 @@ shell palette is loaded from:
   numbers, secondary labels. This is the key templates should use whenever the
   value ends up as glyphs a person reads. Falls back to `color8`, then
   `foreground`, so it always resolves.
+- `comment` — the same value as `dark_foreground`, under the name editors use.
+  Falls back to `dark_foreground`.
+- `selection` — the selection fill: a tint of `accent`, light enough that
+  `foreground` stays readable on it.
+- `border` — neutral lines that need to be seen: input outlines, panel and
+  table edges. Unlike `muted` it clears 3:1 against `background`. Falls back to
+  `muted`.
+- `border_focus` — the focused or floating border, a step of `accent` toward
+  `background` that clears 3:1. Falls back to `accent`.
+- `hint` — hint diagnostics. It's `accent` unless the accent sits near `red`,
+  `orange`, `cyan` or `green` (error, warning, info, ok), when it's the next
+  hue that doesn't. Falls back to `accent`.
+- `link` — links, drawn underlined. The first-party themes keep it at least
+  60° of hue from `accent` so a link never reads as a heading. Falls back to
+  `blue`.
 - `urgent` / `red` / `color1`
 
 Themes and user templates using the legacy short names remain supported.
@@ -144,6 +163,34 @@ in that ramp; maitri derives `selection_background = selection` and
 `selection_foreground = bright_foreground`. Use
 `maitri dev theme-preview [theme]` to inspect that ramp, including
 `dark_background`, `darker_background`, and a selected-text sample.
+
+### The hue model
+
+The first-party themes share one set of syntax hues, and each theme's accent
+takes the slot nearest to it. `test/shell.d/theme-hue-test.sh` holds every
+shipped theme to these rules (hue angles are HSL, the same angles the Neovim
+palette measures):
+
+- `red`, `orange`, `yellow`, `green`, `cyan`, `blue` and `magenta` sit at
+  355°, 25°, 56°, 125°, 172°, 220° and 270°, so no two are closer than 30°.
+  They share one OKLCH chroma (0.14 on dark themes) and a narrow lightness
+  band, so no hue shouts over the others. Where sRGB can't reach that chroma
+  (blue on dark, cyan and yellow on light) it gets as close as it can.
+- The syntax hue nearest the accent *is* the accent: amethyst's and daybreak's
+  `magenta`, spark's `blue`, harbor's `cyan`, ember's `orange`, garnet's `red`.
+  Every other syntax hue is at least 30° from it, so the accent never sits a
+  few degrees off a code color. It shows up in each theme's code on purpose.
+- `link` is at least 60° from the accent and `hint` at least 40° from `red`,
+  `orange`, `cyan` and `green`.
+- Every syntax color, `link`, `hint` and `dark_foreground` clears 4.5:1, and
+  `border` and `border_focus` clear 3:1. Daybreak, the light theme, uses the
+  same angles at its own lightness and is measured against
+  `dark_background`, the float surface, so text holds up there too.
+- The `bright_*` colors are the same hues, a step lighter on dark themes. On
+  daybreak they also clear 4.5:1, since terminals draw bold text in them.
+
+A user theme doesn't have to follow any of this. The fallbacks above fill in
+the new roles from the ones it already has.
 
 ## Template placeholders
 
