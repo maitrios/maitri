@@ -461,13 +461,14 @@ png_header() {
   printf "\\x$(printf '%02x' $(( $2 >> 24 & 255 )))\\x$(printf '%02x' $(( $2 >> 16 & 255 )))\\x$(printf '%02x' $(( $2 >> 8 & 255 )))\\x$(printf '%02x' $(( $2 & 255 )))"
 }
 
-for icon in "$icons"/*.png; do
+for icon in "$icons"/*.png "$icons"/*/*.png; do
+  [[ -f $icon ]] || continue
   [[ $(od -An -tx1 -N8 "$icon" | tr -d ' \n') == "89504e470d0a1a0a" ]] || fail "every base icon is a PNG" "$icon"
   read -r width height < <(od -An -tu1 -j16 -N8 "$icon" | awk '{ print $1 * 16777216 + $2 * 65536 + $3 * 256 + $4, $5 * 16777216 + $6 * 65536 + $7 * 256 + $8 }')
   [[ $width == "$height" && " 16 22 24 32 36 48 64 72 96 128 192 256 512 " == *" $width "* ]] ||
     fail "every base icon is square at a size the hicolor theme lists" "$icon: ${width}x$height"
 done
-pass "every icon in default/icons is a square PNG at a hicolor size"
+pass "every icon in default/icons and its theme folders is a square PNG at a hicolor size"
 
 reset_fixture
 maitri_path="$tmpdir/bad-pngs"
