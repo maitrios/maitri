@@ -12,7 +12,7 @@ maitri-cmd-present mpv || exit 0
 [[ -f $src ]] || exit 0
 
 # mpv.conf can load scripts, so only the OSD and subtitle colours are taken.
-if grep -qvE '^(osd-color|osd-outline-color|osd-selected-color|osd-selected-outline-color|sub-color|sub-outline-color)=#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$' "$src" ||
+if grep -qvE '^(osd-color|osd-outline-color|osd-selected-color|osd-selected-outline-color|sub-color|sub-outline-color)="#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?"$' "$src" ||
   [[ -n $(cut -d= -f1 "$src" | sort | uniq -d) ]]; then
   echo "Skipping mpv theme: mpv.conf has a line maitri doesn't apply." >&2
   exit 0

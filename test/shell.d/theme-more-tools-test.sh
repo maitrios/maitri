@@ -244,7 +244,7 @@ def lazydocker(theme, p, path):
 
 def mpv(theme, p, path):
     c = Check(theme, "mpv", p)
-    keys = dict(line.rstrip("\n").split("=", 1) for line in open(path))
+    keys = {k: v.strip('"') for k, v in (line.rstrip("\n").split("=", 1) for line in open(path))}
     for kind in ("osd", "sub"):
         c.role(f"{kind}-color", keys[f"{kind}-color"], "foreground")
         c.role(f"{kind}-outline-color", keys[f"{kind}-outline-color"], "background")
@@ -399,7 +399,7 @@ for pair in "bat.tmTheme:.codex/themes/maitri.tmTheme" "voxtype.toml:.config/vox
 done
 [[ $(jq -r .ui.customThemes.maitri.Background "$home/.gemini/settings.json") == "#F5F5F5" ]] || fail "a theme change replaces the Gemini CLI theme"
 grep -q '      - "#816CD2"' "$config/lazydocker/config.yml" && ! grep -q '#7058A3' "$config/lazydocker/config.yml" || fail "a theme change replaces lazydocker's colours"
-[[ $(grep -c 'maitri theme' "$home/dotfiles/mpv.conf") == 2 ]] && grep -q "^osd-color=#1F1F1F$" "$home/dotfiles/mpv.conf" || fail "a theme change replaces mpv's block" "$(cat "$home/dotfiles/mpv.conf")"
+[[ $(grep -c 'maitri theme' "$home/dotfiles/mpv.conf") == 2 ]] && grep -q "^osd-color=\"#1F1F1F\"$" "$home/dotfiles/mpv.conf" || fail "a theme change replaces mpv's block" "$(cat "$home/dotfiles/mpv.conf")"
 for file in "$home/.codex/config.toml" "$config/voxtype/config.toml"; do
   [[ $(grep -c '# >>> maitri theme' "$file") == 1 ]] || fail "a theme change keeps one block in $file" "$(cat "$file")"
 done
@@ -478,7 +478,7 @@ jq '.themeValues.root.white = "url(https://pwned)"' "$rendered/gitkraken.json" >
 jq '.Background = "{{ background }}"' "$rendered/gemini-cli.json" >"$test_tmp/gm" && mv "$test_tmp/gm" "$rendered/gemini-cli.json"
 jq '.theme.text = "pwned"' "$rendered/opencode.json" >"$test_tmp/oc" && mv "$test_tmp/oc" "$rendered/opencode.json"
 printf 'gui:\n  theme:\n    activeBorderColor:\n      - "#ffffff"\ncustomCommands:\n  containers:\n    - command: touch pwned\n' >"$rendered/lazydocker.yml"
-printf 'osd-color=#ffffff\nscript=/tmp/pwned.lua\n' >"$rendered/mpv.conf"
+printf 'osd-color="#ffffff"\nscript=/tmp/pwned.lua\n' >"$rendered/mpv.conf"
 printf '<plist>{{ accent }}</plist>\n' >"$rendered/bat.tmTheme"
 run_hooks "$home" "$apps:$sandbox"
 ! grep -rq pwned "$home/.config" "$home/.gitkraken" "$home/.gemini" "$home/.codex" 2>/dev/null ||
@@ -517,3 +517,24 @@ set_theme "$home" amethyst
 run_hook "$home" maitri-theme-set-voxtype "$apps:$sandbox" || fail "maitri-theme-set-voxtype runs beside another OSD style"
 [[ $(jq -r .colors.accent "$home/run/voxtype/quickshell-style.json") == "#000000" ]] || fail "an OSD on another style keeps its colours"
 pass "voxtype switches to the maitri OSD while idle and retints a running one in place"
+
+if command -v mpv >/dev/null 2>&1; then
+  home=$(new_home real-mpv daybreak)
+  run_hook "$home" maitri-theme-set-mpv "$PATH" || fail "maitri-theme-set-mpv runs with the real mpv"
+  got=$(isolated "$home" mpv --vo=null --ao=null --frames=1 --msg-level=all=v 'av://lavfi:color=d=1' 2>&1 || true)
+  ! grep -qiE 'error parsing|setting option .* failed' <<<"$got" && grep -q "Setting option 'osd-color' = '#1F1F1F'" <<<"$got" ||
+    fail "mpv loads the maitri colours without errors" "$(grep -iE 'osd|sub|error' <<<"$got")"
+  pass "mpv loads the maitri OSD and subtitle colours"
+else
+  skip "mpv loads the maitri OSD and subtitle colours (mpv is not installed)"
+fi
+
+if command -v eza >/dev/null 2>&1 && [[ -n $has_fish ]]; then
+  home=$(new_home real-eza amethyst)
+  run_hook "$home" maitri-theme-set-eza "$PATH" || fail "maitri-theme-set-eza runs with the real eza"
+  got=$(isolated "$home" fish -c "eza --color=always -d $ROOT/bin" | cat -v)
+  [[ $got == *'[1;38;2;141;179;255mbin'* ]] || fail "eza draws directories in the theme's blue" "$got"
+  pass "eza takes the maitri colours from fish"
+else
+  skip "eza takes the maitri colours from fish (eza or fish is not installed)"
+fi
