@@ -34,7 +34,7 @@
   --text-accent: {{ accent }};
   --text-accent-hover: {{ mix accent foreground 13% }};
   --text-selection: {{ selection }};
-  --text-highlight-bg: {{ selection }};
+  --text-highlight-bg: {{ mix background green 30% }};
   --caret-color: {{ bright_foreground }};
   --icon-color: {{ light_foreground }};
   --icon-color-hover: {{ foreground }};
@@ -173,11 +173,15 @@
 .markdown-rendered .token.regex { color: {{ red }}; }
 
 /* Links */
-.markdown-rendered a,
+.markdown-rendered a:not(.tag),
 .cm-s-obsidian span.cm-hmd-internal-link,
-.cm-s-obsidian span.cm-link,
-.cm-s-obsidian span.cm-url {
+.cm-s-obsidian span.cm-link {
   color: var(--link-color);
+  text-decoration: underline;
+}
+
+.cm-s-obsidian span.cm-url {
+  color: {{ comment }};
   text-decoration: underline;
 }
 
@@ -188,7 +192,6 @@
 
 /* Active elements */
 .workspace-leaf.mod-active .workspace-leaf-header-title,
-.nav-file-title.is-active,
 .search-result-file-title {
   color: var(--interactive-accent);
 }
