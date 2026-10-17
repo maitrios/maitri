@@ -37,7 +37,7 @@ cyan = "{{ cyan }}"
 white = "{{ foreground }}"
 
 [colors.bright]
-black = "{{ muted }}"
+black = "{{ comment }}"
 red = "{{ bright_red }}"
 green = "{{ bright_green }}"
 yellow = "{{ bright_yellow }}"

@@ -15,7 +15,7 @@ regular5={{ purple_strip }}
 regular6={{ cyan_strip }}
 regular7={{ foreground_strip }}
 
-bright0={{ muted_strip }}
+bright0={{ comment_strip }}
 bright1={{ bright_red_strip }}
 bright2={{ bright_green_strip }}
 bright3={{ bright_yellow_strip }}

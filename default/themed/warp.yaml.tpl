@@ -14,7 +14,7 @@ terminal_colors:
     cyan: '{{ cyan }}'
     white: '{{ color7 }}'
   bright:
-    black: '{{ muted }}'
+    black: '{{ comment }}'
     red: '{{ bright_red }}'
     green: '{{ bright_green }}'
     yellow: '{{ bright_yellow }}'

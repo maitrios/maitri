@@ -17,7 +17,7 @@ color4 {{ blue }}
 color5 {{ magenta }}
 color6 {{ cyan }}
 color7 {{ foreground }}
-color8 {{ muted }}
+color8 {{ comment }}
 color9 {{ bright_red }}
 color10 {{ bright_green }}
 color11 {{ bright_yellow }}
