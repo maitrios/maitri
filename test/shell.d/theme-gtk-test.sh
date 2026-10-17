@@ -88,6 +88,8 @@ ROLES = {
     "accent_bg_color": "accent", "link_color": "link", "warning_color": "orange", "error_color": "red",
     "destructive_color": "red", "success_color": "green", "borders": "border", "selection_bg_color": "selection",
     "window_bg_color": "dark_background", "view_bg_color": "background", "view_fg_color": "foreground",
+    "theme_selected_bg_color": "selection", "theme_selected_fg_color": "foreground",
+    "theme_unfocused_selected_bg_color": "selection", "theme_unfocused_selected_fg_color": "foreground",
 }
 
 for theme in themes:
