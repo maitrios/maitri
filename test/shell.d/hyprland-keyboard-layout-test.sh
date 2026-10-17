@@ -36,7 +36,7 @@ hl = {
   end,
 }
 
-o = { window = function() end }
+o = { window = function() end, cmd_present = function() return false end }
 
 require(os.getenv("MAITRI_MODULE"))
 LUA

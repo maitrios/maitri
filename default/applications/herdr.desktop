@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=herdr
+Comment=Open herdr in its own window
+Exec=maitri-launch-terminal-herdr
+Icon=utilities-terminal
+Terminal=false
+Categories=System;Utility;
+StartupWMClass=org.maitri.herdr
