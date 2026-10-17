@@ -467,6 +467,14 @@ printf 'gui:\n  # >>> maitri theme (rewritten by maitri theme set) >>>\n  showIc
 run_hook "$home" maitri-theme-set-lazygit "$apps:$sandbox" || fail "maitri-theme-set-lazygit handles a block without its end marker"
 grep -q 'showIcons: true' "$home/.config/jesseduffield/lazygit/config.yml" && grep -q '  - key: x' "$home/.config/jesseduffield/lazygit/config.yml" ||
   fail "a start marker without an end loses none of the user's lines" "$(cat "$home/.config/jesseduffield/lazygit/config.yml")"
+
+home=$(new_home leftover amethyst)
+mkdir -p "$home/.config/lazygit" "$home/.config/jesseduffield/lazygit"
+printf 'gui:\n  showIcons: true\n' >"$home/.config/lazygit/config.yml"
+run_hook "$home" maitri-theme-set-lazygit "$apps:$sandbox" || fail "maitri-theme-set-lazygit runs beside an empty legacy dir"
+grep -q '  theme:' "$home/.config/lazygit/config.yml" && grep -q 'showIcons: true' "$home/.config/lazygit/config.yml" ||
+  fail "an empty legacy dir leaves the theme in the config lazygit reads" "$(cat "$home/.config/lazygit/config.yml")"
+[[ -z $(ls -A "$home/.config/jesseduffield/lazygit") ]] || fail "the lazygit hook creates nothing in an empty legacy dir" "$(ls -A "$home/.config/jesseduffield/lazygit")"
 pass "the lazygit hook writes where lazygit reads and never drops the user's lines"
 
 home=$(new_home own amethyst)

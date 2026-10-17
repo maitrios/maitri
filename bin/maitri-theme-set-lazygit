@@ -13,12 +13,12 @@ maitri-cmd-present lazygit || exit 0
 [[ -f $src ]] || exit 0
 
 # The same lookup lazygit does: its own overrides, then the directory older
-# releases used if it's still there.
+# releases used if it still holds a config.yml.
 if [[ -n ${LG_CONFIG_FILE:-} ]]; then
   config_file="${LG_CONFIG_FILE%%,*}"
 elif [[ -n ${CONFIG_DIR:-} ]]; then
   config_file="$CONFIG_DIR/config.yml"
-elif [[ -d $legacy_dir ]]; then
+elif [[ -f $legacy_dir/config.yml ]]; then
   config_file="$legacy_dir/config.yml"
 else
   config_file="$config_dir/config.yml"
