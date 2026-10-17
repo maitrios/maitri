@@ -24,6 +24,7 @@ The design goal is:
 | `${XDG_RUNTIME_DIR:-/tmp}/maitri-update.lock` | user | Prevent overlapping update runs. Owned by `maitri-update-lock`; compatibility wrappers inherit/respect it. |
 | `/tmp/maitri-update.log` | user | Transcript of `maitri update`, used by `maitri-update-analyze-logs`. |
 | `~/.local/state/maitri/current/` | user | Generated active theme, selected theme name, and current background symlink. |
+| `~/.local/state/maitri/wallpapers/` | user | Wallpapers `maitri-update-wallpapers` has installed (`installed`, one `<sha256> <theme>/<file>` per line) and the last manifest release it read (`release`). |
 | `~/.local/state/maitri/migrations/` | user | Per-user migration markers. |
 | `~/.local/state/maitri/reboot-required` | user | Optional reboot marker checked by `maitri-update-restart`. |
 | `~/.local/state/maitri/restart-*-required` | user | Optional service/app restart markers checked by `maitri-update-restart`. The shell needs no marker: it is restarted unconditionally after every update. |
@@ -264,6 +265,7 @@ scripts.
 | `maitri-update-mise` | Runs `mise up` for mise-managed tools. | **Keep.** Mise-managed tools are intentionally part of the blessed update path. |
 | `maitri-update-orphan-pkgs` | Lists orphans and prompts before removal; noninteractive mode never removes. | **Keep for now.** Safe because it is prompt-only. |
 | `maitri-update-pacnew` | Lists `.pacnew`/`.pacsave` files from `pacdiff --output` and offers `pacdiff --sudo`; unattended or noninteractive runs only report. | **Keep.** Prompt-only, like the orphan step. |
+| `maitri-update-wallpapers` | Hidden step that installs the wallpapers in the stable manifest into `~/.config/maitri/backgrounds/<theme>/` after checking each one's size and sha256. Offline, it reports and changes nothing; a file that fails verification is reported and skipped without stopping the update. See [`wallpapers.md`](wallpapers.md). | **Keep internal/hidden.** |
 | `maitri-update-analyze-logs` | Scans `/tmp/maitri-update.log` for known failure patterns, currently initramfs generation. | **Keep/expand.** Useful safety net; should grow only for high-signal checks. |
 | `maitri-update-restart` | Prompts for reboot after kernel/Hyprland updates, restarts components with `restart-*-required` markers, and always restarts the shell. | **Keep.** Important final step; may eventually include service-restart checks. |
 | `maitri-update-firmware` | Manual firmware update command using fwupd. Not part of the normal update pipeline. | **Keep separate.** Firmware is not a routine system update step. |
