@@ -11,7 +11,6 @@ BROWSERS=(
   "Zen|zen-browser zen|$HOME/.zen $HOME/.config/zen"
 )
 
-
 profile_dirs() {
   local root="$1"
 
@@ -98,10 +97,12 @@ add_import() {
   local import="$2"
 
   linked_elsewhere "$file" "$import" && return
+  grep -qxF "$import" "$file" 2>/dev/null && return
+  changed=1
 
   if [[ ! -s $file ]]; then
     printf '%s\n' "$import" >"$file"
-  elif ! grep -qxF "$import" "$file"; then
+  else
     # @import only counts before every other rule, @charset excepted.
     awk -v import="$import" '
       NR == 1 && /^@charset/ { print; print import; next }
@@ -116,6 +117,7 @@ remove_import() {
   local import="$2"
 
   [[ -f $file && ! -L $file ]] && grep -qxF "$import" "$file" || return 0
+  changed=1
 
   grep -vxF "$import" "$file" >"$file.maitri-tmp"
   if grep -q '[^[:space:]]' "$file.maitri-tmp"; then
@@ -125,26 +127,45 @@ remove_import() {
   fi
 }
 
+# The line maitri adds is marked so it can be found again. A user who set the
+# pref themselves keeps their line, and an explicit false is respected.
 enable_stylesheets() {
   local file="$1/user.js"
-  local prefix="user_pref(\"$STYLESHEETS_PREF\""
-  local line="$prefix, true);"
+  local line="user_pref(\"$STYLESHEETS_PREF\", true); // maitri"
+  local pref="^[[:space:]]*user_pref\(\"${STYLESHEETS_PREF//./\\.}\",[[:space:]]*"
 
   linked_elsewhere "$file" "$line" && return
 
-  if [[ -f $file ]] && grep -qE "^[[:space:]]*user_pref\(\"${STYLESHEETS_PREF//./\\.}\"" "$file"; then
-    grep -qxF "$line" "$file" && return
-    awk -v prefix="$prefix" -v line="$line" '
-      { trimmed = $0; sub(/^[[:space:]]+/, "", trimmed) }
-      index(trimmed, prefix) == 1 { print line; next }
-      { print }
-    ' "$file" >"$file.maitri-tmp" && mv "$file.maitri-tmp" "$file"
-  else
-    [[ -s $file && $(tail -c 1 "$file") != "" ]] && echo >>"$file"
-    printf '%s\n' "$line" >>"$file"
+  if grep -qE "${pref}false[[:space:]]*\)" "$file" 2>/dev/null; then
+    echo "$file sets $STYLESHEETS_PREF to false, so Firefox won't load the maitri stylesheets for this profile." >&2
+    return
   fi
+  grep -qE "${pref}true[[:space:]]*\)" "$file" 2>/dev/null && return
+
+  changed=1
+  [[ -s $file && $(tail -c 1 "$file") != "" ]] && echo >>"$file"
+  printf '%s\n' "$line" >>"$file"
 }
 
+# A chrome folder that resolves outside the profile is a dotfiles link (stow
+# folds a whole folder into one), so nothing is written through it.
+chrome_elsewhere() {
+  local profile="$1"
+  local chrome="$2"
+  local part
+
+  [[ -e $chrome || -L $chrome ]] || return 1
+  [[ $(realpath -m -- "$chrome") == "$(realpath -m -- "$profile")/chrome" ]] && return 1
+
+  for part in userChrome userContent; do
+    [[ -e $chrome/maitri-$part.css ]] && grep -qxF "@import url(\"maitri-$part.css\");" "$chrome/$part.css" 2>/dev/null && continue
+    echo "$chrome is a symlink, so maitri left it alone. To follow the maitri theme, link $THEME_DIR/firefox-$part.css to $chrome/maitri-$part.css and add this line to $part.css: @import url(\"maitri-$part.css\");" >&2
+  done
+  return 0
+}
+
+# Sets changed when it writes anything, so the restart notice only goes to an
+# open browser whose files actually moved.
 style_profile() {
   local profile="$1"
   local chrome="$profile/chrome"
@@ -152,14 +173,26 @@ style_profile() {
 
   follows_maitri "$profile" && follows=1
 
+  if [[ -n $follows ]] && chrome_elsewhere "$profile" "$chrome"; then
+    enable_stylesheets "$profile"
+    return
+  fi
+  [[ -z $follows && -L $chrome ]] && return
+
   for part in userChrome userContent; do
     if [[ -n $follows ]]; then
       mkdir -p "$chrome"
-      cp --remove-destination "$THEME_DIR/firefox-$part.css" "$chrome/maitri-$part.css"
+      if ! cmp -s "$THEME_DIR/firefox-$part.css" "$chrome/maitri-$part.css" || [[ -L $chrome/maitri-$part.css ]]; then
+        cp --remove-destination "$THEME_DIR/firefox-$part.css" "$chrome/maitri-$part.css"
+        changed=1
+      fi
       add_import "$chrome/$part.css" "@import url(\"maitri-$part.css\");"
     else
       remove_import "$chrome/$part.css" "@import url(\"maitri-$part.css\");"
-      rm -f "$chrome/maitri-$part.css"
+      if [[ -e $chrome/maitri-$part.css || -L $chrome/maitri-$part.css ]]; then
+        rm -f "$chrome/maitri-$part.css"
+        changed=1
+      fi
     fi
   done
 
@@ -188,8 +221,9 @@ for entry in "${BROWSERS[@]}"; do
 
     while IFS= read -r profile; do
       [[ -d $profile ]] || continue
+      changed=""
       style_profile "$profile"
-      [[ -L $profile/lock ]] && running=1
+      [[ -n $changed && -L $profile/lock ]] && running=1
     done < <(profile_dirs "$root")
   done
 

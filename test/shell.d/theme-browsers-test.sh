@@ -342,9 +342,16 @@ PY
 # Commands the hooks run, without whatever browsers this machine has installed.
 tools="$test_tmp/tools"
 mkdir -p "$tools"
-for tool in awk bash cat cp dirname env find flock grep jq mkdir mktemp mv python3 readlink realpath rm sed setsid sleep sort tail tr uname; do
+for tool in awk bash cat cmp cp dirname env find flock grep jq mkdir mktemp mv python3 readlink realpath rm sed setsid sleep sort tail tr uname; do
   ln -s "$(command -v "$tool")" "$tools/$tool"
 done
+
+# Stand-ins for a running browser: the hook only counts a process whose
+# executable is named like the browser's.
+fake="$test_tmp/fake"
+mkdir -p "$fake"
+cp "$(command -v sleep)" "$fake/helium"
+cp "$(command -v sleep)" "$fake/chrome"
 
 stub_browsers() {
   local dir="$1"
@@ -382,7 +389,7 @@ activate_theme amethyst "$fx_home"
 
 fx_root="$fx_home/.mozilla/firefox"
 elsewhere="$test_tmp/elsewhere-profile"
-mkdir -p "$fx_root/abc.default/chrome" "$fx_root/themed/chrome" "$elsewhere"
+mkdir -p "$fx_root/abc.default/chrome" "$fx_root/themed/chrome" "$fx_root/stowed" "$elsewhere" "$test_tmp/dotfiles-chrome-dir"
 cat >"$fx_root/profiles.ini" <<INI
 [General]
 StartWithLastProfile=1
@@ -403,6 +410,11 @@ Name=themed
 IsRelative=1
 Path=themed
 
+[Profile3]
+Name=stowed
+IsRelative=1
+Path=stowed
+
 [Install4F96D1932A9F858E]
 Default=abc.default
 INI
@@ -414,6 +426,8 @@ printf 'user_pref("extensions.activeThemeID", "firefox-alpenglow@mozilla.org");\
 printf '@import url("maitri-userChrome.css");\n#tabbrowser-tabs { color: red; }\n' >"$fx_root/themed/chrome/userChrome.css"
 printf 'stale\n' >"$fx_root/themed/chrome/maitri-userChrome.css"
 printf '// user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);' >"$elsewhere/user.js"
+printf '#nav-bar { min-height: 32px; }\n' >"$test_tmp/dotfiles-chrome-dir/userChrome.css"
+ln -s "$test_tmp/dotfiles-chrome-dir" "$fx_root/stowed/chrome"
 ln -s "127.0.0.1:+4242" "$elsewhere/lock"
 
 zen_profile="$fx_home/.zen/xyz.Default (release)"
@@ -427,6 +441,7 @@ printf '[Profile0]\nName=Default (release)\nIsRelative=1\nPath=xyz.Default (rele
 run_hook "$fx_home" "$fx_stubs" maitri-theme-set-firefox 2>"$test_tmp/fx-stderr"
 
 current="$fx_home/.local/state/maitri/current/theme"
+marked='user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true); // maitri'
 for profile in "$fx_root/abc.default" "$elsewhere" "$zen_profile"; do
   for part in userChrome userContent; do
     cmp -s "$current/firefox-$part.css" "$profile/chrome/maitri-$part.css" ||
@@ -435,8 +450,9 @@ for profile in "$fx_root/abc.default" "$elsewhere" "$zen_profile"; do
     head -n 1 "$profile/chrome/$part.css" | grep -qxF "@import url(\"maitri-$part.css\");" ||
       fail "$part.css in $(basename "$profile") imports maitri's stylesheet first"
   done
-  grep -qxF 'user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);' "$profile/user.js" ||
-    fail "user.js in $(basename "$profile") turns on userChrome.css" "$(cat "$profile/user.js")"
+  [[ $profile == "$fx_root/abc.default" ]] && continue
+  grep -qxF "$marked" "$profile/user.js" ||
+    fail "user.js in $(basename "$profile") turns on userChrome.css with a marked line" "$(cat "$profile/user.js")"
 done
 pass "every Firefox and Zen profile on a built-in theme gets maitri's stylesheets"
 
@@ -447,6 +463,20 @@ grep -qxF 'user_pref("browser.startup.page", 3);' "$fx_root/abc.default/user.js"
 (( $(grep -c 'legacyUserProfileCustomizations' "$fx_root/abc.default/user.js") == 1 )) ||
   fail "user.js sets the stylesheet pref once"
 pass "an existing userChrome.css and user.js are added to, not replaced"
+
+grep -qxF 'user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", false);' "$fx_root/abc.default/user.js" ||
+  fail "a user's explicit false in user.js is kept" "$(cat "$fx_root/abc.default/user.js")"
+grep -qF "abc.default/user.js sets toolkit.legacyUserProfileCustomizations.stylesheets to false" "$test_tmp/fx-stderr" ||
+  fail "a user's explicit false is reported" "$(cat "$test_tmp/fx-stderr")"
+pass "a user who turned the stylesheet pref off keeps it off and is told why"
+
+[[ -L $fx_root/stowed/chrome ]] || fail "a symlinked chrome folder stays a symlink"
+[[ $(ls "$test_tmp/dotfiles-chrome-dir") == "userChrome.css" ]] || fail "nothing is written into a symlinked chrome folder" "$(ls "$test_tmp/dotfiles-chrome-dir")"
+[[ $(cat "$test_tmp/dotfiles-chrome-dir/userChrome.css") == '#nav-bar { min-height: 32px; }' ]] || fail "a userChrome.css in a symlinked chrome folder is not edited"
+grep -qF "stowed/chrome is a symlink, so maitri left it alone" "$test_tmp/fx-stderr" ||
+  fail "a symlinked chrome folder is reported" "$(cat "$test_tmp/fx-stderr")"
+grep -qxF "$marked" "$fx_root/stowed/user.js" || fail "a profile with a symlinked chrome folder still gets the stylesheet pref"
+pass "a chrome folder linked from the user's dotfiles is left alone and reported"
 
 [[ -L $fx_root/abc.default/chrome/userContent.css ]] || fail "a symlinked userContent.css stays a symlink"
 [[ $(cat "$test_tmp/dotfiles-userContent.css") == '#main { color: blue; }' ]] || fail "maitri does not write through a symlinked userContent.css"
@@ -467,9 +497,12 @@ grep -qx 'Firefox is open, so restart it to pick up the new theme.' "$test_tmp/f
 pass "only a running browser is asked to restart"
 
 cp -r "$fx_root/abc.default" "$test_tmp/abc-before"
-run_hook "$fx_home" "$fx_stubs" maitri-theme-set-firefox 2>/dev/null
+cp -a "$elsewhere" "$test_tmp/elsewhere-before"
+run_hook "$fx_home" "$fx_stubs" maitri-theme-set-firefox 2>"$test_tmp/fx-stderr"
 diff -r "$test_tmp/abc-before" "$fx_root/abc.default" >/dev/null || fail "running the Firefox hook again changes nothing"
-pass "the Firefox hook is idempotent"
+diff -r --no-dereference "$test_tmp/elsewhere-before" "$elsewhere" >/dev/null || fail "running the Firefox hook again leaves an open profile alone"
+! grep -q 'is open' "$test_tmp/fx-stderr" || fail "an open Firefox isn't told to restart when nothing changed" "$(cat "$test_tmp/fx-stderr")"
+pass "the Firefox hook is idempotent and quiet when nothing changed"
 
 bare_stubs="$test_tmp/no-browsers"
 mkdir -p "$bare_stubs"
@@ -552,7 +585,7 @@ helium_root="$cr_home/.config/net.imput.helium"
 mkdir -p "$helium_root/Default"
 printf '{}\n' >"$helium_root/Local State"
 printf '{}\n' >"$helium_root/Default/Preferences"
-sleep 60 <"$helium_root/Local State" &
+"$fake/helium" 60 <"$helium_root/Local State" &
 helium_pid=$!
 trap 'kill "$helium_pid" 2>/dev/null; rm -rf "$test_tmp"' EXIT
 ln -s "$host-$helium_pid" "$helium_root/SingletonLock"
@@ -583,7 +616,7 @@ done
 flock -n "$cr_home/.local/state/maitri/chromium-theme-waiter.lock" true || fail "the waiter exits once every browser is colored"
 pass "an open browser is colored after its process exits, without being restarted"
 
-sleep 60 <"$helium_root/Local State" &
+"$fake/helium" 60 <"$helium_root/Local State" &
 helium_pid=$!
 ln -sf "$host-$helium_pid" "$helium_root/SingletonLock"
 run_hook "$cr_home" "$cr_stubs" maitri-theme-set-chromium 2>"$test_tmp/cr-stderr"
@@ -598,7 +631,7 @@ activate_theme amethyst "$chrome_home"
 printf '{}\n' >"$test_tmp/dotfiles-chrome/Local State"
 printf '{}\n' >"$test_tmp/dotfiles-chrome/Default/Preferences"
 ln -s "$test_tmp/dotfiles-chrome" "$chrome_home/.config/google-chrome"
-sleep 60 <"$test_tmp/dotfiles-chrome/Local State" &
+"$fake/chrome" 60 <"$test_tmp/dotfiles-chrome/Local State" &
 chrome_pid=$!
 trap 'kill "$helium_pid" "$chrome_pid" 2>/dev/null; rm -rf "$test_tmp"' EXIT
 
@@ -615,3 +648,21 @@ done
 [[ $(jq -r '.extensions.theme.id // ""' "$test_tmp/dotfiles-chrome/Default/Preferences") == "autogenerated_theme_id" ]] ||
   fail "a browser behind a symlinked data dir is colored once it closes"
 pass "a browser whose data dir is a symlink is detected and colored after it closes"
+
+backup_home="$test_tmp/backup-home"
+backup_stubs="$test_tmp/backup-stubs"
+stub_browsers "$backup_stubs" chromium
+mkdir -p "$backup_home/run" "$backup_home/.config/chromium/Default"
+activate_theme amethyst "$backup_home"
+printf '{}\n' >"$backup_home/.config/chromium/Local State"
+printf '{}\n' >"$backup_home/.config/chromium/Default/Preferences"
+sleep 60 <"$backup_home/.config/chromium/Local State" &
+backup_pid=$!
+trap 'kill "$helium_pid" "$chrome_pid" "$backup_pid" 2>/dev/null; rm -rf "$test_tmp"' EXIT
+run_hook "$backup_home" "$backup_stubs" maitri-theme-set-chromium 2>"$test_tmp/cr-stderr"
+kill "$backup_pid"
+wait "$backup_pid" 2>/dev/null || true
+[[ ! -s $test_tmp/cr-stderr ]] || fail "another process with a file open in the data dir doesn't count as the browser" "$(cat "$test_tmp/cr-stderr")"
+[[ $(jq -r '.extensions.theme.id // ""' "$backup_home/.config/chromium/Default/Preferences") == "autogenerated_theme_id" ]] ||
+  fail "a closed browser is colored while a backup reads its data dir"
+pass "a backup or sync process reading the data dir doesn't hold the theme back"
