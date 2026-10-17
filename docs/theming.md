@@ -451,22 +451,36 @@ own colorscheme from `default/nvim/maitri-theme` and hands it the theme's
 `colors.toml` values as `opts`. The colorscheme works out everything else from
 those roles in Lua: diff, search and selection tints, the heading ramp (H1 in
 `accent`, each lower level a step toward `foreground`, all bold), float and
-border colors, the lualine theme and `g:terminal_color_0..15`. It takes
-`selection` for Visual, `border_focus` for float borders, `border` for window
-separators, and `hint`, `link` and `comment` as they are, so Neovim and every
-other app draw them the same. A `link` within 60° of the accent, a `hint`
-too close to a diagnostic color, a `selection` under 1.3:1 against the
+border colors, the lualine theme and `g:terminal_color_0..15`. It starts from
+the theme's `selection` for Visual, `border_focus` for float borders, `border`
+for window separators, and `hint`, `link` and `comment`, so Neovim and the
+other apps begin from the same values. A `link` within 60° of the accent, a
+`hint` too close to a diagnostic color, a `selection` under 1.3:1 against the
 background or a `border_focus` that's just the accent (its fallback) is
-replaced with what the colorscheme works
-out from the base roles.
-Any text color (`accent`, `dark_foreground` and
-the syntax colors) that falls under 4.5:1 against `background` is moved
-toward `foreground` until it clears that, so a user theme with a pale `orange`
-still reads. The terminal colors Neovim hands to `:terminal` stay exactly as
-the theme sets them. When `accent` sits close to `red`, `orange`, `cyan` or
-`green`, diagnostic hints use `magenta` (or `blue`) instead, and lualine's
-other modes step off any hue that matches the accent, so a hint never looks
-like a warning.
+replaced with what the colorscheme works out from the base roles, and any of
+them that falls under its floor on Neovim's own surfaces is moved as described
+below, so on dark themes `comment` reads a shade lighter in Neovim than
+elsewhere.
+
+Floats, popup menus, the statusline and code blocks sit on their own surface,
+stepped 1.22:1 off `background`, so they read as separate without leaning on
+their borders. Light themes step down from `dark_background`, with the
+cursorline at 1.16:1. Dark themes step up from `background` toward
+`lighter_background` (when it's lighter than the background and clear of
+`foreground`) and then `foreground`, which keeps them dark. On dark themes the
+cursorline sits a further 1.05:1 above the float, so a window with a raised
+background still shows it, chips and section blocks 1.1:1 above, and `muted`
+lines are lifted to 2:1 on the float so scrollbars and indent guides survive
+there. Any text color (`accent`, `comment`, `hint`, `link` and the syntax
+colors) that falls under 4.5:1 on the hardest text surface (the float on
+light themes, the cursorline on dark ones) is moved toward `foreground` until
+it clears that, so a user theme with a pale `orange` still reads. The float
+border is moved toward `accent` (toward `foreground` on light themes) until it
+clears 3:1 on the float. The terminal colors Neovim hands to
+`:terminal` stay exactly as the theme sets them. When `accent` sits close to
+`red`, `orange`, `cyan` or `green`, diagnostic hints use `magenta` (or `blue`)
+instead, and lualine's other modes step off any hue that matches the accent,
+so a hint never looks like a warning.
 
 `~/.config/nvim/lua/plugins/theme.lua` links to the rendered file, and the
 `theme-hotreload` plugin swaps it when the theme changes. That reload finds
