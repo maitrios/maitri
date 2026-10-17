@@ -50,6 +50,14 @@ if [[ -f ~/.config/foot/foot.ini ]]; then
   sed -i "s/^font=.*/font=$font_name:size=9/g" ~/.config/foot/foot.ini
 fi
 
+if [[ -f ~/.config/Code/User/settings.json ]]; then
+  vscode_font_name=$(printf '%s' "$font_name" | sed 's/[\\&|]/\\&/g')
+  sed --follow-symlinks -i -E \
+    -e "s|(\"editor\.fontFamily\"[[:space:]]*:[[:space:]]*\")[^\"]*(\")|\1'$vscode_font_name', 'monospace'\2|" \
+    -e "s|(\"terminal\.integrated\.fontFamily\"[[:space:]]*:[[:space:]]*\")[^\"]*(\")|\1'$vscode_font_name'\2|" \
+    ~/.config/Code/User/settings.json
+fi
+
 # fontconfig is the canonical source of truth — the maitri shell, Qt apps,
 # and anything resolving "monospace" all read from here. This file is loaded
 # after the package-owned default, and prepend_first puts the chosen family at
