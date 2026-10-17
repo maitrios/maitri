@@ -50,6 +50,121 @@ if [[ -f ~/.config/foot/foot.ini ]]; then
   sed -i "s/^font=.*/font=$font_name:size=9/g" ~/.config/foot/foot.ini
 fi
 
+vscode_font_py=$(cat <<'PY'
+import json, os, re, sys, tempfile
+
+path, font = sys.argv[1:3]
+real = os.path.realpath(path)
+with open(real, encoding="utf-8") as f:
+    original = f.read()
+text = original if original.strip() else "{}\n"
+
+def invalid():
+    print(f"Leaving {path} as is: it isn't valid JSON.", file=sys.stderr)
+    sys.exit(0)
+
+def string_end(s, i):
+    j = i + 1
+    while j < len(s) and s[j] != '"':
+        j += 2 if s[j] == "\\" else 1
+    return j + 1
+
+parts, i = [], 0
+while i < len(text):
+    if text[i] == '"':
+        j = string_end(text, i)
+        parts.append(text[i:j])
+    elif text.startswith("//", i):
+        j = text.find("\n", i)
+        j = len(text) if j < 0 else j
+        parts.append(" " * (j - i))
+    elif text.startswith("/*", i):
+        j = text.find("*/", i + 2)
+        if j < 0:
+            invalid()
+        j += 2
+        parts.append(re.sub(r"[^\n]", " ", text[i:j]))
+    else:
+        j = i + 1
+        parts.append(text[i])
+    i = j
+plain = "".join(parts)
+
+parts, i = [], 0
+while i < len(plain):
+    if plain[i] == '"':
+        j = string_end(plain, i)
+        parts.append(plain[i:j])
+        i = j
+        continue
+    trailing = plain[i] == "," and re.match(r"\s*[}\]]", plain[i + 1:])
+    parts.append(" " if trailing else plain[i])
+    i += 1
+plain = "".join(parts)
+
+try:
+    root = json.loads(plain)
+except ValueError:
+    invalid()
+if not isinstance(root, dict):
+    invalid()
+
+ws = re.compile(r"\s*")
+decoder = json.JSONDecoder()
+brace = ws.match(plain).end()
+spans = {}
+pos = brace + 1
+while True:
+    pos = ws.match(plain, pos).end()
+    if plain[pos] == "}":
+        break
+    key, pos = json.decoder.scanstring(plain, pos + 1)
+    pos = ws.match(plain, ws.match(plain, pos).end() + 1).end()
+    _, end = decoder.raw_decode(plain, pos)
+    spans.setdefault(key, []).append((pos, end))
+    pos = ws.match(plain, end).end()
+    if plain[pos] == ",":
+        pos += 1
+
+def css(name):
+    return "'" + name.replace("\\", "\\\\").replace("'", "\\'") + "'"
+
+values = {
+    "editor.fontFamily": f"{css(font)}, 'monospace'",
+    "terminal.integrated.fontFamily": css(font),
+}
+edits, missing = [], []
+for key, value in values.items():
+    encoded = json.dumps(value, ensure_ascii=False)
+    if key in spans:
+        edits += [(start, end, encoded) for start, end in spans[key]]
+    else:
+        missing.append(f"\n  {json.dumps(key)}: {encoded}")
+if missing:
+    edits.append((brace + 1, brace + 1, ",".join(missing) + ("," if root else "\n")))
+
+updated = text
+for start, end, replacement in sorted(edits, reverse=True):
+    updated = updated[:start] + replacement + updated[end:]
+if updated == original:
+    sys.exit(0)
+
+fd, tmp = tempfile.mkstemp(dir=os.path.dirname(real), prefix=".settings.json.")
+try:
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(updated)
+    os.chmod(tmp, os.stat(real).st_mode & 0o7777)
+    os.replace(tmp, real)
+except BaseException:
+    os.unlink(tmp)
+    raise
+PY
+)
+
+if [[ -f ~/.config/Code/User/settings.json ]]; then
+  python3 -I -c "$vscode_font_py" ~/.config/Code/User/settings.json "$font_name"
+fi
+
 # fontconfig is the canonical source of truth — the maitri shell, Qt apps,
 # and anything resolving "monospace" all read from here. This file is loaded
 # after the package-owned default, and prepend_first puts the chosen family at
