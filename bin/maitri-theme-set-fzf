@@ -15,7 +15,6 @@ has_bat=""
 maitri-cmd-present fzf && [[ -f $src ]] && has_fzf=1
 maitri-cmd-present bat && [[ -f $theme_dir/bat.tmTheme ]] && ! grep -q '{{' "$theme_dir/bat.tmTheme" &&
   bat --list-themes --color=never 2>/dev/null | grep -qx maitri && has_bat=1
-[[ -n $has_fzf || -n $has_bat ]] || exit 0
 
 block=$(mktemp)
 spliced=$(mktemp)
@@ -43,7 +42,13 @@ if [[ -n $has_bat ]]; then
   echo "set -gx BAT_THEME maitri" >>"$block"
 fi
 
-[[ -s $block ]] || exit 0
+# With nothing left to set, an existing block is taken out rather than left
+# pointing at a theme bat no longer has.
+drop=""
+if [[ ! -s $block ]]; then
+  [[ -f $fish_config ]] || exit 0
+  drop=1
+fi
 
 mkdir -p "$(dirname "$fish_config")"
 touch "$fish_config"
@@ -55,9 +60,9 @@ flock 9
 # vendor one, which sets FZF_DEFAULT_OPTS and BAT_THEME outright. A block already
 # in the file is replaced where it stands; a new one goes above the first command
 # and the comments right before it, so anything the user sets further down wins.
-awk -v start="$block_start" -v end="$block_end" -v block="$block" '
+awk -v start="$block_start" -v end="$block_end" -v block="$block" -v drop="$drop" '
   function emit(line) {
-    if (done) return
+    if (done || drop) return
     print start
     while ((getline line < block) > 0) print line
     close(block)
@@ -76,13 +81,15 @@ awk -v start="$block_start" -v end="$block_end" -v block="$block" '
   FNR == 1 && !e { s = 0 }
   s && FNR == s { emit() }
   s && FNR >= s && FNR <= e { next }
-  !s && first && FNR == gap + 1 { emit(); print "" }
+  drop && e && FNR == e + 1 && /^[[:space:]]*$/ { next }
+  !s && !drop && first && FNR == gap + 1 { emit(); print "" }
   { print; last = $0 }
   END {
+    if (drop) exit
     if (!done && NR > 0 && last !~ /^[[:space:]]*$/) print ""
     emit()
   }
-' "$fish_config" "$fish_config" >"$spliced"
+' "$fish_config" "$fish_config" >"$spliced" || exit 1
 
 cmp -s "$spliced" "$fish_config" && exit 0
 

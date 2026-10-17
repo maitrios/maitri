@@ -96,12 +96,10 @@ if maitri-cmd-present bat && [[ -f $tmtheme ]]; then
       touch "$bat_config"
       if ! outside_block "$bat_config" | grep -qE '^[[:space:]]*--theme(-dark|-light)?(=|[[:space:]]|$)'; then
         printf -- '--theme="maitri"\n' >"$block"
-        splice_block "$bat_config"
-        write_spliced "$bat_config"
+        splice_block "$bat_config" && write_spliced "$bat_config"
       fi
     elif [[ -f $bat_config ]]; then
-      outside_block "$bat_config" >"$spliced"
-      write_spliced "$bat_config"
+      outside_block "$bat_config" >"$spliced" && write_spliced "$bat_config"
     fi
   fi
 fi
@@ -132,7 +130,6 @@ if maitri-cmd-present delta && [[ -f $delta_theme ]]; then
     { echo "[delta]"; cat "$delta_keys"; } >"$block"
     mkdir -p "$(dirname "$git_config")"
     touch "$git_config"
-    splice_block "$git_config"
-    write_spliced "$git_config"
+    splice_block "$git_config" && write_spliced "$git_config"
   fi
 fi

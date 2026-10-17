@@ -38,7 +38,7 @@ if awk -v start="$block_start" -v end="$block_end" '
     next
   }
   e && FNR >= s && FNR <= e { next }
-  /^[[:space:]]*(\[[[:space:]]*flavor[[:space:]]*\]|flavor[[:space:]]*[.=])/ { found = 1 }
+  /^[[:space:]]*(\[[[:space:]]*["\047]?flavor["\047]?[[:space:]]*\]|["\047]?flavor["\047]?[[:space:]]*[.=])/ { found = 1 }
   END { exit !found }
 ' "$theme_config" "$theme_config"; then
   echo "yazi's theme.toml picks its own flavor, so it stays as it is. Set dark and light to \"maitri\" there to follow the maitri theme." >&2
@@ -86,7 +86,7 @@ awk -v start="$block_start" -v end="$block_end" -v block="$block" '
     if (!done && NR > FNR && last !~ /^[[:space:]]*$/) print ""
     emit()
   }
-' "$theme_config" "$theme_config" >"$spliced"
+' "$theme_config" "$theme_config" >"$spliced" || exit 1
 
 # Written through rather than moved over, so a config symlinked from a dotfiles
 # repo stays a symlink and keeps its permissions.

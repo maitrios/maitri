@@ -547,6 +547,41 @@ done
 python3 -c 'import sys, tomllib; tomllib.load(open(sys.argv[1], "rb"))' "$config/yazi/theme.toml" || fail "yazi's theme.toml still parses"
 pass "a start marker without an end loses no user lines, however many times the hooks run"
 
+home=$(new_home flow amethyst)
+mkdir -p "$home/.config/lazygit" "$home/.config/yazi"
+printf '{}\n' >"$home/.config/lazygit/config.yml"
+printf '["flavor"]\ndark = "mine"\n' >"$home/.config/yazi/theme.toml"
+for hook in maitri-theme-set-lazygit maitri-theme-set-yazi; do
+  run_hook "$home" "$hook" "$apps:$sandbox" || fail "$hook runs beside a config it leaves alone"
+done
+[[ $(<"$home/.config/lazygit/config.yml") == "{}" ]] || fail "a flow-style lazygit config is left alone" "$(cat "$home/.config/lazygit/config.yml")"
+grep -q "flow style" "$home/hook.stderr" || fail "the lazygit hook says why it left a flow-style config alone" "$(cat "$home/hook.stderr")"
+[[ $(<"$home/.config/yazi/theme.toml") == $'["flavor"]\ndark = "mine"' ]] || fail "yazi keeps a quoted [flavor] table of the user's" "$(cat "$home/.config/yazi/theme.toml")"
+
+home=$(new_home unreadable amethyst)
+config="$home/.config"
+mkdir -p "$config/bat" "$config/git" "$config/fish" "$config/yazi" "$config/lazygit"
+printf -- '--style=plain\n' >"$config/bat/config"
+printf '[user]\n\tname = me\n' >"$config/git/config"
+printf 'set -gx MINE 1\n' >"$config/fish/config.fish"
+printf '[mgr]\nratio = [1, 2, 3]\n' >"$config/yazi/theme.toml"
+printf 'git:\n  autoFetch: false\n' >"$config/lazygit/config.yml"
+files=("$config/bat/config" "$config/git/config" "$config/fish/config.fish" "$config/yazi/theme.toml" "$config/lazygit/config.yml")
+chmod 200 "${files[@]}"
+if [[ -r $config/bat/config ]]; then
+  skip "the hooks never empty a config they can't read (running as root)"
+else
+  for hook in "${hooks[@]}"; do
+    run_hook "$home" "$hook" "$apps:$sandbox" || true
+  done
+  chmod 600 "${files[@]}"
+  for file in "${files[@]}"; do
+    [[ -s $file ]] && ! grep -q 'maitri theme' "$file" || fail "a config the hooks can't read is left as it was" "$file: $(cat "$file")"
+  done
+  pass "the hooks never empty a config they can't read"
+fi
+chmod 600 "${files[@]}"
+
 home=$(new_home dangling amethyst)
 mkdir -p "$home/.config/yazi"
 printf '# >>> maitri theme (rewritten by maitri theme set) >>>\n[flavor]\ndark = "mine"\n' >"$home/.config/yazi/theme.toml"
@@ -649,10 +684,23 @@ output=$(run_hook "$home" maitri-update-bat-cache "$apps:$sandbox") || fail "mai
 : >"$home/bat.log"
 touch "$home/bat.stale" "$home/bat.broken"
 run_hook "$home" maitri-update-bat-cache "$apps:$sandbox" >/dev/null || fail "maitri-update-bat-cache exits cleanly when the rebuild fails"
-[[ $(<"$home/bat.log") == $'cache --build\ncache --clear' && ! -e $home/.cache/bat ]] || fail "maitri-update-bat-cache clears a cache it can't rebuild" "$(cat "$home/bat.log")"
+[[ $(head -n 2 "$home/bat.log") == $'cache --build\ncache --clear' && ! -e $home/.cache/bat ]] || fail "maitri-update-bat-cache clears a cache it can't rebuild" "$(cat "$home/bat.log")"
 grep -q "bat couldn't rebuild its theme cache" "$home/hook.stderr" || fail "maitri-update-bat-cache says it cleared the cache" "$(cat "$home/hook.stderr")"
 run_hook "$home" maitri-update-bat-cache "$sandbox" || fail "maitri-update-bat-cache exits cleanly without bat"
 grep -qx '  maitri-update-bat-cache' "$ROOT/bin/maitri-update" || fail "maitri update rebuilds bat's cache after the packages update"
+
+home=$(new_home cleared amethyst)
+for hook in maitri-theme-set-bat maitri-theme-set-fzf; do
+  run_hook "$home" "$hook" "$apps:$sandbox" || fail "$hook applies the theme before a bat update"
+done
+grep -q -- '--theme="maitri"' "$home/.config/bat/config" && grep -q 'BAT_THEME maitri' "$home/.config/fish/config.fish" ||
+  fail "bat and fish select maitri before a bat update"
+rm "$home/.local/state/maitri/current/theme/fzf.fish"
+touch "$home/bat.stale" "$home/bat.broken"
+run_hook "$home" maitri-update-bat-cache "$apps:$sandbox" >/dev/null || fail "maitri-update-bat-cache exits cleanly when the rebuild fails"
+! grep -q -- '--theme' "$home/.config/bat/config" || fail "a cleared cache takes bat's --theme block with it" "$(cat "$home/.config/bat/config")"
+! grep -q 'syntax-theme' "$home/.config/git/config" || fail "a cleared cache takes delta's syntax-theme with it" "$(cat "$home/.config/git/config")"
+! grep -q 'maitri theme' "$home/.config/fish/config.fish" || fail "a cleared cache with nothing else to set takes the config.fish block with it" "$(cat "$home/.config/fish/config.fish")"
 pass "maitri update rebuilds a bat cache that a bat update left unreadable, and only then"
 
 if command -v bat >/dev/null 2>&1 && command -v delta >/dev/null 2>&1; then

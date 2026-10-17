@@ -14,6 +14,8 @@ echo -e "\e[32m\nRebuild bat's theme cache\e[0m"
 if ! bat cache --build >/dev/null 2>&1; then
   bat cache --clear >/dev/null 2>&1
   echo "bat couldn't rebuild its theme cache, so it was cleared. bat uses its built-in themes until the next maitri theme set." >&2
+  maitri-theme-set-bat 2>/dev/null
+  maitri-theme-set-fzf 2>/dev/null
 fi
 
 exit 0

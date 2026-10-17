@@ -90,6 +90,12 @@ awk -v start="$block_start" -v end="$block_end" -v theme="$theme" '
     }
 
     for (i = 1; i <= n; i++) {
+      if (lines[i] ~ /^[[:space:]]*(#.*)?$/) continue
+      if (lines[i] ~ /^[[:space:]]*[{[]/) exit 5
+      break
+    }
+
+    for (i = 1; i <= n; i++) {
       if (lines[i] ~ /^gui[[:space:]]*:/) {
         gui = i
         break
@@ -132,6 +138,10 @@ case $? in
     ;;
   4)
     echo "lazygit's config.yml sets its own gui.theme, so it stays as it is. Remove it to follow the maitri theme." >&2
+    exit 0
+    ;;
+  5)
+    echo "lazygit's config.yml is written in flow style, so maitri leaves it as it is." >&2
     exit 0
     ;;
   *) exit 1 ;;
