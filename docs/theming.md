@@ -481,8 +481,10 @@ hooks touch the editor's own settings, so pick the theme once:
   light themes. Pick `maitri` under Settings → Editor → Color Scheme. The IDE
   reads the file at startup, so a theme change shows after a restart.
 - **Emacs** — `maitri-theme-set-emacs` installs `maitri-theme.el` into
-  `themes/` under the dir Emacs uses (`~/.emacs.d` when it or `~/.emacs`
-  exists, otherwise the XDG dir). Load it from your init file:
+  `themes/` under the dir Emacs uses: the XDG dir (`~/.config/emacs`) when it
+  exists and none of `~/.emacs.d`, `~/.emacs` or `~/.emacs.el` do, otherwise
+  `~/.emacs.d`, so a fresh machine gets `~/.emacs.d`. Load it from your init
+  file:
 
   ```elisp
   (add-to-list 'custom-theme-load-path (locate-user-emacs-file "themes"))
