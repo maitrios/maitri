@@ -211,7 +211,7 @@ pass "a theme name cannot climb out of the theme directories"
 # generates. Every generated theme file is either denied to an installed theme or
 # recorded here as carrying colour, so a new template fails until it is placed.
 denied=(alacritty.toml emacs-theme.el firefox-userChrome.css firefox-userContent.css foot.ini ghostty.conf herdr.toml kitty.conf gum_env.lua hyprland.lua neovim.lua vscode.json)
-colour_only=(bat.tmTheme btop.theme chromium-policy.json claude.json delta.gitconfig fzf.fish helix.toml hermes.yaml hyprland-preview-share-picker.css jetbrains.icls keyboard.rgb lazygit.yml maitri.sublime-color-scheme obsidian.css pi.json shell.toml t3code.json vicinae.toml vscode-theme.json warp.yaml yazi.toml zed.json)
+colour_only=(bat.tmTheme btop.theme chromium-policy.json claude.json delta.gitconfig fish.fish fzf.fish helix.toml hermes.yaml hyprland-preview-share-picker.css insomnia-theme.json jetbrains.icls keyboard.rgb lazygit.yml maitri.sublime-color-scheme obsidian.css pi.json shell.toml slack.txt t3code.json vicinae.toml vscode-theme.json warp.yaml yazi.toml zed.json)
 
 for tpl in "$ROOT"/default/themed/*.tpl; do
   generated=$(basename "$tpl" .tpl)

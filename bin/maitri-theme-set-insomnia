@@ -1,0 +1,54 @@
+#!/bin/bash
+
+# maitri:summary=Install the current maitri theme as an Insomnia theme plugin
+# maitri:hidden=true
+
+src="$HOME/.local/state/maitri/current/theme/insomnia-theme.json"
+[[ -f $src ]] || exit 0
+
+# The AppImage puts no command on PATH, so Insomnia also counts as present once
+# it has created its config dir.
+config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/Insomnia"
+maitri-cmd-present insomnia || [[ -d $config_dir ]] || exit 0
+
+if grep -q '{{' "$src"; then
+  echo "Skipping Insomnia theme: insomnia-theme.json has unresolved colors." >&2
+  exit 0
+fi
+
+# The plugin is JavaScript Insomnia runs, so the theme only reaches index.js as
+# a string jq wrote for JSON.parse: a theme file that isn't one plain JSON
+# document can't put code there, and a "__proto__" key stays an ordinary key.
+# rawCss is dropped too, since Insomnia injects it as a stylesheet.
+if ! theme=$(jq -se 'if length == 1 then .[0] else error("several documents") end |
+  {name: "maitri", displayName: "maitri", theme: (.theme | objects | del(.rawCss))} | tojson' "$src" 2>/dev/null); then
+  echo "Skipping Insomnia theme: insomnia-theme.json is not a single theme object." >&2
+  exit 0
+fi
+
+plugins_dir="$config_dir/plugins"
+plugin_dir="$plugins_dir/insomnia-plugin-maitri"
+mkdir -p "$plugin_dir" || exit 1
+
+cat >"$plugin_dir/package.json" <<'JSON' || exit 1
+{
+  "name": "insomnia-plugin-maitri",
+  "version": "1.0.0",
+  "description": "The current maitri theme",
+  "main": "index.js",
+  "insomnia": {
+    "name": "maitri",
+    "description": "The current maitri theme"
+  }
+}
+JSON
+
+tmp=$(mktemp "$plugins_dir/.maitri-theme.XXXXXX") || exit 1
+if ! printf 'module.exports.themes = [JSON.parse(%s)];\n' "$theme" >"$tmp" || ! mv "$tmp" "$plugin_dir/index.js"; then
+  rm -f "$tmp"
+  exit 1
+fi
+
+# Insomnia keeps its settings in its own database, which maitri doesn't manage,
+# so the theme is offered rather than selected.
+echo "Insomnia picks up the maitri theme after a restart or Preferences > Plugins > Reload plugins; choose maitri under Preferences > Themes." >&2
