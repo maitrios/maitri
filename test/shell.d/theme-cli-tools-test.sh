@@ -496,6 +496,25 @@ grep -q '  theme:' "$home/.config/lazygit/config.yml" && grep -q 'showIcons: tru
 [[ -z $(ls -A "$home/.config/jesseduffield/lazygit") ]] || fail "the lazygit hook creates nothing in an empty legacy dir" "$(ls -A "$home/.config/jesseduffield/lazygit")"
 pass "the lazygit hook writes where lazygit reads and never drops the user's lines"
 
+home=$(new_home quoted amethyst)
+mkdir -p "$home/.config/lazygit"
+for gui in "'gui':" '"gui":'; do
+  printf '%s\n  showIcons: true\ngit:\n  autoFetch: false\n' "$gui" >"$home/.config/lazygit/config.yml"
+  run_hook "$home" maitri-theme-set-lazygit "$apps:$sandbox" || fail "maitri-theme-set-lazygit runs beside a quoted $gui key"
+  lazygit_config=$(<"$home/.config/lazygit/config.yml")
+  [[ $lazygit_config == "$gui"$'\n  # >>> maitri theme (rewritten by maitri theme set) >>>\n  theme:\n'* && $(grep -c 'gui' <<<"$lazygit_config") == 1 ]] ||
+    fail "lazygit's theme goes under a quoted $gui key instead of a second gui" "$lazygit_config"
+done
+for theme_key in "'theme':" '"theme":'; do
+  printf 'gui:\n  %s\n    activeBorderColor:\n      - red\n' "$theme_key" >"$home/.config/lazygit/config.yml"
+  cp "$home/.config/lazygit/config.yml" "$home/lazygit.before"
+  : >"$home/hook.stderr"
+  run_hook "$home" maitri-theme-set-lazygit "$apps:$sandbox" || fail "maitri-theme-set-lazygit runs beside a quoted $theme_key key"
+  cmp -s "$home/.config/lazygit/config.yml" "$home/lazygit.before" && grep -q "sets its own gui.theme" "$home/hook.stderr" ||
+    fail "lazygit keeps the user's own quoted $theme_key" "$(cat "$home/.config/lazygit/config.yml")"
+done
+pass "quoted gui and theme keys in lazygit's config are recognised"
+
 home=$(new_home own amethyst)
 config="$home/.config"
 mkdir -p "$config/lazygit" "$config/bat" "$config/yazi"
