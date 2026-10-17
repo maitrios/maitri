@@ -53,18 +53,32 @@ follows_maitri() {
   [[ -z $accent || $accent == "AccentColor" ]]
 }
 
-# A cloned theme's colors.toml ends up in these files, so they are only
-# installed when every value in them is a plain colour.
-colour_only_css() {
-  awk '
-    /!important;/ {
-      value = $0
-      sub(/^[^:]*:[[:space:]]*/, "", value)
-      sub(/[[:space:]]*!important;.*$/, "", value)
-      if (value !~ /^(#[0-9A-Fa-f]{6}|dark|light|bold|italic|transparent|1px solid #[0-9A-Fa-f]{6})$/) bad = 1
-    }
-    END { exit bad }
-  ' "$1"
+# A theme cloned with `maitri theme install` reaches these stylesheets through
+# its colors.toml, so every colour they use has to be a plain #rrggbb. A theme
+# the user wrote is trusted like the rest of their config.
+cloned_theme_colours_ok() {
+  local -A palette=()
+  local name dir key value
+
+  name=$(cat "$HOME/.local/state/maitri/current/theme.name" 2>/dev/null)
+  dir="$HOME/.config/maitri/themes/$name"
+  [[ -n $name && -d $dir/.git && ! -L $dir ]] || return 0
+
+  while IFS=$'\t' read -r key value; do
+    palette[$key]=$value
+  done < <(maitri-theme-color --file "$THEME_DIR/colors.toml" --all 2>/dev/null)
+
+  while IFS= read -r key; do
+    value=${palette[$key]:-}
+    if [[ $key == "mode" ]]; then
+      [[ $value == "dark" || $value == "light" ]] || return 1
+    else
+      [[ $value =~ ^#[0-9A-Fa-f]{6}$ ]] || return 1
+    fi
+  done < <(
+    cat "$MAITRI_PATH"/default/themed/firefox-*.tpl "$HOME"/.config/maitri/themed/firefox-*.tpl 2>/dev/null |
+      grep -oE '\{\{[^}]+\}\}' | tr -d '{}' | tr ' ' '\n' | grep -xE '[a-z_]+' | grep -vxE 'mix(_strip|_rgb)?' | sort -u
+  )
 }
 
 # A symlinked file belongs to the user's dotfiles; maitri neither replaces the
@@ -126,6 +140,7 @@ enable_stylesheets() {
       { print }
     ' "$file" >"$file.maitri-tmp" && mv "$file.maitri-tmp" "$file"
   else
+    [[ -s $file && $(tail -c 1 "$file") != "" ]] && echo >>"$file"
     printf '%s\n' "$line" >>"$file"
   fi
 }
@@ -153,8 +168,8 @@ style_profile() {
 
 [[ -f $THEME_DIR/firefox-userChrome.css && -f $THEME_DIR/firefox-userContent.css ]] || exit 0
 
-if ! colour_only_css "$THEME_DIR/firefox-userChrome.css" || ! colour_only_css "$THEME_DIR/firefox-userContent.css"; then
-  echo "Firefox and Zen keep their current look: this theme's colors.toml has a value that isn't a #rrggbb colour." >&2
+if ! cloned_theme_colours_ok; then
+  echo "Firefox and Zen keep their current look: this theme's colors.toml has a colour that isn't #rrggbb." >&2
   exit 0
 fi
 
