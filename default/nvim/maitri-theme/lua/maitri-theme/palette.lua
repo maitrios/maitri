@@ -31,6 +31,16 @@ function M.contrast(a, b)
   return (la + 0.05) / (lb + 0.05)
 end
 
+function M.distance(a, b)
+  local r1, g1, b1 = rgb(a)
+  local r2, g2, b2 = rgb(b)
+  return math.sqrt((r1 - r2) ^ 2 + (g1 - g2) ^ 2 + (b1 - b2) ^ 2)
+end
+
+local function near(a, b)
+  return M.distance(a, b) < 48
+end
+
 function M.readable(color, bg, fg, minimum)
   local amount = 0
   local result = color
@@ -43,7 +53,6 @@ end
 
 local required = {
   "accent",
-  "selection",
   "muted",
   "background",
   "dark_background",
@@ -117,11 +126,38 @@ function M.build(c, mode)
 
   local tint = light and 0.16 or 0.13
 
+  local function apart(color, alternatives, avoid)
+    for _, candidate in ipairs({ color, unpack(alternatives) }) do
+      local clear = true
+      for _, other in ipairs(avoid) do
+        if near(candidate, other) then
+          clear = false
+          break
+        end
+      end
+      if clear then
+        return candidate
+      end
+    end
+    return color
+  end
+
+  p.hint = apart(p.accent, { p.magenta, p.blue }, { p.red, p.orange, p.cyan, p.green })
+  p.modes = {
+    normal = p.accent,
+    insert = apart(p.green, { p.cyan, p.blue }, { p.accent }),
+    visual = apart(p.magenta, { p.blue, p.cyan }, { p.accent }),
+    replace = apart(p.red, { p.yellow, p.magenta }, { p.accent }),
+    command = apart(p.orange, { p.yellow, p.cyan }, { p.accent }),
+    terminal = apart(p.cyan, { p.blue, p.green }, { p.accent }),
+  }
+  p.jump_current = apart(p.orange, { p.yellow, p.red }, { p.accent })
+
   p.visual = blend(p.bg, p.accent, light and 0.2 or 0.26)
   p.cursorline = p.bg_light
   p.float = p.bg_dark
-  p.border = blend(p.bg, p.accent, light and 0.6 or 0.5)
-  p.border_dim = light and blend(p.bg, p.line, 0.6) or p.line
+  p.border = blend(p.bg, p.accent, light and 0.8 or 0.6)
+  p.border_dim = p.line
   p.nontext = light and blend(p.bg, p.comment, 0.55) or blend(p.line, p.comment, 0.35)
   p.reference = blend(p.bg, p.accent, light and 0.12 or 0.16)
   p.menu_sel = blend(p.bg_dark, p.accent, light and 0.22 or 0.3)
@@ -146,27 +182,34 @@ function M.build(c, mode)
     error = blend(p.bg, p.red, 0.1),
     warn = blend(p.bg, p.orange, 0.1),
     info = blend(p.bg, p.cyan, 0.1),
-    hint = blend(p.bg, p.accent, 0.1),
+    hint = blend(p.bg, p.hint, 0.1),
     ok = blend(p.bg, p.green, 0.1),
+  }
+  p.virtual_fg = {
+    error = M.readable(p.red, p.virtual.error, p.fg),
+    warn = M.readable(p.orange, p.virtual.warn, p.fg),
+    info = M.readable(p.cyan, p.virtual.info, p.fg),
+    hint = M.readable(p.hint, p.virtual.hint, p.fg),
+    ok = M.readable(p.green, p.virtual.ok, p.fg),
   }
 
   p.terminal = {
-    p.bg,
-    p.red,
-    p.green,
-    p.yellow,
-    p.blue,
-    p.magenta,
-    p.cyan,
-    p.fg,
-    p.line,
-    p.bright_red,
-    p.bright_green,
-    p.bright_yellow,
-    p.bright_blue,
-    p.bright_magenta,
-    p.bright_cyan,
-    p.fg_bright,
+    c.background,
+    c.red,
+    c.green,
+    c.yellow,
+    c.blue,
+    c.magenta,
+    c.cyan,
+    c.foreground,
+    c.muted,
+    c.bright_red,
+    c.bright_green,
+    c.bright_yellow,
+    c.bright_blue,
+    c.bright_magenta,
+    c.bright_cyan,
+    c.bright_foreground,
   }
 
   return p

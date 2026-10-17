@@ -4,13 +4,15 @@ M.options = nil
 
 function M.setup(opts)
   M.options = opts or {}
+  M.cached = nil
 end
 
 function M.palette()
   if not M.options or not M.options.colors then
     error("maitri-theme: setup() was not called with the theme colors")
   end
-  return require("maitri-theme.palette").build(M.options.colors, M.options.mode)
+  M.cached = M.cached or require("maitri-theme.palette").build(M.options.colors, M.options.mode)
+  return M.cached
 end
 
 function M.load()

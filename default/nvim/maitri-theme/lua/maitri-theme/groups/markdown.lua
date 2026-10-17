@@ -60,7 +60,7 @@ return function(p)
     RenderMarkdownTodo = { fg = p.heading[3] },
     RenderMarkdownSuccess = { fg = p.green },
     RenderMarkdownInfo = { fg = p.cyan },
-    RenderMarkdownHint = { fg = p.accent },
+    RenderMarkdownHint = { fg = p.hint },
     RenderMarkdownWarn = { fg = p.orange },
     RenderMarkdownError = { fg = p.red },
   }

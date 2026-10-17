@@ -50,11 +50,32 @@ local function hex(value)
 end
 
 local colors = plugin.opts.colors
+local palette = require("maitri-theme.palette")
+local p = require("maitri-theme").palette()
 if hex(hl("Normal").bg) ~= colors.background:lower() then
   fail("Normal background is " .. hex(hl("Normal").bg))
 end
-if hex(hl("RenderMarkdownH1").fg) ~= colors.accent:lower() then
+if hex(hl("RenderMarkdownH1").fg) ~= p.accent:lower() then
   fail("the H1 heading is not the accent")
+end
+
+for _, other in ipairs({ "DiagnosticError", "DiagnosticWarn", "DiagnosticInfo" }) do
+  if palette.distance(hex(hl("DiagnosticHint").fg), hex(hl(other).fg)) < 48 then
+    fail("DiagnosticHint is too close to " .. other)
+  end
+end
+
+for _, kind in ipairs({ "Error", "Warn", "Info", "Hint", "Ok" }) do
+  local group = hl("DiagnosticVirtualText" .. kind)
+  local ratio = palette.contrast(hex(group.fg), hex(group.bg))
+  if ratio < 4.5 then
+    fail(string.format("DiagnosticVirtualText%s is %.2f:1", kind, ratio))
+  end
+end
+
+local border = palette.contrast(hex(hl("FloatBorder").fg), hex(hl("NormalFloat").bg))
+if border < 3 then
+  fail(string.format("FloatBorder is %.2f:1 on NormalFloat", border))
 end
 
 local forbidden = { [colors.green:lower()] = "green", [colors.yellow:lower()] = "yellow" }
@@ -78,8 +99,13 @@ for i = 0, 15 do
 end
 
 local lualine = require("lualine.themes.maitri")
-if lualine.normal.a.bg ~= colors.accent then
+if lualine.normal.a.bg ~= p.accent then
   fail("the lualine normal mode is not the accent")
+end
+for _, mode in ipairs({ "insert", "visual", "replace", "command", "terminal" }) do
+  if palette.distance(lualine[mode].a.bg, lualine.normal.a.bg) < 48 then
+    fail("the lualine " .. mode .. " mode is too close to normal")
+  end
 end
 LUA
 

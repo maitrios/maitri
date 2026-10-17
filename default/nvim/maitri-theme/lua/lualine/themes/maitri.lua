@@ -9,12 +9,12 @@ local function mode(color)
 end
 
 return {
-  normal = mode(p.accent),
-  insert = mode(p.green),
-  visual = mode(p.magenta),
-  replace = mode(p.red),
-  command = mode(p.orange),
-  terminal = mode(p.cyan),
+  normal = mode(p.modes.normal),
+  insert = mode(p.modes.insert),
+  visual = mode(p.modes.visual),
+  replace = mode(p.modes.replace),
+  command = mode(p.modes.command),
+  terminal = mode(p.modes.terminal),
   inactive = {
     a = { fg = p.comment, bg = p.bg_dark },
     b = { fg = p.comment, bg = p.bg_dark },
