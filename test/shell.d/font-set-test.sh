@@ -114,3 +114,19 @@ font_set
 assert_fonts "a symlinked settings.json"
 [[ -z $(find "$test_tmp" -name '.settings.json.*') ]] || fail "maitri-font-set leaves no temp file"
 pass "maitri-font-set writes through a symlinked settings.json"
+
+: >"$settings"
+font_set
+python3 -c 'import json, sys; json.load(open(sys.argv[1]))' "$settings" ||
+  fail "an empty settings.json becomes strict JSON" "$(cat "$settings")"
+assert_fonts "an empty settings.json"
+pass "maitri-font-set gives an empty settings.json the font keys"
+
+plant="$test_tmp/plant"
+mkdir -p "$plant"
+printf 'open(%s, "w").close()\nraise SystemExit(7)\n' "'$test_tmp/planted'" >"$plant/json.py"
+printf '{\n  "update.mode": "none"\n}\n' >"$settings"
+(cd "$plant" && font_set)
+[[ ! -e $test_tmp/planted ]] || fail "maitri-font-set ignores a json.py in the working directory"
+assert_fonts "VS Code settings edited from a directory with a json.py"
+pass "maitri-font-set runs its settings editor isolated from the working directory"

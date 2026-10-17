@@ -56,7 +56,8 @@ import json, os, re, sys, tempfile
 path, font = sys.argv[1:3]
 real = os.path.realpath(path)
 with open(real, encoding="utf-8") as f:
-    text = f.read()
+    original = f.read()
+text = original if original.strip() else "{}\n"
 
 def invalid():
     print(f"Leaving {path} as is: it isn't valid JSON.", file=sys.stderr)
@@ -145,7 +146,7 @@ if missing:
 updated = text
 for start, end, replacement in sorted(edits, reverse=True):
     updated = updated[:start] + replacement + updated[end:]
-if updated == text:
+if updated == original:
     sys.exit(0)
 
 fd, tmp = tempfile.mkstemp(dir=os.path.dirname(real), prefix=".settings.json.")
@@ -161,7 +162,7 @@ PY
 )
 
 if [[ -f ~/.config/Code/User/settings.json ]]; then
-  python3 -c "$vscode_font_py" ~/.config/Code/User/settings.json "$font_name"
+  python3 -I -c "$vscode_font_py" ~/.config/Code/User/settings.json "$font_name"
 fi
 
 # fontconfig is the canonical source of truth — the maitri shell, Qt apps,
