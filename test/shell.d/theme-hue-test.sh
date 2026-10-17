@@ -6,10 +6,7 @@ source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/base-test.sh"
 
 require_command python3
 
-# The hue model in docs/theming.md: seven evenly spaced syntax hues at one
-# chroma, the hue nearest the accent being the accent itself, links and hints
-# clear of the colors they sit next to, and every text and line role over its
-# contrast floor. Hue angles are HSL, the same ones palette.lua measures.
+# See "The hue model" in docs/theming.md.
 
 problems=$(python3 - "$ROOT" <<'PY'
 import colorsys, math, os, re, sys
