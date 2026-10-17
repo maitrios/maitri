@@ -62,7 +62,9 @@ takes it; Andrew's approval of the PR that bumped `version` was the approval for
    with `git reset --hard origin/main` before retrying. The push publishes; wait for `build-pkgs.yml`
    (`gh run watch`) and check `gh release view stable -R maitrios/maitri-pkgs`.
 3. Publish the release with a short prose summary above the generated notes (what changed for users,
-   security fixes first, which upstream release or backports it carries):
+   security fixes first, which upstream release or backports it carries). The issue links the
+   compare range from the previous release; `git log --first-parent vPREV..vX.Y.Z` shows the same
+   merges locally:
    `gh release create vX.Y.Z --repo maitrios/maitri --target <sha> --title "maitri vX.Y.Z" --notes-file <summary> --generate-notes`.
 4. Check that `build-iso.yml` started for the release. If it didn't, start it with
    `gh workflow run build-iso.yml -R maitrios/maitri -f release_tag=vX.Y.Z` (see its inputs).
