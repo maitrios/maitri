@@ -69,3 +69,39 @@ run_migration "$home" || fail "the migration exits cleanly without the file"
 [[ ! -e $home/.config/nvim/plugin/after/transparency.lua && ! -s $home/stderr ]] ||
   fail "a missing file stays missing"
 pass "the migration is a no-op when transparency.lua is missing"
+
+assert_left_alone() {
+  local description="$1" home="$2"
+  run_migration "$home" || fail "$description: the migration exits cleanly"
+  (( $(wc -l <"$home/stderr") == 1 )) || fail "$description: one-line notice" "$(cat "$home/stderr")"
+}
+
+home=$(case_home directory)
+mkdir "$home/.config/nvim/plugin/after/transparency.lua"
+assert_left_alone "a directory in the file's place" "$home"
+[[ -d $home/.config/nvim/plugin/after/transparency.lua ]] || fail "a directory in the file's place stays"
+pass "the migration leaves a directory in the file's place alone with a notice"
+
+if (( EUID == 0 )); then
+  skip "the migration leaves an unreadable copy alone with a notice"
+  skip "the migration leaves a copy in a read-only folder alone with a notice"
+else
+  home=$(case_home unreadable)
+  target="$home/.config/nvim/plugin/after/transparency.lua"
+  cp "$shipped" "$target"
+  chmod 0000 "$target"
+  assert_left_alone "an unreadable copy" "$home"
+  chmod 0644 "$target"
+  cmp -s "$target" "$shipped" || fail "an unreadable copy is left untouched"
+  pass "the migration leaves an unreadable copy alone with a notice"
+
+  home=$(case_home read-only)
+  target="$home/.config/nvim/plugin/after/transparency.lua"
+  cp "$shipped" "$target"
+  chmod 0555 "${target%/*}"
+  assert_left_alone "a copy in a read-only folder" "$home"
+  chmod 0755 "${target%/*}"
+  cmp -s "$target" "$shipped" || fail "a copy in a read-only folder is left untouched"
+  [[ -z $(find "${target%/*}" -name 'transparency.lua.*') ]] || fail "a read-only folder gets no temp file"
+  pass "the migration leaves a copy in a read-only folder alone with a notice"
+fi
