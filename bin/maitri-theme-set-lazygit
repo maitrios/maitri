@@ -1,0 +1,143 @@
+#!/bin/bash
+
+# maitri:summary=Apply the current maitri theme to lazygit
+# maitri:hidden=true
+
+src="$HOME/.local/state/maitri/current/theme/lazygit.yml"
+config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/lazygit"
+legacy_dir="${XDG_CONFIG_HOME:-$HOME/.config}/jesseduffield/lazygit"
+block_start="# >>> maitri theme (rewritten by maitri theme set) >>>"
+block_end="# <<< maitri theme <<<"
+
+maitri-cmd-present lazygit || exit 0
+[[ -f $src ]] || exit 0
+
+# The same lookup lazygit does: its own overrides, then the directory older
+# releases used if it's still there.
+if [[ -n ${LG_CONFIG_FILE:-} ]]; then
+  config_file="${LG_CONFIG_FILE%%,*}"
+elif [[ -n ${CONFIG_DIR:-} ]]; then
+  config_file="$CONFIG_DIR/config.yml"
+elif [[ -d $legacy_dir ]]; then
+  config_file="$legacy_dir/config.yml"
+else
+  config_file="$config_dir/config.yml"
+fi
+
+theme=$(mktemp)
+spliced=$(mktemp)
+trap 'rm -f "$theme" "$spliced"' EXIT
+
+# Only gui.theme is taken from the rendered file, and only lines that are a key
+# or a colour, so a theme can't reach lazygit's custom commands or anything
+# else in its config.
+awk '
+  /^[^[:space:]#]/ { in_gui = ($0 ~ /^gui:[[:space:]]*$/); in_theme = 0; next }
+  in_gui && /^  [^[:space:]#]/ { in_theme = ($0 ~ /^  theme:[[:space:]]*$/); next }
+  in_theme && /^    / { print }
+' "$src" >"$theme"
+
+[[ -s $theme ]] || exit 0
+if grep -qvE '^(    [A-Za-z]+:|      - ("#[0-9A-Fa-f]{6}"|[a-z]+))$' "$theme" ||
+  [[ -n $(grep -E '^    [A-Za-z]+:$' "$theme" | sort | uniq -d) || $(head -n 1 "$theme") == "      -"* ]]; then
+  echo "Skipping lazygit theme: lazygit.yml has a line maitri doesn't apply." >&2
+  exit 0
+fi
+
+mkdir -p "$(dirname "$config_file")"
+touch "$config_file"
+
+exec 9>"${XDG_RUNTIME_DIR:-/tmp}/maitri-theme-set-lazygit.lock"
+flock 9
+
+# lazygit has no include, so the theme goes under the config's own gui key,
+# indented the way that mapping already is, between markers that a later theme
+# change replaces.
+awk -v start="$block_start" -v end="$block_end" -v theme="$theme" '
+  function trimmed(line) {
+    sub(/^[[:space:]]+/, "", line)
+    sub(/[[:space:]]+$/, "", line)
+    return line
+  }
+
+  function pad(width) {
+    return sprintf("%" width "s", "")
+  }
+
+  function emit(unit, line, depth) {
+    print pad(unit) start
+    print pad(unit) "theme:"
+    while ((getline line < theme) > 0) {
+      match(line, /^ +/)
+      depth = RLENGTH / 2
+      print pad(unit * depth) substr(line, RLENGTH + 1)
+    }
+    close(theme)
+    print pad(unit) end
+  }
+
+  {
+    all[NR] = $0
+    if (trimmed($0) == start && !s) s = NR
+    else if (trimmed($0) == end && s && !e) e = NR
+  }
+
+  END {
+    if (!e) s = 0
+    for (i = 1; i <= NR; i++) {
+      if (s && i >= s && i <= e) continue
+      lines[++n] = all[i]
+    }
+
+    for (i = 1; i <= n; i++) {
+      if (lines[i] ~ /^gui[[:space:]]*:/) {
+        gui = i
+        break
+      }
+    }
+
+    unit = 2
+    if (gui) {
+      if (lines[gui] !~ /^gui[[:space:]]*:[[:space:]]*(#.*)?$/) exit 3
+      for (i = gui + 1; i <= n; i++) {
+        if (lines[i] ~ /^[[:space:]]*(#.*)?$/) continue
+        if (lines[i] !~ /^ /) break
+        if (!seen) {
+          match(lines[i], /^ +/)
+          unit = RLENGTH
+          seen = 1
+        }
+        if (lines[i] ~ ("^" pad(unit) "theme[[:space:]]*:")) exit 4
+      }
+    }
+
+    for (i = 1; i <= n; i++) {
+      print lines[i]
+      if (i == gui) emit(unit)
+    }
+
+    if (!gui) {
+      if (n > 0 && lines[n] !~ /^[[:space:]]*$/) print ""
+      print "gui:"
+      emit(unit)
+    }
+  }
+' "$config_file" >"$spliced"
+
+case $? in
+  0) ;;
+  3)
+    echo "lazygit's config.yml writes gui on one line, so maitri leaves it as it is." >&2
+    exit 0
+    ;;
+  4)
+    echo "lazygit's config.yml sets its own gui.theme, so it stays as it is. Remove it to follow the maitri theme." >&2
+    exit 0
+    ;;
+  *) exit 1 ;;
+esac
+
+# Written through rather than moved over, so a config symlinked from a dotfiles
+# repo stays a symlink and keeps its permissions. lazygit rereads its config
+# when it gets focus again, so nothing needs a restart.
+cmp -s "$spliced" "$config_file" || cat "$spliced" >"$config_file"
