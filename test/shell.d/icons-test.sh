@@ -208,3 +208,26 @@ run_icons restore
 [[ ! -e $user_apps/foot.desktop ]] || fail "restore removes the svg override"
 unset maitri_path
 pass "set and restore handle svg icons"
+
+reset_fixture
+run_icons set
+mkdir -p "$tmpdir/stubs"
+cat >"$tmpdir/stubs/pacman" <<'SCRIPT'
+#!/bin/bash
+[[ $1 == "-Qqo" && $2 == */system/applications/code.desktop ]] && printf 'code\n'
+SCRIPT
+cat >"$tmpdir/stubs/maitri-launch-floating-terminal-with-presentation" <<'SCRIPT'
+#!/bin/bash
+printf '%s\n' "$*" >>"$TEST_LOG"
+SCRIPT
+chmod +x "$tmpdir/stubs/pacman" "$tmpdir/stubs/maitri-launch-floating-terminal-with-presentation"
+HOME="$home" XDG_DATA_HOME="" XDG_DATA_DIRS="$tmpdir/system:$tmpdir/second" TEST_LOG="$tmpdir/remove.log" \
+  MAITRI_PATH="$ROOT" PATH="$tmpdir/stubs:$ROOT/bin:$PATH" \
+  "$ROOT/bin/maitri-remove-launcher-entry" code.desktop Code >"$tmpdir/out" 2>"$tmpdir/err" ||
+  fail "launcher remove handles a swapped app" "$(cat "$tmpdir/err")"
+grep -Fxq 'echo Uninstalling Code...; sudo pacman -Rns code' "$tmpdir/remove.log" ||
+  fail "launcher remove uninstalls the app behind a swapped icon" "$(cat "$tmpdir/remove.log" 2>/dev/null)"
+[[ ! -e $user_apps/code.desktop ]] || fail "launcher remove drops the icon override"
+grep -q '^code.desktop' "$state/manifest" && fail "launcher remove forgets the icon override"
+grep -q '^slack.desktop' "$state/manifest" || fail "launcher remove keeps the other swaps"
+pass "launcher remove uninstalls an app whose icon was swapped"

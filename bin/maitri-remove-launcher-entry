@@ -38,6 +38,11 @@ else
   desktop_dirs+=("/usr/local/share/applications" "/usr/share/applications")
 fi
 
+icons_manifest="$HOME/.local/state/maitri/icons/manifest"
+if [[ -s $icons_manifest ]] && cut -f1 "$icons_manifest" | grep -Fxq "$desktop_file_name"; then
+  maitri-icons-restore "$desktop_file_name" >/dev/null
+fi
+
 desktop_file=""
 for dir in "${desktop_dirs[@]}"; do
   candidate="$dir/$desktop_file_name"
