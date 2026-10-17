@@ -31,7 +31,7 @@ HEART = {
     "point": ((0, 30), 26),
     "loop": ((0, -18.5), 19),
     "start": (-150, 7),
-    "end": (-134, 4),
+    "end": (-134, 7),
 }
 BRAND_COLOR = "#B08CFF"
 GLYPH_COLOR = "#000000"
@@ -223,7 +223,7 @@ def lockup_svg(fill):
         '  </g>\n'
         '</svg>\n'
         % (fmt(width), fmt(height), fill,
-           fmt(-x0 * scale), fmt(-y0 * scale), ("%.6f" % scale).rstrip("0"), heart_path(),
+           fmt(-x0 * scale), fmt(-y0 * scale), ("%.6f" % scale).rstrip("0").rstrip("."), heart_path(),
            fmt(heart_w + gap - wx), fmt(-wy), letters))
 
 
