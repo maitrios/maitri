@@ -8,7 +8,7 @@ if [[ -f $branding/about.txt && $(sha256sum <"$branding/about.txt") == "$shipped
   cp "$MAITRI_PATH/icon.txt" "$branding/about.txt"
 fi
 if [[ -f $branding/screensaver.txt && $(sha256sum <"$branding/screensaver.txt") == "$shipped_wordmark  -" ]]; then
-  cp "$MAITRI_PATH/screensaver.txt" "$branding/screensaver.txt"
+  { cat "$MAITRI_PATH/icon.txt"; printf '\f\n'; cat "$MAITRI_PATH/logo.txt"; } >"$branding/screensaver.txt"
 fi
 
 logo=/usr/share/plymouth/themes/maitri/logo.png

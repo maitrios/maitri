@@ -40,13 +40,17 @@ echo "limine-mkinitcpio" >>"$CALLS"
 STUB
 chmod +x "$test_dir/bin/"*
 
+share="$test_dir/share"
+mkdir -p "$share"
+cp "$ROOT/logo.txt" "$ROOT/icon.txt" "$share/"
+
 export CALLS="$test_dir/calls"
 home="$test_dir/home"
 branding="$home/.config/maitri/branding"
 
 run_migration() {
   : >"$CALLS"
-  HOME="$home" MAITRI_PATH="$ROOT" PATH="$test_dir/bin:$PATH" GROUPS_LIST="${GROUPS_LIST:-beyera wheel}" \
+  HOME="$home" MAITRI_PATH="$share" PATH="$test_dir/bin:$PATH" GROUPS_LIST="${GROUPS_LIST:-beyera wheel}" \
     STALE="${STALE-/boot/EFI/Linux/maitri_linux.efi}" bash -euo pipefail "$test_dir/migration.sh" >/dev/null
 }
 
@@ -62,7 +66,7 @@ reset
 run_migration
 cmp -s "$branding/about.txt" "$ROOT/icon.txt" || fail "the shipped About heart is replaced with the loop heart"
 pass "the shipped About heart is replaced with the loop heart"
-cmp -s "$branding/screensaver.txt" "$ROOT/screensaver.txt" || fail "the shipped screensaver wordmark is replaced with the heart and lowercase wordmark"
+[[ $(cat "$branding/screensaver.txt") == "$(cat "$ROOT/icon.txt"; printf '\f\n'; cat "$ROOT/logo.txt")" ]] || fail "the shipped screensaver wordmark is replaced with the heart and lowercase wordmark"
 pass "the shipped screensaver wordmark is replaced with the heart and lowercase wordmark"
 grep -qx 'limine-mkinitcpio' "$CALLS" || fail "a stale boot image is rebuilt" "$(cat "$CALLS")"
 pass "a stale boot image is rebuilt"

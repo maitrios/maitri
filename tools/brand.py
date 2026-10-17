@@ -8,8 +8,7 @@ The heart is one bold line drawn from circles and the lines tangent to them,
 so HEART holds its whole geometry: the two lobes, the rounded point, the loop
 and the two free ends. The outline is the exact offset of that centre line,
 which keeps heart.svg, heart-glyph.svg and icon.svg on one path. The wordmark
-comes from tools/wordmark.py. screensaver.txt is icon.txt and logo.txt as two
-frames split by a form feed line, which maitri-screensaver takes turns showing.
+comes from tools/wordmark.py.
 
 Needs rsvg-convert and ImageMagick (magick).
 """
@@ -238,7 +237,6 @@ def sources():
         "assets/brand/icon.svg": icon_svg(),
         "assets/brand/lockup.svg": lockup_svg(BRAND_COLOR),
         "logo.svg": theme_lockup(DEFAULT_THEME),
-        "screensaver.txt": read_text("icon.txt") + "\f\n" + read_text("logo.txt"),
     }
 
 
