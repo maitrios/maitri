@@ -24,7 +24,7 @@ border = "{{ border }}"
 
 [colors.main_window]
 border = "{{ border }}"
-footer = { background = "{{ lighter_background }}" }
+footer = { background = "{{ background }}" }
 
 [colors.settings_window]
 border = "{{ border }}"
