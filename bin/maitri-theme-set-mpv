@@ -1,0 +1,70 @@
+#!/bin/bash
+
+# maitri:summary=Apply the current maitri theme to mpv's OSD and subtitles
+# maitri:hidden=true
+
+src="$HOME/.local/state/maitri/current/theme/mpv.conf"
+config="${MPV_HOME:-${XDG_CONFIG_HOME:-$HOME/.config}/mpv}/mpv.conf"
+block_start="# >>> maitri theme (rewritten by maitri theme set) >>>"
+block_end="# <<< maitri theme <<<"
+
+maitri-cmd-present mpv || exit 0
+[[ -f $src ]] || exit 0
+
+# mpv.conf can load scripts, so only the OSD and subtitle colours are taken.
+if grep -qvE '^(osd-color|osd-outline-color|osd-selected-color|osd-selected-outline-color|sub-color|sub-outline-color)="#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?"$' "$src" ||
+  [[ -n $(cut -d= -f1 "$src" | sort | uniq -d) ]]; then
+  echo "Skipping mpv theme: mpv.conf has a line maitri doesn't apply." >&2
+  exit 0
+fi
+
+spliced=$(mktemp)
+trap 'rm -f "$spliced"' EXIT
+
+mkdir -p "$(dirname "$config")"
+touch "$config"
+
+exec 9>"${XDG_RUNTIME_DIR:-/tmp}/maitri-theme-set-mpv.lock"
+flock 9
+
+# A block already in the file is replaced where it stands. A new one goes above
+# the first setting or profile and the comments right before it, so anything
+# the user sets further down still wins.
+awk -v start="$block_start" -v end="$block_end" -v block="$src" '
+  function emit(line) {
+    if (done) return
+    print start
+    while ((getline line < block) > 0) print line
+    close(block)
+    print end
+    done = 1
+  }
+
+  NR == FNR {
+    if ($0 == start && !e) s = FNR
+    else if ($0 == end && s && !e) e = FNR
+    if (!first && $0 ~ /^[[:space:]]*$/) gap = FNR
+    else if (!first && $0 !~ /^[[:space:]]*#/) first = FNR
+    next
+  }
+
+  FNR == 1 && !e { s = 0 }
+  s && FNR == s { emit() }
+  s && FNR >= s && FNR <= e { next }
+  !s && first && FNR == gap + 1 { emit(); print "" }
+  { print; last = $0 }
+  END {
+    if (!done && NR > 0 && last !~ /^[[:space:]]*$/) print ""
+    emit()
+  }
+' "$config" "$config" >"$spliced" || exit 1
+
+cmp -s "$spliced" "$config" && exit 0
+
+# Written through rather than moved over, so a config symlinked from a dotfiles
+# repo stays a symlink and keeps its permissions.
+cat "$spliced" >"$config"
+
+if pgrep -x mpv >/dev/null; then
+  echo "mpv reads its config at startup; restart it for the new OSD and subtitle colours." >&2
+fi

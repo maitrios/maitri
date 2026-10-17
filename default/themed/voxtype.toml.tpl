@@ -1,0 +1,18 @@
+name = "maitri"
+version = "1.0.0"
+description = "The current maitri theme"
+palette = "package"
+
+[colors]
+accent = "{{ accent }}"
+background = "{{ background }}"
+surface = "{{ lighter_background }}"
+foreground = "{{ foreground }}"
+muted = "{{ comment }}"
+success = "{{ green }}"
+warning = "{{ orange }}"
+error = "{{ red }}"
+recording = "{{ red }}"
+streaming = "{{ accent }}"
+transcribing = "{{ yellow }}"
+idle = "{{ comment }}"

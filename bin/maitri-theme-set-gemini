@@ -1,0 +1,47 @@
+#!/bin/bash
+
+# maitri:summary=Apply the current maitri theme to Gemini CLI
+# maitri:hidden=true
+
+src="$HOME/.local/state/maitri/current/theme/gemini-cli.json"
+settings="${GEMINI_CLI_HOME:-$HOME}/.gemini/settings.json"
+
+maitri-cmd-present gemini || exit 0
+[[ -f $src ]] || exit 0
+
+if ! jq -e '
+  .type == "custom" and .name == "maitri" and
+  ([paths(scalars) as $p | select($p != ["type"] and $p != ["name"]) | getpath($p)]
+    | all(type == "string" and test("^#[0-9A-Fa-f]{6}$")))
+' "$src" >/dev/null 2>&1; then
+  echo "Skipping Gemini CLI theme: gemini-cli.json has a value maitri doesn't apply." >&2
+  exit 0
+fi
+
+merged=$(mktemp)
+trap 'rm -f "$merged"' EXIT
+
+exec 9>"${XDG_RUNTIME_DIR:-/tmp}/maitri-theme-set-gemini.lock"
+flock 9
+
+mkdir -p "$(dirname "$settings")"
+[[ -s $settings ]] || echo '{}' >"$settings"
+
+# Gemini CLI allows comments in settings.json, which jq can't keep, so a file
+# with them is left alone.
+if ! jq --slurpfile theme "$src" '
+  .ui.customThemes.maitri = $theme[0] |
+  if (.ui.theme // "") == "" then .ui.theme = "maitri" else . end
+' "$settings" >"$merged" 2>/dev/null; then
+  echo "Gemini CLI's settings.json isn't plain JSON, so maitri leaves it as it is." >&2
+  exit 0
+fi
+
+if [[ $(jq -r '.ui.theme' "$merged") != "maitri" ]]; then
+  echo "Gemini CLI uses its own theme, so it stays as it is. Pick maitri in /theme to follow the maitri theme." >&2
+fi
+
+# Written through rather than moved over, so a settings file symlinked from a
+# dotfiles repo stays a symlink and keeps its permissions. Gemini CLI reads it
+# at startup.
+cmp -s "$merged" "$settings" || cat "$merged" >"$settings"

@@ -1,0 +1,144 @@
+#!/bin/bash
+
+# maitri:summary=Put a maitri theme block of keys under a table in a TOML file
+# maitri:args=<file> <table> <block-file>
+# maitri:hidden=true
+
+# The block replaces the previous one wherever it stands and goes right under
+# the table's header, or under a new header at the end. Keys the file already
+# sets in that table stay the user's: they're left out of the block, since TOML
+# can't set a key twice, and their names are printed. Exits 3 without touching
+# a file that writes the table inline or as dotted keys, and 1 if the file
+# can't be read.
+
+if (( $# != 3 )); then
+  echo "Usage: maitri-theme-toml-block <file> <table> <block-file>" >&2
+  exit 1
+fi
+
+file="$1"
+table="$2"
+block="$3"
+block_start="# >>> maitri theme (rewritten by maitri theme set) >>>"
+block_end="# <<< maitri theme <<<"
+
+spliced=$(mktemp)
+dropped=$(mktemp)
+trap 'rm -f "$spliced" "$dropped"' EXIT
+
+mkdir -p "$(dirname "$file")"
+touch "$file"
+
+awk -v start="$block_start" -v end="$block_end" -v table="$table" -v block="$block" -v dropped="$dropped" '
+  function trimmed(line) {
+    sub(/^[[:space:]]+/, "", line)
+    sub(/[[:space:]]+$/, "", line)
+    return line
+  }
+
+  function header(line) {
+    if (line !~ /^[[:space:]]*\[[^]]*\][[:space:]]*(#.*)?$/) return ""
+    sub(/^[[:space:]]*\[[[:space:]]*/, "", line)
+    sub(/[[:space:]]*\][[:space:]]*(#.*)?$/, "", line)
+    gsub(/"/, "", line)
+    return line
+  }
+
+  function key(line) {
+    if (line !~ /^[[:space:]]*[A-Za-z0-9_".-]+[[:space:]]*=/) return ""
+    sub(/^[[:space:]]+/, "", line)
+    sub(/[[:space:]]*=.*/, "", line)
+    gsub(/"/, "", line)
+    return line
+  }
+
+  { all[NR] = $0 }
+
+  END {
+    # Each end marker pairs with the nearest start before it. A start with no
+    # end after it is the user'"'"'s text and stays.
+    for (i = 1; i <= NR; i++) {
+      if (trimmed(all[i]) == start) open = i
+      else if (trimmed(all[i]) == end && open) {
+        for (j = open; j <= i; j++) skip[j] = 1
+        open = 0
+      }
+    }
+    for (i = 1; i <= NR; i++) if (!skip[i]) lines[++n] = all[i]
+
+    # Lines inside a multi-line string or array are values, never headers or
+    # keys. A table the file only sets through dotted keys at the top level
+    # cannot get a header of its own, so that file counts as inline too.
+    current = ""
+    for (i = 1; i <= n; i++) {
+      line = lines[i]
+      if (quote != "") {
+        if (index(line, quote)) quote = ""
+        continue
+      }
+      if (depth > 0) {
+        depth += brackets(line)
+        continue
+      }
+      if (line ~ /^[[:space:]]*\[\[/) {
+        current = "[[array]]"
+        continue
+      }
+      if (line ~ /^[[:space:]]*\[/) {
+        current = header(line)
+        if (current == table && !at) at = i
+        continue
+      }
+      k = key(line)
+      if (k == "") continue
+      value = line
+      sub(/^[^=]*=[[:space:]]*/, "", value)
+      if (value ~ /^"""/ && gsub(/"""/, "&", value) == 1) quote = "\"\"\""
+      else if (value ~ /^\x27\x27\x27/ && gsub(/\x27\x27\x27/, "&", value) == 1) quote = "\x27\x27\x27"
+      else if (value ~ /^\[/) depth = brackets(value)
+      if (current == "" && (k == table || index(k, table ".") == 1)) exit 3
+      if (current != table) continue
+      sub(/\..*/, "", k)
+      mine[k] = 1
+    }
+
+    while ((getline line < block) > 0) {
+      k = key(line)
+      if (k in mine) print k > dropped
+      else keep[++m] = line
+    }
+    close(block)
+
+    for (i = 1; i <= n; i++) {
+      print lines[i]
+      if (i == at && m) emit()
+    }
+    if (!at && m) {
+      if (n > 0 && lines[n] !~ /^[[:space:]]*$/) print ""
+      print "[" table "]"
+      emit()
+    }
+  }
+
+  function brackets(text,  opened, closed) {
+    gsub(/"([^"\\]|\\.)*"|\x27[^\x27]*\x27|#.*$/, "", text)
+    opened = gsub(/\[/, "[", text)
+    closed = gsub(/\]/, "]", text)
+    return opened - closed
+  }
+
+  function emit(  i) {
+    print start
+    for (i = 1; i <= m; i++) print keep[i]
+    print end
+  }
+' "$file" >"$spliced"
+
+status=$?
+(( status == 0 || status == 3 )) || status=1
+(( status == 0 )) || exit "$status"
+
+# Written through rather than moved over, so a config symlinked from a dotfiles
+# repo stays a symlink and keeps its permissions.
+cmp -s "$spliced" "$file" || cat "$spliced" >"$file"
+sort -u "$dropped"

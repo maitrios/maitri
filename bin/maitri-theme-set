@@ -327,7 +327,8 @@ post_theme_commands=(
   maitri-restart-terminal
   maitri-restart-hyprctl
   maitri-restart-btop
-  maitri-restart-opencode
+  # opencode only rereads its theme files on the signal, so they're written first.
+  "maitri-theme-set-opencode; maitri-restart-opencode"
   maitri-restart-helix
   maitri-theme-set-foot
   maitri-theme-set-tmux
@@ -349,6 +350,7 @@ post_theme_commands=(
   # fzf only points fish's BAT_THEME at maitri once bat's cache has the theme.
   maitri-theme-set-lazygit "maitri-theme-set-bat; maitri-theme-set-fzf" maitri-theme-set-yazi
   maitri-theme-set-slack maitri-theme-set-insomnia maitri-theme-set-fish
+  maitri-theme-set-eza maitri-theme-set-codex maitri-theme-set-voxtype maitri-theme-set-gitkraken maitri-theme-set-gemini maitri-theme-set-lazydocker maitri-theme-set-mpv
 )
 
 if [[ $THEME_HEADLESS != "1" ]]; then

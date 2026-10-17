@@ -1,0 +1,57 @@
+#!/bin/bash
+
+# maitri:summary=Apply the current maitri theme to Codex CLI
+# maitri:hidden=true
+
+tmtheme="$HOME/.local/state/maitri/current/theme/bat.tmTheme"
+codex_home="${CODEX_HOME:-$HOME/.codex}"
+
+maitri-cmd-present codex || exit 0
+[[ -f $tmtheme ]] || exit 0
+
+if grep -q '{{' "$tmtheme"; then
+  echo "Skipping Codex theme: bat.tmTheme has unresolved colors." >&2
+  exit 0
+fi
+
+# Codex won't start with a CODEX_HOME that doesn't exist, and creating one here
+# would hide that mistake.
+[[ -z ${CODEX_HOME:-} || -d $CODEX_HOME ]] || exit 0
+
+block=$(mktemp)
+trap 'rm -f "$block"' EXIT
+
+exec 9>"${XDG_RUNTIME_DIR:-/tmp}/maitri-theme-set-codex.lock"
+flock 9
+
+# Codex highlights with the same tmTheme bat uses, and takes its diff fills and
+# accent from scopes only it asks for.
+mkdir -p "$codex_home/themes"
+if ! cmp -s "$tmtheme" "$codex_home/themes/maitri.tmTheme"; then
+  tmp=$(mktemp "$codex_home/themes/.maitri-theme.XXXXXX")
+  cp "$tmtheme" "$tmp"
+  mv "$tmp" "$codex_home/themes/maitri.tmTheme"
+  changed=1
+fi
+
+config="$codex_home/config.toml"
+before=$(cksum "$config" 2>/dev/null)
+printf 'theme = "maitri"\n' >"$block"
+dropped=$(maitri-theme-toml-block "$config" tui "$block")
+case $? in
+  0) ;;
+  3)
+    echo "Codex's config.toml writes [tui] inline or as dotted keys, so maitri leaves it as it is." >&2
+    exit 0
+    ;;
+  *) exit 1 ;;
+esac
+
+if [[ $dropped == *theme* ]]; then
+  echo "Codex's config.toml picks its own [tui] theme, so it stays as it is. Pick maitri in /theme to follow the maitri theme." >&2
+fi
+[[ $(cksum "$config") == $before ]] || changed=1
+
+if [[ -n ${changed:-} ]] && pgrep -x codex >/dev/null; then
+  echo "Codex reads its theme at startup; open sessions get the new colours after a restart or from /theme." >&2
+fi
