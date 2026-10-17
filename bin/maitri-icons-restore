@@ -1,6 +1,8 @@
 #!/bin/bash
 
 # maitri:summary=Restore the launcher icons maitri-icons-set swapped
+# maitri:args=[desktop-file...]
+# maitri:examples=maitri icons restore | maitri icons restore code.desktop
 
 set -e
 
@@ -15,20 +17,63 @@ if [[ ! -s $manifest ]]; then
   exit 0
 fi
 
-while IFS=$'\t' read -r id kind icon; do
+declare -A only=()
+for id in "$@"; do
+  [[ $id == *.desktop ]] || id="$id.desktop"
+  if ! cut -f1 "$manifest" | grep -Fxq "$id"; then
+    echo "No swapped icon for $id" >&2
+  fi
+  only[$id]=1
+done
+
+tmp=""
+trap '[[ -z $tmp ]] || rm -f "$tmp"' EXIT
+
+revert_icon() {
+  local file="$1" icon="$2" key
+
+  key="${icon##*/}"
+  key="${key%.*}"
+  tmp="$(mktemp "$state_dir/write.XXXXXX")"
+  ICON="Icon=$icon" KEY="Icon=$key" awk '$0 == ENVIRON["ICON"] { $0 = ENVIRON["KEY"] } { print }' "$file" >"$tmp"
+  chmod --reference="$file" "$tmp"
+  mv "$tmp" "$file"
+  tmp=""
+}
+
+kept=""
+while IFS=$'\t' read -r id kind icon hash; do
   [[ -n $id ]] || continue
 
-  desktop_file="$user_dir/$id"
-  [[ -f $desktop_file ]] && grep -Fxq "Icon=$icon" "$desktop_file" || continue
-
-  if [[ $kind == "replaced" && ( -e $originals_dir/$id || -L $originals_dir/$id ) ]]; then
-    mv "$originals_dir/$id" "$desktop_file"
-  else
-    rm "$desktop_file"
+  if (( $# > 0 )) && [[ -z ${only[$id]-} ]]; then
+    kept+="$id"$'\t'"$kind"$'\t'"$icon"$'\t'"$hash"$'\n'
+    continue
   fi
-  echo "Restored icon for $id"
+
+  desktop_file="$user_dir/$id"
+  original="$originals_dir/$id"
+
+  if [[ -f $desktop_file ]] && grep -Fxq "Icon=$icon" "$desktop_file"; then
+    unchanged=0
+    [[ -z $hash || $(sha256sum <"$desktop_file" | cut -d' ' -f1) == "$hash" ]] && unchanged=1
+
+    if (( unchanged )) && [[ $kind == "created" ]]; then
+      rm "$desktop_file"
+    elif (( unchanged )) && [[ -e $original || -L $original ]]; then
+      mv "$original" "$desktop_file"
+    else
+      revert_icon "$desktop_file" "$icon"
+    fi
+    echo "Restored icon for $id"
+  fi
+
+  rm -f "$original"
 done <"$manifest"
 
-rm -rf "$state_dir"
+if [[ -n $kept ]]; then
+  printf '%s' "$kept" >"$manifest"
+else
+  rm -rf "$state_dir"
+fi
 
 update-desktop-database "$user_dir" &>/dev/null || true
