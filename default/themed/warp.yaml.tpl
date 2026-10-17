@@ -2,7 +2,7 @@
 accent: '{{ accent }}'
 background: '{{ background }}'
 foreground: '{{ foreground }}'
-details: darker
+details: {{ mode }}er
 terminal_colors:
   normal:
     black: '{{ color0 }}'
