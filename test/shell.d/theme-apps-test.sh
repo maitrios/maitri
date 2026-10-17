@@ -309,7 +309,7 @@ for theme in amethyst daybreak; do
 
   output=$(run_hook "$home" maitri-theme-slack-copy "$apps:$sandbox") || fail "maitri-theme-slack-copy copies the $theme colours"
   [[ $(<"$home/clipboard") == "$(tr -d '[:space:]' <"$rendered/slack.txt")" ]] || fail "the clipboard holds the $theme Slack theme string" "$(cat "$home/clipboard")"
-  [[ $output == *"Preferences > Themes"* ]] || fail "maitri-theme-slack-copy says where to paste" "$output"
+  [[ $output == *"Appearance > Custom theme"* ]] || fail "maitri-theme-slack-copy says where to paste" "$output"
 
   : >"$home/hook.stderr"
   run_hook "$home" maitri-theme-set-insomnia "$apps:$sandbox" || fail "maitri-theme-set-insomnia installs the $theme theme"
@@ -346,6 +346,14 @@ plugin="$home/.config/Insomnia/plugins/insomnia-plugin-maitri"
 printf '#a1b2c3,#a1b2c3\n' >"$home/.local/state/maitri/current/theme/slack.txt"
 ! run_hook "$home" maitri-theme-slack-copy "$apps:$sandbox" >/dev/null || fail "maitri-theme-slack-copy refuses a slack.txt that isn't a Slack theme"
 [[ ! -e $home/clipboard ]] || fail "a slack.txt that isn't a Slack theme never reaches the clipboard"
+
+broken="$test_tmp/broken-bin"
+mkdir -p "$broken"
+printf '#!/bin/bash\nexit 1\n' >"$broken/wl-copy"
+chmod +x "$broken/wl-copy"
+cp "$test_tmp/amethyst/.local/state/maitri/current/next-theme/slack.txt" "$home/.local/state/maitri/current/theme/slack.txt"
+! output=$(run_hook "$home" maitri-theme-slack-copy "$broken:$apps:$sandbox") || fail "maitri-theme-slack-copy fails when wl-copy does"
+[[ $output != *Copied* ]] || fail "maitri-theme-slack-copy never says it copied when wl-copy failed" "$output"
 
 pass "the Slack and Insomnia hooks install only for apps that are present and say what a user has to do"
 
@@ -391,11 +399,26 @@ run_hook "$home" maitri-theme-set-fish "$apps:$sandbox:$PATH" || fail "maitri-th
 grep -q "fish_frozen_theme.fish sets colours globally" "$home/hook.stderr" || fail "the fish hook says when a global colour hides the theme" "$(cat "$home/hook.stderr")"
 rm "$home/.config/fish/conf.d/fish_frozen_theme.fish"
 
+for line in 'set -gx fish_color_command red' 'fish_config theme choose "Tomorrow Night"'; do
+  : >"$home/hook.stderr"
+  printf '%s\n' "$line" >"$home/.config/fish/config.fish"
+  run_hook "$home" maitri-theme-set-fish "$apps:$sandbox:$PATH" || fail "maitri-theme-set-fish runs beside $line"
+  grep -q "config.fish sets colours globally" "$home/hook.stderr" || fail "the fish hook says that $line hides the theme" "$(cat "$home/hook.stderr")"
+done
+rm "$home/.config/fish/config.fish"
+
 : >"$home/hook.stderr"
 printf 'set -U fish_color_command (touch %s/pwned)\n' "$home" >"$home/.local/state/maitri/current/theme/fish.fish"
 run_hook "$home" maitri-theme-set-fish "$apps:$sandbox:$PATH" || fail "maitri-theme-set-fish skips a fish.fish that isn't colours"
 [[ ! -e $home/pwned ]] || fail "a fish.fish that isn't colours never runs"
 [[ $(fish_get "$home" fish_color_command) == "fish_color_command=$daybreak_green" ]] || fail "a fish.fish that isn't colours changes nothing"
 grep -q "isn't a colour" "$home/hook.stderr" || fail "the fish hook says why it skipped" "$(cat "$home/hook.stderr")"
+
+: >"$home/hook.stderr"
+printf '# a theme of my own\nset -U fish_color_command %s' "$amethyst_green" >"$home/.local/state/maitri/current/theme/fish.fish"
+run_hook "$home" maitri-theme-set-fish "$apps:$sandbox:$PATH" || fail "maitri-theme-set-fish takes a shorter fish.fish"
+[[ $(fish_get "$home" fish_color_command) == "fish_color_command=$amethyst_green" ]] || fail "fish gets the last line of a fish.fish without a final newline" "$(fish_get "$home" fish_color_command)"
+(( $(grep -cE '^SETUVAR fish_(pager_)?color_' "$home/.config/fish/fish_variables") == 1 )) || fail "a shorter fish.fish leaves none of the previous theme's colours" "$(grep SETUVAR "$home/.config/fish/fish_variables")"
+[[ ! -s $home/hook.stderr ]] || fail "a comment in fish.fish is skipped quietly" "$(cat "$home/hook.stderr")"
 
 pass "fish takes the theme as universal variables, idempotently, and never runs a theme's fish.fish"

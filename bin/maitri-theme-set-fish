@@ -16,8 +16,8 @@ fi
 # each line has to be a colour assignment and only the values reach fish.
 value='(#?[0-9A-Fa-f]{6}|normal|--(bold|italics|underline|reverse|dim)|--background=#?[0-9A-Fa-f]{6})'
 specs=()
-while read -r line; do
-  [[ -z $line ]] && continue
+while read -r line || [[ -n $line ]]; do
+  [[ -z $line || $line == \#* ]] && continue
 
   if [[ ! $line =~ ^set\ -U\ (fish_(pager_)?color_[a-z_]+)((\ $value)+)$ ]]; then
     echo "Skipping fish colours: fish.fish has a line that isn't a colour: $line" >&2
@@ -29,15 +29,24 @@ done <"$src"
 
 (( ${#specs[@]} > 0 )) || exit 0
 
-# Universal variables reach every running fish at once, and fish's own default
-# theme only fills in colours that aren't set in any scope.
-fish -c 'for spec in $argv; set -U (string split " " -- $spec); end' -- "${specs[@]}"
+# Colours maitri's template sets that this theme leaves out are erased, so a
+# shorter fish.fish doesn't keep the previous theme's.
+names=" ${specs[*]%% *} "
+erase=()
+while read -r _ _ name _; do
+  [[ $name == fish_*color_* && $names != *" $name "* ]] && erase+=("-e $name")
+done <"$MAITRI_PATH/default/themed/fish.fish.tpl"
+
+# Universal variables reach every fish that isn't shadowing them. fish 4.3+
+# gives a shell that started before any were set its default theme as globals,
+# so those keep their colours until they restart.
+fish -c 'for spec in $argv; set -U (string split " " -- $spec); end' -- "${erase[@]}" "${specs[@]}"
 
 config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/fish"
 shopt -s nullglob
 for config in "$config_dir/config.fish" "$config_dir"/conf.d/*.fish; do
   [[ -f $config ]] || continue
-  if grep -qE '^[[:space:]]*set[[:space:]]+(-g|--global)[[:space:]]+fish_(pager_)?color_' "$config"; then
+  if grep -qE '^[[:space:]]*(set[[:space:]]+(-[a-zA-Z]*g[a-zA-Z]*|--global)[[:space:]]+fish_(pager_)?color_|fish_config[[:space:]]+theme[[:space:]]+choose)' "$config"; then
     echo "fish: $config sets colours globally, which hides the maitri colours; remove those lines to follow the theme." >&2
   fi
 done

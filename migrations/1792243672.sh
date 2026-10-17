@@ -36,3 +36,4 @@ fi
 
 [[ -s $HOME/.local/state/maitri/current/theme.name ]] || exit 0
 maitri-theme-refresh
+echo "fish shells that are already open keep their old colours until they're restarted." >&2

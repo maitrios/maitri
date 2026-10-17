@@ -9,4 +9,4 @@ maitri-cmd-present slack || exit 0
 
 # Slack keeps its theme on its servers and reads no file for it, so the colours
 # can only reach it by being pasted in.
-echo "Slack takes the maitri colours from a paste: run maitri theme slack-copy, then paste into Preferences > Themes > Custom theme." >&2
+echo "Slack takes the maitri colours from a paste: run maitri theme slack-copy, then paste it into Preferences > Appearance > Custom theme with the Import button." >&2

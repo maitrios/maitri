@@ -16,5 +16,5 @@ if [[ ! $colors =~ ^#[0-9A-Fa-f]{6}(,#[0-9A-Fa-f]{6}){3}$ ]]; then
   exit 1
 fi
 
-printf '%s' "$colors" | wl-copy
-echo "Copied $colors. In Slack, paste it into Preferences > Themes > Custom theme."
+printf '%s' "$colors" | wl-copy || exit 1
+echo "Copied $colors. In Slack, paste it into Preferences > Appearance > Custom theme with the Import button."
