@@ -502,7 +502,7 @@ for gui in "'gui':" '"gui":'; do
   printf '%s\n  showIcons: true\ngit:\n  autoFetch: false\n' "$gui" >"$home/.config/lazygit/config.yml"
   run_hook "$home" maitri-theme-set-lazygit "$apps:$sandbox" || fail "maitri-theme-set-lazygit runs beside a quoted $gui key"
   lazygit_config=$(<"$home/.config/lazygit/config.yml")
-  [[ $lazygit_config == "$gui"$'\n  # >>> maitri theme (rewritten by maitri theme set) >>>\n  theme:\n'* && $(grep -c 'gui' <<<"$lazygit_config") == 1 ]] ||
+  [[ $lazygit_config == "$gui"$'\n  # >>> maitri theme (rewritten by maitri theme set) >>>\n  theme:\n'* ]] && (( $(grep -c 'gui' <<<"$lazygit_config") == 1 )) ||
     fail "lazygit's theme goes under a quoted $gui key instead of a second gui" "$lazygit_config"
 done
 for theme_key in "'theme':" '"theme":'; do
