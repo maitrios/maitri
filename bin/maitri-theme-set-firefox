@@ -1,0 +1,139 @@
+#!/bin/bash
+
+# maitri:summary=Style Firefox and Zen profiles from the current maitri theme
+# maitri:hidden=true
+
+THEME_DIR="$HOME/.local/state/maitri/current/theme"
+STYLESHEETS_PREF="toolkit.legacyUserProfileCustomizations.stylesheets"
+
+BROWSERS=(
+  "Firefox|firefox|$HOME/.mozilla/firefox $HOME/.config/mozilla/firefox"
+  "Zen|zen-browser zen|$HOME/.zen $HOME/.config/zen"
+)
+
+[[ -f $THEME_DIR/firefox-userChrome.css && -f $THEME_DIR/firefox-userContent.css ]] || exit 0
+
+profile_dirs() {
+  local root="$1"
+
+  awk -v root="$root" '
+    function emit() {
+      if (in_profile && path != "") print (relative ? root "/" path : path)
+    }
+    { sub(/\r$/, "") }
+    /^\[/ {
+      emit()
+      in_profile = ($0 ~ /^\[Profile[0-9]+\]$/)
+      path = ""
+      relative = 1
+      next
+    }
+    in_profile && /^Path=/ { path = substr($0, 6) }
+    in_profile && /^IsRelative=/ { relative = (substr($0, 12) + 0 != 0) }
+    END { emit() }
+  ' "$root/profiles.ini"
+}
+
+# A profile its owner gave a Firefox theme of its own keeps it; only the
+# default, light and dark built-ins follow maitri.
+follows_maitri() {
+  local theme
+
+  theme=$(sed -nE 's/^user_pref\("extensions\.activeThemeID", "([^"]*)"\);.*/\1/p' "$1/prefs.js" 2>/dev/null | tail -n 1)
+
+  case "$theme" in
+    "" | default-theme@mozilla.org | firefox-compact-dark@mozilla.org | firefox-compact-light@mozilla.org) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+add_import() {
+  local file="$1"
+  local import="$2"
+
+  if [[ ! -f $file ]]; then
+    printf '%s\n' "$import" >"$file"
+  elif ! grep -qxF "$import" "$file"; then
+    # @import only counts before every other rule, @charset excepted.
+    awk -v import="$import" '
+      NR == 1 && /^@charset/ { print; print import; next }
+      NR == 1 { print import }
+      { print }
+    ' "$file" >"$file.maitri-tmp" && mv "$file.maitri-tmp" "$file"
+  fi
+}
+
+remove_import() {
+  local file="$1"
+  local import="$2"
+
+  [[ -f $file ]] && grep -qxF "$import" "$file" || return 0
+
+  grep -vxF "$import" "$file" >"$file.maitri-tmp"
+  if grep -q '[^[:space:]]' "$file.maitri-tmp"; then
+    mv "$file.maitri-tmp" "$file"
+  else
+    rm -f "$file.maitri-tmp" "$file"
+  fi
+}
+
+enable_stylesheets() {
+  local file="$1/user.js"
+  local line="user_pref(\"$STYLESHEETS_PREF\", true);"
+
+  if [[ -f $file ]] && grep -qF "\"$STYLESHEETS_PREF\"" "$file"; then
+    grep -qxF "$line" "$file" && return
+    awk -v pref="\"$STYLESHEETS_PREF\"" -v line="$line" '
+      index($0, pref) && /^[[:space:]]*user_pref\(/ { print line; next }
+      { print }
+    ' "$file" >"$file.maitri-tmp" && mv "$file.maitri-tmp" "$file"
+  else
+    printf '%s\n' "$line" >>"$file"
+  fi
+}
+
+style_profile() {
+  local profile="$1"
+  local chrome="$profile/chrome"
+  local part follows=""
+
+  follows_maitri "$profile" && follows=1
+
+  for part in userChrome userContent; do
+    if [[ -n $follows ]]; then
+      mkdir -p "$chrome"
+      cp --remove-destination "$THEME_DIR/firefox-$part.css" "$chrome/maitri-$part.css"
+      add_import "$chrome/$part.css" "@import url(\"maitri-$part.css\");"
+    else
+      remove_import "$chrome/$part.css" "@import url(\"maitri-$part.css\");"
+      rm -f "$chrome/maitri-$part.css"
+    fi
+  done
+
+  [[ -n $follows ]] && enable_stylesheets "$profile"
+}
+
+for entry in "${BROWSERS[@]}"; do
+  IFS='|' read -r name commands roots <<<"$entry"
+
+  present=""
+  for cmd in $commands; do
+    maitri-cmd-present "$cmd" && present=1 && break
+  done
+  [[ -n $present ]] || continue
+
+  running=""
+  for root in $roots; do
+    [[ -f $root/profiles.ini ]] || continue
+
+    while IFS= read -r profile; do
+      [[ -d $profile ]] || continue
+      style_profile "$profile"
+      [[ -L $profile/lock ]] && running=1
+    done < <(profile_dirs "$root")
+  done
+
+  [[ -n $running ]] && echo "$name is open, so restart it to pick up the new theme." >&2
+done
+
+exit 0
