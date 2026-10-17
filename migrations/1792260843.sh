@@ -2,6 +2,7 @@ echo "Point gh and glow at the current theme's glamour style from fish"
 
 fish_config="${XDG_CONFIG_HOME:-$HOME/.config}/fish/config.fish"
 theme_name_path="$HOME/.local/state/maitri/current/theme.name"
+glamour_style="$HOME/.local/state/maitri/current/theme/glamour.json"
 
 if [[ -f $fish_config ]] && ! grep -qF '# maitri:glamour-style' "$fish_config"; then
   target=$(readlink -f "$fish_config")
@@ -15,6 +16,15 @@ fi
 [[ -s $theme_name_path ]] || exit 0
 
 theme_name=$(<"$theme_name_path")
-[[ -d $MAITRI_PATH/themes/$theme_name || -d $HOME/.config/maitri/themes/$theme_name ]] || exit 0
+if [[ ! -d $MAITRI_PATH/themes/$theme_name && ! -d $HOME/.config/maitri/themes/$theme_name ]]; then
+  if [[ -e $glamour_style ]]; then
+    rm -f "$glamour_style"
+    echo "The $theme_name theme is gone, so gh and glow use their own style until the next maitri theme set. Open a new shell for glow to pick that up." >&2
+  fi
+  exit 0
+fi
 
-maitri-theme-refresh || echo "Couldn't refresh the $theme_name theme; gh and glow get the maitri style after the next maitri theme set." >&2
+if ! maitri-theme-refresh; then
+  rm -f "$glamour_style"
+  echo "Couldn't refresh the $theme_name theme, so gh and glow use their own style until the next maitri theme set. Open a new shell for glow to pick that up." >&2
+fi
