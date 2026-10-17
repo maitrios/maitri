@@ -42,9 +42,30 @@ node -e 'JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))' "$sett
   fail "VS Code settings stay valid JSON"
 pass "maitri-font-set sets the VS Code editor and terminal font"
 
+assert_font_keys_added() {
+  local description="$1"
+
+  HOME="$test_home" PATH="$mock_bin:$PATH" bash "$ROOT/bin/maitri-font-set" "CaskaydiaCove Nerd Font" >/dev/null ||
+    fail "$description: maitri-font-set runs"
+  grep -Fq "\"editor.fontFamily\": \"'CaskaydiaCove Nerd Font', 'monospace'\"" "$settings" ||
+    fail "$description: editor font added" "$(cat "$settings")"
+  grep -Fq "\"terminal.integrated.fontFamily\": \"'CaskaydiaCove Nerd Font'\"" "$settings" ||
+    fail "$description: terminal font added" "$(cat "$settings")"
+  (( $(grep -c '"editor.fontFamily"' "$settings") == 1 )) ||
+    fail "$description: editor font key added once" "$(cat "$settings")"
+}
+
+printf '{\n  "update.mode": "none"\n}\n' >"$settings"
+assert_font_keys_added "minimal VS Code settings"
+node -e 'JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))' "$settings" ||
+  fail "minimal VS Code settings stay valid JSON" "$(cat "$settings")"
+grep -Fq '"update.mode": "none"' "$settings" ||
+  fail "minimal VS Code settings keep update.mode" "$(cat "$settings")"
+assert_font_keys_added "minimal VS Code settings on a second run"
+pass "maitri-font-set adds the font keys to VS Code settings that lack them"
+
 printf '{\n  // mine\n  "editor.fontSize": 14,\n}\n' >"$settings"
-HOME="$test_home" PATH="$mock_bin:$PATH" bash "$ROOT/bin/maitri-font-set" "CaskaydiaCove Nerd Font" >/dev/null ||
-  fail "maitri-font-set runs over VS Code settings without font keys"
-[[ $(cat "$settings") == $'{\n  // mine\n  "editor.fontSize": 14,\n}' ]] ||
-  fail "maitri-font-set leaves VS Code settings without font keys untouched" "$(cat "$settings")"
-pass "maitri-font-set leaves VS Code settings without font keys untouched"
+assert_font_keys_added "VS Code settings with comments"
+grep -Fxq '  // mine' "$settings" && grep -Fxq '  "editor.fontSize": 14,' "$settings" ||
+  fail "maitri-font-set keeps comments and other VS Code settings" "$(cat "$settings")"
+pass "maitri-font-set adds the font keys without disturbing comments"

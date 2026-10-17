@@ -51,6 +51,11 @@ if [[ -f ~/.config/foot/foot.ini ]]; then
 fi
 
 if [[ -f ~/.config/Code/User/settings.json ]]; then
+  for key in terminal.integrated.fontFamily editor.fontFamily; do
+    grep -q "\"$key\"" ~/.config/Code/User/settings.json ||
+      sed --follow-symlinks -i -E "0,/\{/{s/\{/{ \"$key\": \"\",/}" ~/.config/Code/User/settings.json
+  done
+
   vscode_font_name=$(printf '%s' "$font_name" | sed 's/[\\&|]/\\&/g')
   sed --follow-symlinks -i -E \
     -e "s|(\"editor\.fontFamily\"[[:space:]]*:[[:space:]]*\")[^\"]*(\")|\1'$vscode_font_name', 'monospace'\2|" \
