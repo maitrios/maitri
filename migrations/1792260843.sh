@@ -13,9 +13,8 @@ if [[ -f $fish_config ]] && ! grep -qF '# maitri:glamour-style' "$fish_config"; 
 fi
 
 [[ -s $theme_name_path ]] || exit 0
-[[ ! -f $HOME/.local/state/maitri/current/theme/glamour.json ]] || exit 0
 
 theme_name=$(<"$theme_name_path")
 [[ -d $MAITRI_PATH/themes/$theme_name || -d $HOME/.config/maitri/themes/$theme_name ]] || exit 0
 
-maitri-theme-refresh
+maitri-theme-refresh || echo "Couldn't refresh the $theme_name theme; gh and glow get the maitri style after the next maitri theme set." >&2

@@ -272,11 +272,20 @@ mkdir -p "$home/.config/fish" "$home/.local/state/maitri/current/theme"
 printf 'set -gx FOO 1\n' >"$home/.config/fish/config.fish"
 echo amethyst >"$home/.local/state/maitri/current/theme.name"
 run_migration "$home" || fail "the glamour migration runs"
+(( $(wc -l <"$home/refresh.log") == 1 )) || fail "the migration refreshes the theme once to render glamour.json"
 run_migration "$home" || fail "the glamour migration runs twice"
 [[ $(grep -F '# maitri:glamour-style' "$home/.config/fish/config.fish") == "$style_lines" ]] ||
   fail "the migration adds the lines config.fish ships, once"
 grep -qx 'set -gx FOO 1' "$home/.config/fish/config.fish" || fail "the migration keeps the rest of config.fish"
-(( $(wc -l <"$home/refresh.log") == 1 )) || fail "the migration refreshes the theme once to render glamour.json"
+
+home="$test_tmp/migration-theme-style"
+mkdir -p "$home/.config/fish" "$home/.local/state/maitri/current/theme"
+: >"$home/.config/fish/config.fish"
+echo amethyst >"$home/.local/state/maitri/current/theme.name"
+printf '{"h1":{"prefix":"theme"}}\n' >"$home/.local/state/maitri/current/theme/glamour.json"
+run_migration "$home" || fail "the glamour migration runs over a glamour.json the theme supplied"
+[[ -s $home/refresh.log && ! -s $home/.local/state/maitri/current/theme/glamour.json ]] ||
+  fail "the migration re-renders a glamour.json the theme supplied, so the deny list applies"
 
 home="$test_tmp/migration-read-only"
 mkdir -p "$home/.config/fish" "$home/.local/state/maitri/current/theme"
