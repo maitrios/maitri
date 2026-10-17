@@ -27,21 +27,35 @@ done
 value=$(IFS=:; echo "${colors[*]}")
 
 # A universal variable reaches every running fish at once, and ls and lt run eza
-# from fish. The global erase keeps an EZA_COLORS inherited from the shell that
-# started maitri theme set from shadowing the new value in this fish.
+# from fish. Being exported, it also reaches the session's environment, and a
+# fish that inherits it from there holds the old value as a global that shadows
+# the universal one. The conf.d file drops that copy as each fish starts, and the
+# global erase here does the same for an EZA_COLORS inherited by this one.
+config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/fish"
+conf_d="$config_dir/conf.d/maitri-eza.fish"
+mkdir -p "$(dirname "$conf_d")"
+tmp=$(mktemp "$conf_d.XXXXXX")
+printf '%s\n' "# Written by maitri theme set: EZA_COLORS is a universal variable, so an inherited copy mustn't shadow it." \
+  "set -eg EZA_COLORS" >"$tmp"
+if cmp -s "$tmp" "$conf_d"; then
+  rm "$tmp"
+else
+  mv "$tmp" "$conf_d"
+fi
+
 fish -c 'set -eg EZA_COLORS; test "$EZA_COLORS" = "$argv[1]"; or set -Ux EZA_COLORS $argv[1]' -- "$value"
 
-config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/fish"
 shopt -s nullglob
 for config in "$config_dir/config.fish" "$config_dir"/conf.d/*.fish; do
-  [[ -f $config ]] || continue
+  [[ -f $config && $config != "$conf_d" ]] || continue
   if awk '
+    /^[[:space:]]*export[[:space:]]+EZA_COLORS([=[:space:]]|$)/ { found = 1 }
     match($0, /^[[:space:]]*set([[:space:]]+-[-a-zA-Z]+)*[[:space:]]+EZA_COLORS([[:space:]]|$)/) {
       flags = substr($0, 1, RLENGTH)
-      if (flags !~ /[[:space:]](-[a-zA-Z]*[Uqe][a-zA-Z]*|--universal|--query|--erase)[[:space:]]/) found = 1
+      if (flags !~ /[[:space:]](-[a-zA-Z]*[qe][a-zA-Z]*|--query|--erase)[[:space:]]/) found = 1
     }
     END { exit !found }
   ' "$config"; then
-    echo "eza: $config sets EZA_COLORS itself, which hides the maitri colours; remove that line to follow the theme." >&2
+    echo "eza: $config sets EZA_COLORS itself, which overrides the maitri colours; remove that line to follow the theme." >&2
   fi
 done

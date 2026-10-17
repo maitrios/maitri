@@ -48,7 +48,7 @@ dropped=$(maitri-theme-toml-block "$config" osd "$block")
 case $? in
   0) ;;
   3)
-    echo "voxtype's config.toml writes [osd] inline, so maitri leaves it as it is." >&2
+    echo "voxtype's config.toml writes [osd] inline or as dotted keys, so maitri leaves it as it is." >&2
     exit 0
     ;;
   *) exit 1 ;;
@@ -58,7 +58,7 @@ if [[ -n $dropped ]]; then
   echo "voxtype's config.toml sets its own OSD $(paste -sd, <<<"$dropped" | sed 's/,/, /g'), so the maitri colours may not show. Remove it to follow the maitri theme." >&2
 fi
 
-if [[ $(cksum <"$config") != "$before" ]]; then
+if [[ $(cksum <"$config") != $before ]]; then
   # The OSD settings are read when the daemon starts. It's only restarted while
   # idle, so a dictation in progress is never cut off.
   state=$(cat "${XDG_RUNTIME_DIR:-/tmp}/voxtype/state" 2>/dev/null)

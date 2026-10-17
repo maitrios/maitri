@@ -8,7 +8,8 @@
 # the table's header, or under a new header at the end. Keys the file already
 # sets in that table stay the user's: they're left out of the block, since TOML
 # can't set a key twice, and their names are printed. Exits 3 without touching
-# a file that writes the table inline, and 1 if the file can't be read.
+# a file that writes the table inline or as dotted keys, and 1 if the file
+# can't be read.
 
 if (( $# != 3 )); then
   echo "Usage: maitri-theme-toml-block <file> <table> <block-file>" >&2
@@ -65,19 +66,38 @@ awk -v start="$block_start" -v end="$block_end" -v table="$table" -v block="$blo
     }
     for (i = 1; i <= NR; i++) if (!skip[i]) lines[++n] = all[i]
 
+    # Lines inside a multi-line string or array are values, never headers or
+    # keys. A table the file only sets through dotted keys at the top level
+    # cannot get a header of its own, so that file counts as inline too.
     current = ""
     for (i = 1; i <= n; i++) {
-      if (lines[i] ~ /^[[:space:]]*\[/) {
-        current = header(lines[i])
-        if (current == table && !at) at = i
-        if (lines[i] ~ /^[[:space:]]*\[\[/) current = "[[array]]"
+      line = lines[i]
+      if (quote != "") {
+        if (index(line, quote)) quote = ""
         continue
       }
-      k = key(lines[i])
+      if (depth > 0) {
+        depth += brackets(line)
+        continue
+      }
+      if (line ~ /^[[:space:]]*\[\[/) {
+        current = "[[array]]"
+        continue
+      }
+      if (line ~ /^[[:space:]]*\[/) {
+        current = header(line)
+        if (current == table && !at) at = i
+        continue
+      }
+      k = key(line)
       if (k == "") continue
-      if (current == "" && k == table) exit 3
-      if (current == "" && index(k, table ".") == 1) k = substr(k, length(table) + 2)
-      else if (current != table) continue
+      value = line
+      sub(/^[^=]*=[[:space:]]*/, "", value)
+      if (value ~ /^"""/ && gsub(/"""/, "&", value) == 1) quote = "\"\"\""
+      else if (value ~ /^\x27\x27\x27/ && gsub(/\x27\x27\x27/, "&", value) == 1) quote = "\x27\x27\x27"
+      else if (value ~ /^\[/) depth = brackets(value)
+      if (current == "" && (k == table || index(k, table ".") == 1)) exit 3
+      if (current != table) continue
       sub(/\..*/, "", k)
       mine[k] = 1
     }
@@ -98,6 +118,13 @@ awk -v start="$block_start" -v end="$block_end" -v table="$table" -v block="$blo
       print "[" table "]"
       emit()
     }
+  }
+
+  function brackets(text,  opened, closed) {
+    gsub(/"([^"\\]|\\.)*"|\x27[^\x27]*\x27|#.*$/, "", text)
+    opened = gsub(/\[/, "[", text)
+    closed = gsub(/\]/, "]", text)
+    return opened - closed
   }
 
   function emit(  i) {

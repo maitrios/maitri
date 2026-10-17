@@ -339,6 +339,12 @@ eza_colors() {
   isolated "$1" fish -c 'echo $EZA_COLORS'
 }
 
+for hook in "${hooks[@]}" maitri-theme-toml-block; do
+  [[ -x $ROOT/bin/$hook ]] || fail "$hook is executable, since maitri-theme-set runs it by name"
+  grep -qE "(^|[ \"])$hook([ ;\"]|\$)" "$ROOT/bin/maitri-theme-set" || [[ $hook == maitri-theme-toml-block ]] ||
+    fail "maitri-theme-set runs $hook"
+done
+
 home=$(new_home missing amethyst)
 run_hooks "$home" "$sandbox"
 [[ -z $(find "$home" -mindepth 1 -maxdepth 1 -newer "$home/hook.stderr" ! -name run) && ! -e $home/.config ]] ||
@@ -392,6 +398,8 @@ run_hooks "$home" "$apps:$sandbox"
 rendered="$home/.local/state/maitri/current/theme"
 if [[ -n $has_fish ]]; then
   [[ $(eza_colors "$home") == "di=1;38;2;52;93;176:"* ]] || fail "a theme change replaces EZA_COLORS" "$(eza_colors "$home")"
+  got=$(isolated "$home" EZA_COLORS="di=31" fish -c 'echo $EZA_COLORS')
+  [[ $got == "di=1;38;2;52;93;176:"* ]] || fail "a fish that inherits the old EZA_COLORS from the session gets the new one" "$got"
 fi
 for pair in "bat.tmTheme:.codex/themes/maitri.tmTheme" "voxtype.toml:.config/voxtype/osd/maitri/voxtype-osd.toml" \
   "gitkraken.json:.gitkraken/themes/maitri.jsonc" "opencode.json:.config/opencode/themes/maitri.json"; do
@@ -413,7 +421,7 @@ printf '[osd]\nstyle = "mine"\n' >"$config/voxtype/config.toml"
 printf '{"ui": {"theme": "GitHub"}}\n' >"$home/.gemini/settings.json"
 printf '{"theme": "tokyonight"}\n' >"$config/opencode/tui.json"
 printf 'gui:\n  theme:\n    activeBorderColor:\n      - red\n' >"$config/lazydocker/config.yml"
-printf 'set -gx EZA_COLORS "di=31"\n' >"$config/fish/config.fish"
+printf 'set -Ux EZA_COLORS "di=31"\n' >"$config/fish/config.fish"
 mkdir -p "$test_tmp/own-before"
 cp -r "$config/lazydocker" "$test_tmp/own-before"
 run_hooks "$home" "$apps:$sandbox"
@@ -450,9 +458,22 @@ run_hook "$home" maitri-theme-set-codex "$apps:$sandbox" || fail "maitri-theme-s
 run_hook "$home" maitri-theme-set-gemini "$apps:$sandbox" || fail "maitri-theme-set-gemini runs beside settings with comments"
 cmp -s "$home/.codex/config.toml" "$test_tmp/config.toml" && cmp -s "$home/.gemini/settings.json" "$test_tmp/settings.json" ||
   fail "configs maitri can't edit safely are left as they were"
-grep -q "writes \[tui\] inline" "$home/hook.stderr" && grep -q "isn't plain JSON" "$home/hook.stderr" ||
+grep -q "writes \[tui\] inline or as dotted keys" "$home/hook.stderr" && grep -q "isn't plain JSON" "$home/hook.stderr" ||
   fail "the hooks say why they left a config alone" "$(cat "$home/hook.stderr")"
 pass "the hooks leave a theme the user chose in place and say so"
+
+home=$(new_home toml amethyst)
+mkdir -p "$home/.codex" "$home/.config/voxtype"
+printf 'notes = """\n[tui]\ntheme = 1\n"""\nlist = [\n  ["a", "b"],\n]\n\n[tui]\nanimations = false\n' >"$home/.codex/config.toml"
+printf 'osd.frontend = "gtk4"\n' >"$home/.config/voxtype/config.toml"
+cp "$home/.config/voxtype/config.toml" "$test_tmp/dotted.toml"
+run_hook "$home" maitri-theme-set-codex "$apps:$sandbox" || fail "maitri-theme-set-codex runs beside multi-line values"
+run_hook "$home" maitri-theme-set-voxtype "$apps:$sandbox" || fail "maitri-theme-set-voxtype runs beside a dotted [osd]"
+[[ $(toml_value "$home/.codex/config.toml" tui.theme) == maitri && $(toml_value "$home/.codex/config.toml" notes) == $'[tui]\ntheme = 1' ]] ||
+  fail "a header or key inside a multi-line value isn't taken for the user's own" "$(cat "$home/.codex/config.toml")"
+cmp -s "$home/.config/voxtype/config.toml" "$test_tmp/dotted.toml" && grep -q "as dotted keys" "$home/hook.stderr" ||
+  fail "a table set through dotted keys never gets a second header" "$(cat "$home/.config/voxtype/config.toml")"
+pass "the TOML block reads multi-line values and dotted tables the way TOML does"
 
 home=$(new_home dangling amethyst)
 mkdir -p "$home/.codex" "$home/.config/mpv"
