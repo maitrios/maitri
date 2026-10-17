@@ -10,6 +10,7 @@ exit_screensaver() {
   hyprctl eval 'hl.config({ cursor = { invisible = false } })' &>/dev/null || hyprctl keyword cursor:invisible false &>/dev/null || true
   pkill -x ttfx 2>/dev/null
   pkill -f '[o]rg.maitri.screensaver' 2>/dev/null
+  rm -f "$frame_file"
   exit 0
 }
 
@@ -35,8 +36,18 @@ wait_for_terminal_resize() {
 
 wait_for_terminal_resize
 
+# A line holding only a form feed splits screensaver.txt into frames, and each
+# effect shows the next one, so the heart and the wordmark take turns.
+text=~/.config/maitri/branding/screensaver.txt
+frame_file=$(mktemp)
+frame=0
+
 while true; do
-  ttfx -i ~/.config/maitri/branding/screensaver.txt \
+  frames=$(awk '$0 == "\f" { n++ } END { print n + 1 }' "$text")
+  awk -v want=$((frame % frames)) '$0 == "\f" { n++; next } n == want' "$text" >"$frame_file"
+  frame=$((frame + 1))
+
+  ttfx -i "$frame_file" \
     --frame-rate 120 --canvas-width 0 --canvas-height 0 --reuse-canvas --anchor-canvas c --anchor-text c\
     --random-effect --no-eol --no-restore-cursor &
 

@@ -62,8 +62,8 @@ reset
 run_migration
 cmp -s "$branding/about.txt" "$ROOT/icon.txt" || fail "the shipped About heart is replaced with the loop heart"
 pass "the shipped About heart is replaced with the loop heart"
-cmp -s "$branding/screensaver.txt" "$ROOT/logo.txt" || fail "the shipped screensaver wordmark is replaced with the lowercase one"
-pass "the shipped screensaver wordmark is replaced with the lowercase one"
+cmp -s "$branding/screensaver.txt" "$ROOT/screensaver.txt" || fail "the shipped screensaver wordmark is replaced with the heart and lowercase wordmark"
+pass "the shipped screensaver wordmark is replaced with the heart and lowercase wordmark"
 grep -qx 'limine-mkinitcpio' "$CALLS" || fail "a stale boot image is rebuilt" "$(cat "$CALLS")"
 pass "a stale boot image is rebuilt"
 

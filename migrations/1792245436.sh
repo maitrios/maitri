@@ -1,4 +1,4 @@
-echo "Show the loop heart and the lowercase maitri at boot, in About and on the screensaver"
+echo "Show the loop heart and the lowercase maitri at boot, in About and in turns on the screensaver"
 
 branding="$HOME/.config/maitri/branding"
 shipped_heart=f4111533763f8ca81e2c9c524bb04ffbc10d9897724413abd5d6116b7a1aa2c4
@@ -8,7 +8,7 @@ if [[ -f $branding/about.txt && $(sha256sum <"$branding/about.txt") == "$shipped
   cp "$MAITRI_PATH/icon.txt" "$branding/about.txt"
 fi
 if [[ -f $branding/screensaver.txt && $(sha256sum <"$branding/screensaver.txt") == "$shipped_wordmark  -" ]]; then
-  cp "$MAITRI_PATH/logo.txt" "$branding/screensaver.txt"
+  cp "$MAITRI_PATH/screensaver.txt" "$branding/screensaver.txt"
 fi
 
 logo=/usr/share/plymouth/themes/maitri/logo.png
