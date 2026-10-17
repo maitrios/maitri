@@ -1,133 +1,191 @@
 # Syntax
-"keyword" = "color5"
-"keyword.control" = { fg = "color5", modifiers = ["italic"] }
-"function" = "color4"
-"function.builtin" = "color4"
-"function.macro" = "color5"
-"type" = "color3"
-"type.builtin" = "color5"
-"type.enum.variant" = "color6"
-"constructor" = "color4"
-"constant" = "color3"
-"constant.builtin" = "color3"
-"constant.numeric" = "color3"
-"constant.character" = "color6"
-"constant.character.escape" = "color5"
-"string" = "color2"
-"string.regexp" = "color5"
-"string.special" = "color4"
-"comment" = { fg = "color8", modifiers = ["italic"] }
+"attribute" = { fg = "green", modifiers = ["italic"] }
+
+"type" = { fg = "cyan", modifiers = ["italic"] }
+"type.builtin" = { fg = "cyan", modifiers = ["italic"] }
+"type.parameter" = { fg = "magenta", modifiers = ["italic"] }
+"type.enum.variant" = "blue"
+
+"constructor" = "cyan"
+
+"constant" = "blue"
+"constant.builtin" = { fg = "blue", modifiers = ["italic"] }
+"constant.builtin.boolean" = "blue"
+"constant.character" = "magenta"
+"constant.character.escape" = "magenta"
+"constant.numeric" = "blue"
+
+"string" = "yellow"
+"string.regexp" = "red"
+"string.special" = "magenta"
+"string.special.path" = "yellow"
+"string.special.symbol" = "blue"
+"string.special.url" = { fg = "link", modifiers = ["underlined"] }
+
+"comment" = { fg = "comment", modifiers = ["italic"] }
+"comment.block.documentation" = { fg = "comment", modifiers = ["italic"] }
+
 "variable" = "foreground"
-"variable.parameter" = { fg = "color5", modifiers = ["italic"] }
-"variable.builtin" = "color1"
-"variable.other.member" = "color4"
-"label" = "color4"
-"punctuation" = "color8"
-"punctuation.special" = "color6"
-"operator" = "color6"
-"tag" = "color4"
-"namespace" = { fg = "color3", modifiers = ["italic"] }
-"special" = "color5"
-"attribute" = "color3"
+"variable.builtin" = { fg = "blue", modifiers = ["italic"] }
+"variable.parameter" = { fg = "orange", modifiers = ["italic"] }
+"variable.other.member" = "orange"
+
+"label" = { fg = "blue", modifiers = ["italic"] }
+
+"punctuation" = "light_foreground"
+"punctuation.delimiter" = "light_foreground"
+"punctuation.bracket" = "light_foreground"
+"punctuation.special" = "magenta"
+
+"keyword" = "magenta"
+"keyword.directive" = "magenta"
+
+"operator" = "magenta"
+
+"function" = "green"
+"function.builtin" = "cyan"
+"function.macro" = "green"
+"function.method" = "green"
+"function.special" = "magenta"
+
+"tag" = "cyan"
+"tag.builtin" = "cyan"
+
+"namespace" = "cyan"
+"special" = "magenta"
 
 # Markup
-"markup.heading.1" = "color1"
-"markup.heading.2" = "color3"
-"markup.heading.3" = "color3"
-"markup.heading.4" = "color2"
-"markup.heading.5" = "color4"
-"markup.heading.6" = "color5"
-"markup.list" = "color6"
-"markup.list.unchecked" = "color8"
-"markup.list.checked" = "color2"
-"markup.bold" = { fg = "color1", modifiers = ["bold"] }
-"markup.italic" = { fg = "color1", modifiers = ["italic"] }
-"markup.strikethrough" = { modifiers = ["crossed_out"] }
-"markup.link.url" = { fg = "color4", modifiers = ["italic", "underlined"] }
-"markup.link.text" = "color5"
-"markup.link.label" = "color4"
-"markup.raw" = "color2"
-"markup.quote" = "color5"
+# Helix has no per-level marker scope, so every marker takes the H1 colour.
+"markup.heading.marker" = { fg = "heading1", modifiers = ["bold"] }
+"markup.heading.1" = { fg = "heading1", modifiers = ["bold"] }
+"markup.heading.2" = { fg = "heading2", modifiers = ["bold"] }
+"markup.heading.3" = { fg = "heading3", modifiers = ["bold"] }
+"markup.heading.4" = { fg = "heading4", modifiers = ["bold"] }
+"markup.heading.5" = { fg = "heading5", modifiers = ["bold"] }
+"markup.heading.6" = { fg = "heading6", modifiers = ["bold"] }
+"markup.list" = "accent"
+"markup.list.checked" = "accent"
+"markup.list.unchecked" = "comment"
+"markup.bold" = { fg = "bright_foreground", modifiers = ["bold"] }
+"markup.italic" = { fg = "foreground", modifiers = ["italic"] }
+"markup.strikethrough" = { fg = "comment", modifiers = ["crossed_out"] }
+"markup.link.url" = { fg = "comment", modifiers = ["underlined"] }
+"markup.link.text" = { fg = "link", modifiers = ["underlined"] }
+"markup.link.label" = { fg = "link", modifiers = ["underlined"] }
+"markup.quote" = { fg = "light_foreground", modifiers = ["italic"] }
+"markup.raw" = "cyan"
+"markup.raw.block" = "foreground"
 
 # Diff
-"diff.plus" = "color2"
-"diff.minus" = "color1"
-"diff.delta" = "color4"
+"diff.plus" = "green"
+"diff.minus" = "red"
+"diff.delta" = "blue"
+"diff.delta.moved" = "cyan"
 
-# Leave the editor background transparent so the terminal background shows through
+# Left transparent so the terminal background, which is the theme background, shows through
 "ui.background" = { }
+"ui.background.separator" = "border"
 
-"ui.linenr" = { fg = "color8" }
-"ui.linenr.selected" = { fg = "foreground" }
+"ui.linenr" = "comment"
+"ui.linenr.selected" = { fg = "accent", modifiers = ["bold"] }
+"ui.gutter" = { }
+"ui.gutter.selected" = { bg = "cursorline" }
 
-# Statusline uses an inverted band (background-color text on foreground-color
-# background) to guarantee contrast across both light and dark maitri themes.
-"ui.statusline" = { fg = "background", bg = "foreground" }
-"ui.statusline.inactive" = { fg = "background", bg = "color8" }
-"ui.statusline.normal" = { fg = "background", bg = "color4", modifiers = ["bold"] }
-"ui.statusline.insert" = { fg = "background", bg = "color2", modifiers = ["bold"] }
-"ui.statusline.select" = { fg = "background", bg = "color5", modifiers = ["bold"] }
+"ui.statusline" = { fg = "light_foreground", bg = "surface" }
+"ui.statusline.inactive" = { fg = "comment", bg = "surface" }
+"ui.statusline.separator" = { fg = "border", bg = "surface" }
+"ui.statusline.normal" = { fg = "background", bg = "accent", modifiers = ["bold"] }
+"ui.statusline.insert" = { fg = "background", bg = "green", modifiers = ["bold"] }
+"ui.statusline.select" = { fg = "background", bg = "link", modifiers = ["bold"] }
 
-"ui.popup" = { fg = "foreground", bg = "background" }
-"ui.window" = { fg = "color8" }
-"ui.help" = { fg = "foreground", bg = "background" }
+"ui.bufferline" = { fg = "comment", bg = "surface" }
+"ui.bufferline.active" = { fg = "bright_foreground", bg = "background", modifiers = ["bold"], underline = { color = "accent", style = "line" } }
+"ui.bufferline.background" = { bg = "surface" }
 
-"ui.bufferline" = { fg = "color8", bg = "background" }
-"ui.bufferline.active" = { fg = "foreground", bg = "background", underline = { color = "color5", style = "line" } }
+"ui.popup" = { fg = "foreground", bg = "surface" }
+"ui.popup.info" = { fg = "foreground", bg = "surface" }
+"ui.window" = "border"
+"ui.help" = { fg = "foreground", bg = "surface" }
+"ui.picker.header" = { fg = "accent", modifiers = ["bold"] }
 
 "ui.text" = "foreground"
-"ui.text.focus" = { fg = "foreground", bg = "lighter_background", modifiers = ["bold"] }
-"ui.text.inactive" = { fg = "color8" }
-"ui.text.directory" = { fg = "color4" }
+"ui.text.focus" = { fg = "bright_foreground", bg = "menu_selected", modifiers = ["bold"] }
+"ui.text.inactive" = "comment"
+"ui.text.info" = "foreground"
+"ui.text.directory" = "accent"
 
-"ui.virtual" = "color8"
-"ui.virtual.ruler" = { bg = "lighter_background" }
-"ui.virtual.indent-guide" = "color8"
-"ui.virtual.inlay-hint" = { fg = "color8" }
-"ui.virtual.jump-label" = { fg = "color1", modifiers = ["bold"] }
-"ui.virtual.whitespace" = "color8"
+"ui.virtual" = "comment"
+"ui.virtual.ruler" = { bg = "surface" }
+"ui.virtual.indent-guide" = "guide"
+"ui.virtual.whitespace" = "nontext"
+"ui.virtual.wrap" = "comment"
+"ui.virtual.inlay-hint" = { fg = "comment", bg = "inlay", modifiers = ["italic"] }
+"ui.virtual.jump-label" = { fg = "orange", modifiers = ["bold"] }
 
-"ui.selection" = { bg = "selection_background", fg = "selection_foreground" }
+"ui.selection" = { bg = "selection_secondary" }
+"ui.selection.primary" = { bg = "selection" }
 
 "ui.cursor" = { fg = "background", bg = "cursor" }
 "ui.cursor.primary" = { fg = "background", bg = "cursor" }
-"ui.cursor.match" = { fg = "color3", modifiers = ["bold"] }
 "ui.cursor.primary.normal" = { fg = "background", bg = "cursor" }
-"ui.cursor.primary.insert" = { fg = "background", bg = "color2" }
-"ui.cursor.primary.select" = { fg = "background", bg = "color5" }
+"ui.cursor.primary.insert" = { fg = "background", bg = "green" }
+"ui.cursor.primary.select" = { fg = "background", bg = "link" }
+"ui.cursor.match" = { fg = "accent", bg = "reference", modifiers = ["bold"] }
 
-"ui.cursorline.primary" = { bg = "lighter_background" }
+"ui.cursorline.primary" = { bg = "cursorline" }
+"ui.cursorcolumn.primary" = { bg = "cursorline" }
 
-"ui.highlight" = { bg = "lighter_background", modifiers = ["bold"] }
+"ui.highlight" = { bg = "reference", modifiers = ["bold"] }
 
-"ui.menu" = { fg = "foreground", bg = "background" }
-"ui.menu.selected" = { fg = "background", bg = "foreground", modifiers = ["bold"] }
+"ui.menu" = { fg = "foreground", bg = "surface" }
+"ui.menu.selected" = { fg = "bright_foreground", bg = "menu_selected", modifiers = ["bold"] }
+"ui.menu.scroll" = { fg = "border", bg = "surface" }
 
-"diagnostic.error" = { underline = { color = "color1", style = "curl" } }
-"diagnostic.warning" = { underline = { color = "color3", style = "curl" } }
-"diagnostic.info" = { underline = { color = "color4", style = "curl" } }
-"diagnostic.hint" = { underline = { color = "color6", style = "curl" } }
-"diagnostic.unnecessary" = { modifiers = ["dim"] }
+"ui.debug.breakpoint" = "red"
+"ui.debug.active" = "orange"
+
+"diagnostic.error" = { underline = { color = "red", style = "curl" } }
+"diagnostic.warning" = { underline = { color = "orange", style = "curl" } }
+"diagnostic.info" = { underline = { color = "cyan", style = "curl" } }
+"diagnostic.hint" = { underline = { color = "hint", style = "curl" } }
+"diagnostic.unnecessary" = { fg = "comment" }
 "diagnostic.deprecated" = { modifiers = ["crossed_out"] }
 
-error = "color1"
-warning = "color3"
-info = "color4"
-hint = "color6"
+error = "red"
+warning = "orange"
+info = "cyan"
+hint = "hint"
 
 [palette]
 background = "{{ background }}"
+surface = "{{ dark_background }}"
+cursorline = "{{ lighter_background }}"
 foreground = "{{ foreground }}"
-lighter_background = "{{ lighter_background }}"
+light_foreground = "{{ light_foreground }}"
+bright_foreground = "{{ bright_foreground }}"
+comment = "{{ comment }}"
 cursor = "{{ bright_foreground }}"
-selection_background = "{{ selection_background }}"
-selection_foreground = "{{ selection_foreground }}"
-color0 = "{{ background }}"
-color1 = "{{ red }}"
-color2 = "{{ green }}"
-color3 = "{{ yellow }}"
-color4 = "{{ blue }}"
-color5 = "{{ magenta }}"
-color6 = "{{ cyan }}"
-color7 = "{{ foreground }}"
-color8 = "{{ muted }}"
+accent = "{{ accent }}"
+selection = "{{ selection }}"
+selection_secondary = "{{ mix background selection 60% }}"
+guide = "{{ mix background muted 75% }}"
+border = "{{ border }}"
+hint = "{{ hint }}"
+link = "{{ link }}"
+red = "{{ red }}"
+green = "{{ green }}"
+yellow = "{{ yellow }}"
+blue = "{{ blue }}"
+magenta = "{{ magenta }}"
+cyan = "{{ cyan }}"
+orange = "{{ orange }}"
+reference = "{{ mix background accent 16% }}"
+menu_selected = "{{ mix dark_background accent 30% }}"
+inlay = "{{ mix background lighter_background 60% }}"
+nontext = "{{ mix background comment 55% }}"
+heading1 = "{{ accent }}"
+heading2 = "{{ mix accent foreground 13% }}"
+heading3 = "{{ mix accent foreground 26% }}"
+heading4 = "{{ mix accent foreground 39% }}"
+heading5 = "{{ mix accent foreground 52% }}"
+heading6 = "{{ mix accent foreground 65% }}"
