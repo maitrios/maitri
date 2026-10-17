@@ -303,7 +303,8 @@ for theme in amethyst daybreak; do
   rendered="$home/.local/state/maitri/current/theme"
 
   run_hook "$home" maitri-theme-set-slack "$apps:$sandbox" || fail "maitri-theme-set-slack runs with Slack present"
-  grep -q "maitri theme slack-copy" "$home/hook.stderr" || fail "theme set tells a Slack user how to paste the colours" "$(cat "$home/hook.stderr")"
+  grep -q "maitri theme slack-copy" "$home/hook.stderr" && grep -q "Appearance > Custom theme" "$home/hook.stderr" ||
+    fail "theme set tells a Slack user how to paste the colours" "$(cat "$home/hook.stderr")"
   (( $(wc -l <"$home/hook.stderr") == 1 )) || fail "the Slack hint is one line" "$(cat "$home/hook.stderr")"
   [[ ! -e $home/.config ]] || fail "the Slack hook writes nothing"
 
@@ -342,6 +343,18 @@ printf '{"theme": {"background": {"default": "#000000"}, "rawCss": "@import url(
 run_hook "$home" maitri-theme-set-insomnia "$sandbox" || fail "maitri-theme-set-insomnia installs a theme that ships rawCss"
 plugin="$home/.config/Insomnia/plugins/insomnia-plugin-maitri"
 [[ -f $plugin/index.js ]] && ! grep -q rawCss "$plugin/index.js" || fail "Insomnia never gets a theme's rawCss" "$(cat "$plugin/index.js")"
+cp "$plugin/index.js" "$home/index.before"
+printf '{"theme": {}}\n{"theme": {}}\n' >"$home/.local/state/maitri/current/theme/insomnia-theme.json"
+run_hook "$home" maitri-theme-set-insomnia "$sandbox" || fail "maitri-theme-set-insomnia skips a file with several JSON documents"
+cmp -s "$plugin/index.js" "$home/index.before" || fail "several JSON documents never replace a working index.js" "$(cat "$plugin/index.js")"
+grep -q "not a single theme object" "$home/hook.stderr" || fail "the Insomnia hook says why it skipped several documents" "$(cat "$home/hook.stderr")"
+if command -v node >/dev/null 2>&1; then
+  printf '{"theme": {"background": {"default": "#000000"}, "__proto__": {"rawCss": "body{display:none}"}}}\n' >"$home/.local/state/maitri/current/theme/insomnia-theme.json"
+  run_hook "$home" maitri-theme-set-insomnia "$sandbox" || fail "maitri-theme-set-insomnia installs a theme with a __proto__ key"
+  got=$(node -e 'const t = require(process.argv[1]).themes[0].theme; console.log(t.rawCss === undefined, Object.getPrototypeOf(t) === Object.prototype)' "$plugin") ||
+    fail "the Insomnia plugin loads with a __proto__ key in the theme"
+  [[ $got == "true true" ]] || fail "a __proto__ key never gets rawCss past the drop" "$got"
+fi
 
 printf '#a1b2c3,#a1b2c3\n' >"$home/.local/state/maitri/current/theme/slack.txt"
 ! run_hook "$home" maitri-theme-slack-copy "$apps:$sandbox" >/dev/null || fail "maitri-theme-slack-copy refuses a slack.txt that isn't a Slack theme"

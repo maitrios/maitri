@@ -16,19 +16,21 @@ if grep -q '{{' "$src"; then
   exit 0
 fi
 
-# The plugin is JavaScript Insomnia runs, so the theme only reaches index.js
-# re-serialised by jq: a theme file that isn't plain JSON can't put code there.
+# The plugin is JavaScript Insomnia runs, so the theme only reaches index.js as
+# a string jq wrote for JSON.parse: a theme file that isn't one plain JSON
+# document can't put code there, and a "__proto__" key stays an ordinary key.
 # rawCss is dropped too, since Insomnia injects it as a stylesheet.
-if ! theme=$(jq -ce '{name: "maitri", displayName: "maitri", theme: (.theme | objects | del(.rawCss))}' "$src" 2>/dev/null); then
-  echo "Skipping Insomnia theme: insomnia-theme.json is not a theme object." >&2
+if ! theme=$(jq -se 'if length == 1 then .[0] else error("several documents") end |
+  {name: "maitri", displayName: "maitri", theme: (.theme | objects | del(.rawCss))} | tojson' "$src" 2>/dev/null); then
+  echo "Skipping Insomnia theme: insomnia-theme.json is not a single theme object." >&2
   exit 0
 fi
 
 plugins_dir="$config_dir/plugins"
 plugin_dir="$plugins_dir/insomnia-plugin-maitri"
-mkdir -p "$plugin_dir"
+mkdir -p "$plugin_dir" || exit 1
 
-cat >"$plugin_dir/package.json" <<'JSON'
+cat >"$plugin_dir/package.json" <<'JSON' || exit 1
 {
   "name": "insomnia-plugin-maitri",
   "version": "1.0.0",
@@ -41,9 +43,11 @@ cat >"$plugin_dir/package.json" <<'JSON'
 }
 JSON
 
-tmp=$(mktemp "$plugins_dir/.maitri-theme.XXXXXX")
-printf 'module.exports.themes = [%s];\n' "$theme" >"$tmp"
-mv "$tmp" "$plugin_dir/index.js"
+tmp=$(mktemp "$plugins_dir/.maitri-theme.XXXXXX") || exit 1
+if ! printf 'module.exports.themes = [JSON.parse(%s)];\n' "$theme" >"$tmp" || ! mv "$tmp" "$plugin_dir/index.js"; then
+  rm -f "$tmp"
+  exit 1
+fi
 
 # Insomnia keeps its settings in its own database, which maitri doesn't manage,
 # so the theme is offered rather than selected.
