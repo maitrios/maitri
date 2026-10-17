@@ -11,6 +11,7 @@ if [[ ! -s $HOME/.local/state/maitri/current/theme.name ]]; then
   fi
 fi
 maitri-theme-set-pi --activate
+maitri-theme-set-fish
 
 mkdir -p ~/.config/btop/themes
 ln -snf "$HOME/.local/state/maitri/current/theme/btop.theme" ~/.config/btop/themes/current.theme
