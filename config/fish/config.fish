@@ -22,3 +22,5 @@ if test "$MAITRI_PATH" != /usr/share/maitri
     fish_add_path --prepend "$MAITRI_PATH/bin"
 end
 fish_add_path --append "$HOME/.local/share/mise/shims" "$HOME/.local/bin"
+test -r "$HOME/.local/state/maitri/current/theme/glamour.json"; and begin; command -q gh; or command -q glow; end; and not set -q GLAMOUR_STYLE; and set -gx GLAMOUR_STYLE "$HOME/.local/state/maitri/current/theme/glamour.json" # maitri:glamour-style
+test -r "$HOME/.local/state/maitri/current/theme/glamour.json"; and command -q glow; and not set -q GLOW_STYLE; and set -gx GLOW_STYLE "$HOME/.local/state/maitri/current/theme/glamour.json" # maitri:glamour-style
