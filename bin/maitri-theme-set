@@ -339,6 +339,7 @@ post_theme_commands=(
   maitri-theme-set-warp
   maitri-theme-set-sublime
   maitri-theme-set-firefox
+  maitri-theme-set-chromium
 )
 
 if [[ $THEME_HEADLESS != "1" ]]; then
