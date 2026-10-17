@@ -127,6 +127,8 @@ def checks():
         fail("btop temperature does not warn in orange and end in red")
     if b["temp_start"] in (b["temp_mid"], b["temp_end"]):
         fail("btop temperature starts at its warning or critical colour")
+    if b["temp_start"] != palette["comment"]:
+        fail("btop temperature does not start at comment")
     if "gradient_color_0" in b:
         fail("btop.theme sets gradient_color keys btop does not read")
 
