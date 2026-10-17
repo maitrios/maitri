@@ -61,6 +61,7 @@ theme_set || fail "maitri-theme-set-vscode creates a missing settings.json"
 python3 -c 'import json, sys; json.load(open(sys.argv[1]))' "$settings" ||
   fail "a new settings.json is strict JSON" "$(cat "$settings")"
 [[ $(json_value workbench.colorTheme) == "Tokyo Night" ]] || fail "a new settings.json gets the theme" "$(cat "$settings")"
+[[ $(cat "$settings") == $'{\n  "workbench.colorTheme": "Tokyo Night"\n}' ]] || fail "a new settings.json has no stray blank line" "$(cat "$settings")"
 pass "maitri-theme-set-vscode writes the theme into a new settings.json"
 
 printf '{\n  "[python]": {\n    "workbench.colorTheme": "Python Theme"\n  },\n  "editor.fontSize": 14\n}\n' >"$settings"

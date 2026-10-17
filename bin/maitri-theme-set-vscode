@@ -133,7 +133,7 @@ set_theme() {
 
   if [[ -n "$theme_name" ]]; then
     mkdir -p "$(dirname "$settings_path")"
-    [[ -f $settings_path ]] || printf '{\n}\n' >"$settings_path"
+    [[ -f $settings_path ]] || printf '{}\n' >"$settings_path"
 
     maitri-vscode-settings-set "$settings_path" --set workbench.colorTheme "$theme_name"
   elif [[ -f $settings_path ]]; then
