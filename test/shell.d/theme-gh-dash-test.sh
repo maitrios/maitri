@@ -4,8 +4,8 @@ set -euo pipefail
 
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/base-test.sh"
 
-require_command python3
-python3 -I -c 'import yaml' 2>/dev/null || fail "required Python module is available: yaml"
+[[ -x /usr/bin/python3 ]] || fail "the system Python is available at /usr/bin/python3"
+/usr/bin/python3 -I -c 'import yaml' 2>/dev/null || fail "required Python module is available: yaml"
 
 test_tmp=$(mktemp -d)
 trap 'rm -rf "$test_tmp"' EXIT
@@ -28,7 +28,7 @@ done
 
 (( ${#themes[@]} > 0 )) || fail "themes are rendered"
 
-python3 -I - "$test_tmp" "${themes[@]}" <<'PY'
+/usr/bin/python3 -I - "$test_tmp" "${themes[@]}" <<'PY'
 import sys, yaml
 
 root, themes = sys.argv[1], sys.argv[2:]
@@ -126,7 +126,9 @@ grep -qE '(^|[ "])maitri-theme-set-gh-dash([ ;"]|$)' "$ROOT/bin/maitri-theme-set
 apps="$test_tmp/app-bin"
 mkdir -p "$apps"
 printf '#!/bin/bash\nexit 1\n' >"$apps/pgrep"
-chmod +x "$apps/pgrep"
+# A python3 from mise or a venv comes first on PATH and has no PyYAML.
+printf '#!/bin/bash\necho "ModuleNotFoundError: yaml" >&2\nexit 1\n' >"$apps/python3"
+chmod +x "$apps/pgrep" "$apps/python3"
 
 run_hook() {
   local home="$1"
@@ -150,7 +152,7 @@ set_theme() {
 }
 
 colors_match() {
-  python3 -I -c 'import sys, yaml
+  /usr/bin/python3 -I -c 'import sys, yaml
 config, rendered = (yaml.safe_load(open(f)) for f in sys.argv[1:])
 sys.exit(config["theme"]["colors"] != rendered["theme"]["colors"])' "$1" "$2"
 }
@@ -261,3 +263,98 @@ run_hook "$home"
 ! grep -q pwned "$config" && grep -qF "gh-dash.yml has a line maitri doesn't apply" "$home/hook.stderr" ||
   fail "a theme value that isn't a colour is skipped" "$(cat "$config" "$home/hook.stderr")"
 pass "only colours from the theme reach gh-dash's config"
+
+home=$(new_home quoted amethyst)
+config="$home/.config/gh-dash/config.yml"
+mkdir -p "$home/.config/gh-dash"
+printf 'pager:\n  diff: ""\n"theme":\n  ui:\n    sectionsShowCount: false\n' >"$test_tmp/quoted.yml"
+cp "$test_tmp/quoted.yml" "$config"
+run_hook "$home" || fail "the hook runs on a quoted theme key"
+colors_match "$config" "$home/.local/state/maitri/current/theme/gh-dash.yml" && [[ $(grep -c theme "$config") == 3 ]] ||
+  fail "a quoted theme key gets the colours under it" "$(cat "$config")"
+cmp -s <(without_block "$config") "$test_tmp/quoted.yml" || fail "a quoted theme key keeps the rest of the config"
+for case in '"theme": {}|on one line' "'theme': null|on one line" '{pager: {diff: ""}, theme: {}}|in a way maitri can'"'"'t edit' \
+  '&mine theme: {}|in a way maitri can'"'"'t edit'; do
+  line=${case%|*}
+  printf '%s\n' "$line" >"$config"
+  : >"$home/hook.stderr"
+  run_hook "$home" || fail "the hook runs on $line"
+  [[ $(<"$config") == "$line" ]] && grep -qF "${case#*|}" "$home/hook.stderr" ||
+    fail "a theme maitri can't edit is left alone with a notice: $line" "$(cat "$config" "$home/hook.stderr")"
+done
+pass "a quoted theme key is edited, and one maitri can't edit is left alone"
+
+home=$(new_home duplicate amethyst)
+config="$home/.config/gh-dash/config.yml"
+mkdir -p "$home/.config/gh-dash"
+printf 'pager:\n  diff: ""\npager:\n  diff: less\n' >"$config"
+cp "$config" "$test_tmp/duplicate.yml"
+run_hook "$home" || fail "the hook runs on a duplicate key"
+cmp -s "$config" "$test_tmp/duplicate.yml" && grep -qF "isn't valid YAML" "$home/hook.stderr" ||
+  fail "a config that sets a key twice is left alone with a notice" "$(cat "$config" "$home/hook.stderr")"
+pass "a config that sets a key twice is left alone, as gh-dash would refuse it"
+
+home=$(new_home include amethyst)
+config="$home/.config/gh-dash/config.yml"
+mkdir -p "$home/.config/gh-dash"
+printf 'include:\n  - colours.yml\ntheme:\n  ui:\n    sectionsShowCount: false\n' >"$config"
+cp "$config" "$test_tmp/include.yml"
+run_hook "$home" || fail "the hook runs on a config with include"
+cmp -s "$config" "$test_tmp/include.yml" && grep -qF "includes other files" "$home/hook.stderr" ||
+  fail "a config that includes other files is left alone with a notice" "$(cat "$config" "$home/hook.stderr")"
+pass "a config that includes other files is left alone"
+
+home=$(new_home tampered amethyst)
+config="$home/.config/gh-dash/config.yml"
+mkdir -p "$home/.config/gh-dash"
+printf 'theme:\n  ui:\n    sectionsShowCount: false\n' >"$config"
+run_hook "$home"
+# theme.ui moved inside the block, then a comment added to it.
+{ head -n -3 "$config"; tail -n 2 "$config"; tail -n 3 "$config" | head -n 1; } >"$test_tmp/tampered.yml"
+sed '/^    text:$/a\      # picked by hand' "$config" >"$test_tmp/commented.yml"
+for fixture in tampered commented; do
+  cp "$test_tmp/$fixture.yml" "$config"
+  : >"$home/hook.stderr"
+  run_hook "$home" || fail "the hook runs on a block the user edited ($fixture)"
+  cmp -s "$config" "$test_tmp/$fixture.yml" && grep -qF "more than colours between maitri's markers" "$home/hook.stderr" ||
+    fail "a block holding more than maitri's colours is left alone with a notice ($fixture)" "$(cat "$config" "$home/hook.stderr")"
+done
+pass "a block holding more than maitri's colours is left alone"
+
+home=$(new_home crlf amethyst)
+config="$home/.config/gh-dash/config.yml"
+mkdir -p "$home/.config/gh-dash"
+sed 's/$/\r/' "$test_tmp/ui.yml" >"$test_tmp/crlf.yml"
+cp "$test_tmp/crlf.yml" "$config"
+run_hook "$home" || fail "the hook runs on a CRLF config"
+colors_match "$config" "$home/.local/state/maitri/current/theme/gh-dash.yml" || fail "a CRLF config gets the colours" "$(cat -A "$config")"
+cmp -s <(without_block "$config") "$test_tmp/crlf.yml" && ! grep -qv $'\r$' "$config" ||
+  fail "a CRLF config keeps its bytes and line endings" "$(cat -A "$config")"
+cp "$config" "$test_tmp/crlf-amethyst.yml"
+set_theme "$home" daybreak
+run_hook "$home"
+set_theme "$home" amethyst
+run_hook "$home"
+cmp -s "$config" "$test_tmp/crlf-amethyst.yml" || fail "switching back restores a CRLF config exactly" "$(cat -A "$config")"
+pass "a CRLF config keeps its line endings"
+
+if (( EUID != 0 )); then
+  home=$(new_home readonly amethyst)
+  config="$home/.config/gh-dash/config.yml"
+  mkdir -p "$home/.config/gh-dash"
+  cp "$test_tmp/ui.yml" "$config"
+  chmod 444 "$config"
+  run_hook "$home" || fail "the hook runs on a read-only config"
+  cmp -s "$config" "$test_tmp/ui.yml" && grep -qF "it's read-only" "$home/hook.stderr" ||
+    fail "a read-only config is left alone with a notice" "$(cat "$config" "$home/hook.stderr")"
+  chmod 644 "$config"
+  chmod 555 "$home/.config/gh-dash"
+  : >"$home/hook.stderr"
+  run_hook "$home" || fail "the hook runs when it can't write next to the config"
+  chmod 755 "$home/.config/gh-dash"
+  cmp -s "$config" "$test_tmp/ui.yml" && grep -qF "can't write to its folder" "$home/hook.stderr" && ! grep -q Traceback "$home/hook.stderr" ||
+    fail "a read-only folder is left alone with a notice" "$(cat "$home/hook.stderr")"
+  pass "a read-only config or folder is left alone with a notice"
+else
+  skip "a read-only config or folder is left alone with a notice (root can write anything)"
+fi
