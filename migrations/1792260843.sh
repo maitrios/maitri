@@ -17,11 +17,14 @@ fi
 
 theme_name=$(<"$theme_name_path")
 if [[ ! -d $MAITRI_PATH/themes/$theme_name && ! -d $HOME/.config/maitri/themes/$theme_name ]]; then
-  rm -f "$glamour_style"
+  if [[ -e $glamour_style ]]; then
+    rm -f "$glamour_style"
+    echo "The $theme_name theme is gone, so gh and glow use their own style until the next maitri theme set. Open a new shell for glow to pick that up." >&2
+  fi
   exit 0
 fi
 
 if ! maitri-theme-refresh; then
   rm -f "$glamour_style"
-  echo "Couldn't refresh the $theme_name theme; gh and glow use their own style until the next maitri theme set." >&2
+  echo "Couldn't refresh the $theme_name theme, so gh and glow use their own style until the next maitri theme set. Open a new shell for glow to pick that up." >&2
 fi
