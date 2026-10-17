@@ -21,7 +21,7 @@ hl.config({
       border_active = active_border_color,
       border_inactive = inactive_border_color,
       border_locked_active = "rgb({{ orange_strip }})",
-      border_locked_inactive = inactive_border_color,
+      border_locked_inactive = "rgb({{ mix_strip border orange 30% }})",
     },
 
     groupbar = {
