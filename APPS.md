@@ -10,7 +10,7 @@ this page is the human-readable summary.
 - **Shell** → fish with the pure prompt (`maitri-fish` carries the functions and completions; bash stays configured)
 - **Browser** → Helium (also the engine behind the web-app launchers)
 - **Editor** → VS Code
-- **Terminal** → foot (Alacritty, kitty and Ghostty are one `maitri install terminal` away)
+- **Terminal** → foot, with herdr in its own Ghostty window (Alacritty and kitty are one `maitri install terminal` away)
 - **Launcher** → Vicinae, with the maitri menu as a Vicinae extension
 - **Theme** → Amethyst (violet); six more under `themes/`
 

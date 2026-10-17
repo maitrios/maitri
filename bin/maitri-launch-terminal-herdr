@@ -2,4 +2,8 @@
 
 # maitri:summary=Launch or attach to the persistent herdr session in a terminal
 
-exec maitri-launch-terminal herdr
+if maitri-cmd-present ghostty; then
+  exec setsid uwsm-app -- ghostty --class=org.maitri.herdr -e herdr
+fi
+
+exec maitri-launch-tui --app-id=org.maitri.herdr herdr
