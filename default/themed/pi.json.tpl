@@ -8,7 +8,7 @@
     "accent": "{{ accent }}",
     "selectionBackground": "{{ selection_background }}",
     "selectionForeground": "{{ selection_foreground }}",
-    "selectedBackground": "{{ mix background accent 22% }}",
+    "selectedBackground": "{{ mix background accent 10% }}",
     "color0": "{{ background }}",
     "color1": "{{ red }}",
     "color2": "{{ green }}",
