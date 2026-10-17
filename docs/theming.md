@@ -60,13 +60,14 @@ instead of racing.
 
 `themes/<name>/` in this repo is maitri's own code and is trusted. So is a theme the user wrote by hand in `~/.config/maitri/themes/<name>/`: it is their machine and their file, and both stage in full.
 
-`maitri theme install <url>` is different. It clones a stranger's git repo straight into that same directory, so the contents are whatever the theme author pushed. `maitri-theme-set` tells the two apart the way `maitri-theme-extras` already does — a `.git` directory means it was cloned, while a plain directory or a symlink to a working copy is the user's own — and from a cloned one it drops only what can run code:
+`maitri theme install <url>` is different. It clones a stranger's git repo straight into that same directory, so the contents are whatever the theme author pushed. `maitri-theme-set` tells the two apart the way `maitri-theme-extras` already does — a `.git` directory means it was cloned, while a plain directory or a symlink to a working copy is the user's own — and from a cloned one it drops only what can run code or fake what the browser shows:
 
 - any `*.lua` — Hyprland `require`s a theme's `hyprland.lua` and `gum_env.lua` at login, and Neovim loads its `neovim.lua` at startup
 - `alacritty.toml`, `foot.ini`, `ghostty.conf`, `kitty.conf` — each names the program the terminal launches
 - `vscode.json` — names the extension `maitri-theme-set-vscode` installs, and a VS Code extension is arbitrary JavaScript
 - `emacs-theme.el` — Elisp, which Emacs runs when it loads the theme
 - `herdr.toml` — `maitri-theme-set-herdr` splices it into herdr's own `config.toml`, which runs commands
+- `firefox-userChrome.css`, `firefox-userContent.css` — browser chrome CSS can draw over the URL bar, which is enough to fake the address a page shows
 
 A theme's `gtk.css` is kept, but `maitri-theme-set-gtk` only splices it into the user's GTK config when every line is an `@define-color name #RRGGBB;`, a comment or blank; otherwise GTK apps drop back to their own look. With the `skip-gtk-theme-changes` toggle on, `maitri-theme-set-gtk` leaves GTK alone and the colours of the last theme it applied stay in place. It rewrites gtk.css by moving a new copy into place, which keeps the file's mode but not ACLs or extended attributes; a symlinked or hard-linked gtk.css is left alone with a hint instead.
 
