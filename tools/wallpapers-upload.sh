@@ -163,11 +163,15 @@ valid_manifest() {
 }
 
 if [[ -n $tar ]]; then
-  types=$(tar -tvf "$tar" | cut -c1) || die "$tar could not be read"
+  # GNU tar runs a decompressor on a compressed file it's given by name, so the
+  # archive must be plain ustar and reaches tar through a pipe, where tar
+  # refuses compressed input instead.
+  [[ $(tail -c +258 "$tar" | head -c 5 | tr -d '\0') == "ustar" ]] || die "$tar: wallpapers.tar must be a plain, uncompressed tar"
+  types=$(cat "$tar" | tar -tvf - | cut -c1) || die "$tar could not be read"
   [[ -z $types ]] || ! grep -qv '^[-d]$' <<<"$types" || die "$tar: only directories and plain files go in wallpapers.tar"
   from="$work/staged"
   mkdir "$from"
-  tar -xf "$tar" -C "$from" --no-same-owner --no-same-permissions || die "$tar could not be unpacked"
+  cat "$tar" | tar -xf - -C "$from" --no-same-owner --no-same-permissions || die "$tar could not be unpacked"
 fi
 
 unsafe_name='[[:cntrl:]\\]'
@@ -189,8 +193,8 @@ make_preview() {
 
 make_all_previews() {
   local i
-  [[ -z ${R2_ACCESS_KEY_ID:-}${R2_SECRET_ACCESS_KEY:-}${AWS_SECRET_ACCESS_KEY:-} ]] ||
-    die "won't decode images with a bucket token in the environment; make the previews with --make-previews in a job without it"
+  ! compgen -e | grep -qE '^(R2|AWS)_' && [[ ! -e $HOME/.aws/credentials ]] ||
+    die "won't decode images with R2_* or AWS_* variables set or ~/.aws/credentials present; make the previews with --make-previews in a job without them"
   for i in "${!preview_keys[@]}"; do
     mkdir -p "$1/${preview_keys[$i]%/*}"
     make_preview "${upload_files[$i]}" "$1/${preview_keys[$i]}"

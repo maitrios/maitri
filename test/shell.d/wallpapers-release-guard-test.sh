@@ -86,6 +86,8 @@ first_secret=$(grep -n 'secrets\.' <<<"$publish_job" | head -n 1 | cut -d: -f1)
 [[ -n $guard && -n $first_secret ]] && (( guard < first_secret )) ||
   fail "the tag is checked before any step that sees a secret"
 ! grep -q 'ref: \${{' "$workflow" || fail "the workflow never checks out the tag's tree"
+! grep -qE 'secrets:[[:space:]]*inherit' "$workflow" || fail "the workflow never passes secrets on with secrets: inherit"
+! sed -n '/^env:/,/^[a-z]/p' "$workflow" | grep -q 'secrets\.' || fail "the workflow-level env holds no secret"
 pass "wallpapers.yml runs only from main, and checks the tag before the secrets"
 
 ! grep -qE 'environment:|secrets\.' <<<"$previews_job" || fail "the previews job has no environment and no secrets"

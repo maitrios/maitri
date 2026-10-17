@@ -352,8 +352,10 @@ with tarfile.open(sys.argv[1], "w") as t:
     info.size = len(data)
     t.addfile(info, io.BytesIO(data))' "$test_tmp/escape.tar"
 refuse_tar escape "could not be unpacked"
+gzip -c "$test_tmp/wallpapers.tar" >"$test_tmp/gzipped.tar"
+refuse_tar gzipped "must be a plain, uncompressed tar"
 [[ ! -e $test_tmp/escaped.jpg && ! -e ${TMPDIR:-/tmp}/escaped.jpg ]] || fail "a member with .. is never written outside the staging directory"
-pass "the uploader refuses symlinks, non-images, undecodable images, files over 64 MiB, loose files and .. in wallpapers.tar"
+pass "the uploader refuses compressed tars, symlinks, non-images, undecodable images, files over 64 MiB, loose files and .. in wallpapers.tar"
 
 fake_bin="$test_tmp/bin"
 mkdir -p "$fake_bin"
@@ -541,13 +543,28 @@ if with_token --tar "$test_tmp/wallpapers.tar" v1.5.0; then
   fail "a real run without --previews is refused"
 fi
 grep -q "a real run takes its previews from --previews" "$test_tmp/plan" || fail "the uploader says a real run needs --previews" "$(cat "$test_tmp/plan")"
-if R2_SECRET_ACCESS_KEY="test" upload --make-previews "$test_tmp/artifact" --tar "$test_tmp/wallpapers.tar" v1.5.0; then
-  fail "making previews with the bucket token around is refused"
+for variable in R2_SECRET_ACCESS_KEY=test R2_ENDPOINT=http://r2.invalid AWS_PROFILE=maitri AWS_SHARED_CREDENTIALS_FILE=/nonexistent AWS_SESSION_TOKEN=test; do
+  if env "$variable" "$ROOT/tools/wallpapers-upload.sh" --make-previews "$test_tmp/artifact" --tar "$test_tmp/wallpapers.tar" v1.5.0 \
+    >/dev/null 2>"$test_tmp/plan"; then
+    fail "making previews with $variable set is refused"
+  fi
+  grep -q "won't decode images with R2_\* or AWS_\* variables set" "$test_tmp/plan" ||
+    fail "the uploader says why it won't decode with $variable set" "$(cat "$test_tmp/plan")"
+done
+mkdir -p "$test_tmp/aws-home/.aws"
+: >"$test_tmp/aws-home/.aws/credentials"
+if HOME="$test_tmp/aws-home" upload --make-previews "$test_tmp/artifact" --tar "$test_tmp/wallpapers.tar" v1.5.0; then
+  fail "making previews with ~/.aws/credentials present is refused"
 fi
-grep -q "won't decode images with a bucket token in the environment" "$test_tmp/plan" ||
-  fail "the uploader says why it won't decode with the token around" "$(cat "$test_tmp/plan")"
+grep -q "or ~/.aws/credentials present" "$test_tmp/plan" || fail "the uploader says why it won't decode with ~/.aws/credentials present" "$(cat "$test_tmp/plan")"
 [[ ! -s $served.log && ! -s $test_tmp/decoders.log ]] || fail "neither refusal uploads or decodes anything" "$(cat "$served.log" "$test_tmp/decoders.log")"
-pass "images are only decoded by --make-previews, never with the bucket token in the environment"
+: >"$served.log"
+if publish_with_previews "$test_tmp/artifact" --tar "$test_tmp/gzipped.tar" v1.5.0; then
+  fail "the publish step refuses a compressed tar"
+fi
+grep -q "must be a plain, uncompressed tar" "$test_tmp/plan" || fail "the publish step says why it refuses a compressed tar" "$(cat "$test_tmp/plan")"
+[[ ! -s $served.log ]] || fail "a compressed tar uploads nothing" "$(cat "$served.log")"
+pass "images are only decoded by --make-previews, never with R2_*, AWS_* or ~/.aws/credentials around, and a compressed tar never reaches tar"
 
 staging3="$test_tmp/staging3"
 cp -r "$staging2" "$staging3"

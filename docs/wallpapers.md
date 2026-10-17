@@ -183,8 +183,8 @@ If `wallpapers.tar` is attached and is at most 1 GiB, it downloads it, installs
 `libvips-tools` from Ubuntu's archive, and runs
 `tools/wallpapers-upload.sh --make-previews <dir> --tar wallpapers.tar vX.Y.Z`.
 That checks the files the same way the publish job does (steps 1 and 2 below),
-writes each preview, and refuses to run at all with a bucket token in its
-environment. The previews go to the publish job as a workflow artifact.
+writes each preview, and refuses to run at all while any `R2_*` or `AWS_*`
+variable is set or `~/.aws/credentials` exists. The previews go to the publish job as a workflow artifact.
 
 The `publish` job is the only one in the `release` environment. It runs after
 `previews`, checks the tag before any step that sees a secret, reads the
@@ -193,8 +193,11 @@ downloads `wallpapers.tar` again along with the previews artifact, and runs
 `tools/wallpapers-upload.sh --tar wallpapers.tar --previews <dir> vX.Y.Z`,
 which:
 
-1. Refuses a tar holding anything but directories and plain files, or a
-   member that climbs out with `..`.
+1. Refuses anything but a plain, uncompressed ustar archive, checked by its
+   magic bytes before tar sees it. tar then reads it from a pipe, where GNU tar
+   refuses compressed input instead of running a decompressor. It also refuses
+   a tar holding anything but directories and plain files, or a member that
+   climbs out with `..`.
 2. Checks every file: a plain file directly in a directory named after a
    maitri theme, a name with no control characters or backslashes, a `jpg`,
    `png` or `webp` by both its name and its first bytes, and between 1 byte
