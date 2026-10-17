@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# maitri:summary=Move swapped launcher icons to the current theme's variants
+# maitri:hidden=true
+
+[[ -s $HOME/.local/state/maitri/icons/manifest ]] || exit 0
+
+exec 9>"${XDG_RUNTIME_DIR:-/tmp}/maitri-icons.lock"
+flock 9
+maitri-icons-set >/dev/null
