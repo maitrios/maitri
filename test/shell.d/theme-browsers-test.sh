@@ -142,9 +142,14 @@ CHROME_TEXT = [
     ("toolbar-field-text-color-focus", "toolbar-field-background-color-focus"),
     ("lwt-toolbar-field-highlight-text", "lwt-toolbar-field-highlight"),
     ("urlbarView-highlight-color", "urlbarView-highlight-background"),
-    ("toolbar-field-text-color-focus", "urlbarView-hover-background"),
+    ("urlbarview-text-color-hover", "urlbarView-hover-background"),
     ("urlbarView-url-color", "toolbar-field-background-color-focus"),
+    ("urlbarView-url-color", "urlbarView-hover-background"),
+    ("link-color", "urlbarView-hover-background"),
     ("urlbarView-secondary-text-color", "toolbar-field-background-color-focus"),
+    ("urlbarView-secondary-text-color", "urlbarView-hover-background"),
+    ("urlbarView-secondary-text-color", "urlbarView-highlight-background"),
+    ("urlbarView-action-color", "urlbarView-highlight-background"),
     ("panel-text-color", "panel-background-color"),
     ("panel-text-color", "panel-item-hover-bgcolor"),
     ("panel-text-color", "panel-item-active-bgcolor"),
@@ -200,6 +205,11 @@ RENAMED = [
     ("toolbox-background-color", "lwt-accent-color"),
     ("toolbox-text-color", "lwt-text-color"),
     ("urlbarView-url-color", "urlbar-popup-url-color"),
+    ("urlbarView-highlight-background", "urlbarview-background-color-selected"),
+    ("urlbarView-highlight-color", "urlbarview-text-color-selected"),
+    ("urlbarView-hover-background", "urlbarview-background-color-hover"),
+    ("urlbarView-secondary-text-color", "urlbarview-text-color-secondary"),
+    ("urlbarView-action-color", "urlbarview-text-color-action"),
 ]
 
 for theme in themes:

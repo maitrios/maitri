@@ -52,13 +52,20 @@
   --lwt-toolbar-field-highlight: {{ selection }} !important;
   --lwt-toolbar-field-highlight-text: {{ foreground }} !important;
 
-  --urlbarView-highlight-background: {{ mix dark_background accent 30% }} !important;
+  --urlbarview-background-color-selected: {{ mix dark_background accent 22% }} !important;
+  --urlbarView-highlight-background: {{ mix dark_background accent 22% }} !important;
+  --urlbarview-text-color-selected: {{ foreground }} !important;
   --urlbarView-highlight-color: {{ foreground }} !important;
-  --urlbarView-hover-background: {{ mix dark_background foreground 6% }} !important;
+  --urlbarview-background-color-hover: {{ lighter_background }} !important;
+  --urlbarView-hover-background: {{ lighter_background }} !important;
+  --urlbarview-text-color-hover: {{ foreground }} !important;
   --urlbarView-url-color: {{ link }} !important;
   --urlbar-popup-url-color: {{ link }} !important;
-  --urlbarView-action-color: {{ comment }} !important;
-  --urlbarView-secondary-text-color: {{ comment }} !important;
+  --urlbarview-text-color-action: {{ light_foreground }} !important;
+  --urlbarView-action-color: {{ light_foreground }} !important;
+  --urlbarview-text-color-secondary: {{ light_foreground }} !important;
+  --urlbarView-secondary-text-color: {{ light_foreground }} !important;
+  --urlbarview-separator-color: {{ border }} !important;
 
   --panel-background-color: {{ dark_background }} !important;
   --arrowpanel-background: {{ dark_background }} !important;
