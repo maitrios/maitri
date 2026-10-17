@@ -277,7 +277,7 @@ mkdir -p "$sandbox" "$apps"
 for tool in awk cat cksum cmp cp cut dirname flock grep head jq mkdir mktemp mv paste rm sed sort touch uniq; do
   ln -s "$(command -v "$tool")" "$sandbox/$tool"
 done
-for app in eza codex voxtype gitkraken gemini opencode lazydocker mpv; do
+for app in eza codex voxtype gitkraken gemini opencode lazydocker mpv mise; do
   printf '#!/bin/bash\n' >"$apps/$app"
 done
 printf '#!/bin/bash\nexit 1\n' >"$apps/pgrep"
