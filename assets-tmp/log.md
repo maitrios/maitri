@@ -319,3 +319,22 @@ daybreak:
 | daybreak | 3 | form | 89.0 | 90.1 | 93.9 | 1.17 | 64.3 | busy centre, hot spot |
 | daybreak | 4 | light | 88.8 | 89.7 | 90.9 | 0.0 | 63.3 | pass |
 | daybreak | 5 | particles | 96.5 | 96.6 | 96.6 | 0.0 | 16.1 | pass |
+
+## Update 2026-10-17: picks and ember re-tone
+
+Andrew approved all 30 round-2 candidates. ember's accent moved to `#FF9B54` in the palette update (#56), and the first post-process read brown-gold, so only ember's post-processing was re-run. There were no new renders and no extra spend. ember overrides:
+
+- highlight cap raised from L* 42 to L* 68 (shoulder knee L* 70), so the glow, coals, lava cracks and sparks keep the accent's lightness; the mean is still capped at L* 16;
+- the palette ramp's mid stop is the accent darkened 55% toward the background instead of `muted` (`#4E3A1C`, a brown);
+- palette lock 0.6 (unchanged), plus a 1.3× OKLab chroma lift;
+- everything else as above (crop, safe-zone dim 0.45, Real-ESRGAN with feathered 384 px tiles, grain 1.2%, JPEG q92 4:4:4, no metadata).
+
+New ember checks:
+
+| theme | # | subject | mean L* | safe-zone L* | centre L* | bright px % | accent px % | checks |
+|---|---|---|---|---|---|---|---|---|
+| ember | 1 | landscape | 9.7 | 10.6 | 8.0 | 0.49 | 33.6 | accent |
+| ember | 2 | flow | 9.4 | 8.2 | 8.9 | 1.53 | 66.4 | busy centre |
+| ember | 3 | form | 12.4 | 11.7 | 10.1 | 3.01 | 51.7 | busy centre, hot spot |
+| ember | 4 | light | 10.3 | 11.5 | 13.6 | 0.0 | 51.2 | pass |
+| ember | 5 | particles | 10.0 | 11.2 | 10.7 | 0.41 | 47.3 | pass |
