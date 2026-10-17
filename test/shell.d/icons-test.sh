@@ -437,10 +437,10 @@ echo ember >"$home/.local/state/maitri/current/theme.name"
 theme_set_icons
 cmp -s "$maitri_path/default/icons/ember/vscode.png" "$theme_icons/256x256/apps/maitri-vscode.png" ||
   fail "changing back to a theme with variants uses them again"
-echo '../ember' >"$home/.local/state/maitri/current/theme.name"
+echo '../icons/ember' >"$home/.local/state/maitri/current/theme.name"
 theme_set_icons
 cmp -s "$icons/vscode.png" "$theme_icons/256x256/apps/maitri-vscode.png" ||
-  fail "a theme name that isn't a plain name never picks a variant folder"
+  fail "a theme name that isn't a plain name never picks a variant folder, even one that would reach a real one"
 pass "the theme-set hook re-points the swapped icons to the new theme's variants"
 
 run_icons restore
