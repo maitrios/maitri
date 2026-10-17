@@ -67,6 +67,8 @@ instead of racing.
 - `vscode.json` — names the extension `maitri-theme-set-vscode` installs, and a VS Code extension is arbitrary JavaScript
 - `herdr.toml` — `maitri-theme-set-herdr` splices it into herdr's own `config.toml`, which runs commands
 
+A theme's `gtk.css` is kept, but `maitri-theme-set-gtk` only splices it into the user's GTK config when every line is an `@define-color name #RRGGBB;`, a comment or blank; otherwise GTK apps drop back to their own look. With the `skip-gtk-theme-changes` toggle on, `maitri-theme-set-gtk` leaves GTK alone and the colours of the last theme it applied stay in place. It rewrites gtk.css by moving a new copy into place, which keeps the file's mode but not ACLs or extended attributes; a symlinked or hard-linked gtk.css is left alone with a hint instead.
+
 Symlinks are dropped with them, at any depth; in a cloned theme they point wherever the theme author chose. Everything a cloned theme ships that is colour is kept, including files maitri would otherwise have generated — `btop.theme`, `helix.toml`, `shell.toml`, `icons.theme`, `keyboard.rgb` and the rest — so a theme can still say exactly how it wants each app to look. What is dropped gets generated from `default/themed/*.tpl` instead, and is named on stderr.
 
 A denylist is only right while it is maintained. Adding a template for another terminal, or for another editor that loads Lua, means adding it to `INSTALLED_THEME_DENIED` in `bin/maitri-theme-set`; `test/shell.d/theme-staging-test.sh` fails on any `default/themed/*.tpl` whose output is recorded as neither code nor colour, so a new template cannot be added without that decision being made.
@@ -240,6 +242,10 @@ surface, given as a key or as the same arguments `mix` takes:
 Use it for text drawn on a fill the theme doesn't define, such as git colors
 on a selected row. On a fill where the color already clears 4.5:1 it comes
 back unchanged.
+
+`outline` takes the same arguments and stops at 3:1, for borders and other
+lines, such as `{{ outline border lighter_background background 50% }}` for an
+outline on a raised surface.
 
 ### Gradient helpers
 

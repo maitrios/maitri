@@ -330,6 +330,7 @@ post_theme_commands=(
   maitri-theme-set-tmux
   maitri-theme-set-herdr
   maitri-theme-set-gnome
+  maitri-theme-set-gtk
   maitri-theme-set-pi
   maitri-theme-set-claude
   maitri-theme-set-hermes

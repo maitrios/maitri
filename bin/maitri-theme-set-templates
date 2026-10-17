@@ -291,13 +291,15 @@ lift_color() {
 
 # {{ readable KEY SURFACE }} or {{ readable KEY SURFACE_A SURFACE_B AMOUNT }}:
 # KEY moved toward foreground until it clears 4.5:1 on SURFACE, or on the mix.
+# {{ outline ... }} takes the same arguments and stops at 3:1, for lines.
 add_readable_value() {
   local token="$1"
-  local content fn key surface_a surface_b amount color surface target
+  local content fn key surface_a surface_b amount color surface target minimum=4.5
 
   content="${token#\{\{}"
   content="${content%\}\}}"
   read -r fn key surface_a surface_b amount <<<"$content"
+  [[ $fn == "outline" ]] && minimum=3
 
   color="${THEME_COLORS[$key]:-}"
   surface="${THEME_COLORS[$surface_a]:-}"
@@ -309,7 +311,7 @@ add_readable_value() {
     surface=$(mix_color "$surface" "${THEME_COLORS[$surface_b]}" "$amount")
   fi
 
-  printf 's|%s|%s|g\n' "$token" "$(lift_color "$color" "$target" "$surface" 4.5)" >>"$sed_script"
+  printf 's|%s|%s|g\n' "$token" "$(lift_color "$color" "$target" "$surface" "$minimum")" >>"$sed_script"
 }
 
 add_readable_values() {
@@ -321,7 +323,7 @@ add_readable_values() {
       [[ -n ${seen[$token]:-} ]] && continue
       seen[$token]=1
       add_readable_value "$token"
-    done < <(grep -hEo '\{\{[[:space:]]*readable[[:space:]]+[A-Za-z0-9_]+[[:space:]]+[A-Za-z0-9_]+([[:space:]]+[A-Za-z0-9_]+[[:space:]]+[0-9]+([.][0-9]+)?%?)?[[:space:]]*\}\}' "$tpl" 2>/dev/null || true)
+    done < <(grep -hEo '\{\{[[:space:]]*(readable|outline)[[:space:]]+[A-Za-z0-9_]+[[:space:]]+[A-Za-z0-9_]+([[:space:]]+[A-Za-z0-9_]+[[:space:]]+[0-9]+([.][0-9]+)?%?)?[[:space:]]*\}\}' "$tpl" 2>/dev/null || true)
   done
 }
 
