@@ -4,7 +4,12 @@ fish_config="${XDG_CONFIG_HOME:-$HOME/.config}/fish/config.fish"
 theme_name_path="$HOME/.local/state/maitri/current/theme.name"
 
 if [[ -f $fish_config ]] && ! grep -qF '# maitri:glamour-style' "$fish_config"; then
-  { echo; grep -F '# maitri:glamour-style' "$MAITRI_PATH/config/fish/config.fish"; } >>"$fish_config"
+  target=$(readlink -f "$fish_config")
+  if [[ ! -w $target || ! -w ${target%/*} ]]; then
+    echo "Leaving $fish_config alone: it isn't writable. Copy the two '# maitri:glamour-style' lines from $MAITRI_PATH/config/fish/config.fish into it yourself."
+  else
+    { echo; grep -F '# maitri:glamour-style' "$MAITRI_PATH/config/fish/config.fish"; } >>"$fish_config"
+  fi
 fi
 
 [[ -s $theme_name_path ]] || exit 0

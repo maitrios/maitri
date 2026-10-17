@@ -278,6 +278,18 @@ run_migration "$home" || fail "the glamour migration runs twice"
 grep -qx 'set -gx FOO 1' "$home/.config/fish/config.fish" || fail "the migration keeps the rest of config.fish"
 (( $(wc -l <"$home/refresh.log") == 1 )) || fail "the migration refreshes the theme once to render glamour.json"
 
+home="$test_tmp/migration-read-only"
+mkdir -p "$home/.config/fish" "$home/.local/state/maitri/current/theme"
+printf 'set -gx FOO 1\n' >"$home/.config/fish/config.fish"
+chmod 444 "$home/.config/fish/config.fish"
+echo amethyst >"$home/.local/state/maitri/current/theme.name"
+notice=$(env -u XDG_CONFIG_HOME HOME="$home" MAITRI_PATH="$ROOT" PATH="$stubs:$PATH" bash -euo pipefail "$migration") ||
+  fail "the glamour migration succeeds when config.fish is read-only, so the migration queue keeps moving"
+grep -q "isn't writable" <<<"$notice" || fail "the migration says why it left a read-only config.fish alone" "$notice"
+[[ $(<"$home/.config/fish/config.fish") == "set -gx FOO 1" ]] || fail "the migration leaves a read-only config.fish untouched"
+[[ -s $home/refresh.log ]] || fail "the migration still renders glamour.json when config.fish is read-only"
+chmod 644 "$home/.config/fish/config.fish"
+
 home="$test_tmp/migration-xdg"
 mkdir -p "$home/xdg/fish"
 printf 'set -gx FOO 1\n' >"$home/xdg/fish/config.fish"
