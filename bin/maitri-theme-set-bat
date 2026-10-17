@@ -1,0 +1,135 @@
+#!/bin/bash
+
+# maitri:summary=Apply the current maitri theme to bat and delta
+# maitri:hidden=true
+
+theme_dir="$HOME/.local/state/maitri/current/theme"
+tmtheme="$theme_dir/bat.tmTheme"
+delta_theme="$theme_dir/delta.gitconfig"
+git_config="${XDG_CONFIG_HOME:-$HOME/.config}/git/config"
+block_start="# >>> maitri theme (rewritten by maitri theme set) >>>"
+block_end="# <<< maitri theme <<<"
+
+block=$(mktemp)
+spliced=$(mktemp)
+delta_keys=$(mktemp)
+trap 'rm -f "$block" "$spliced" "$delta_keys"' EXIT
+
+# A block already in the file is replaced where it stands. A new one goes above
+# the first setting and the comments right before it, so anything the user sets
+# further down still wins.
+splice_block() {
+  local file="$1"
+
+  awk -v start="$block_start" -v end="$block_end" -v block="$block" '
+    function emit(line) {
+      if (done) return
+      print start
+      while ((getline line < block) > 0) print line
+      close(block)
+      print end
+      done = 1
+    }
+
+    NR == FNR {
+      if ($0 == start && !e) s = FNR
+      else if ($0 == end && s && !e) e = FNR
+      if (!first && $0 ~ /^[[:space:]]*$/) gap = FNR
+      else if (!first && $0 !~ /^[[:space:]]*[#;]/) first = FNR
+      next
+    }
+
+    FNR == 1 && !e { s = 0 }
+    s && FNR == s { emit() }
+    s && FNR >= s && FNR <= e { next }
+    !s && first && FNR == gap + 1 { emit(); print "" }
+    { print; last = $0 }
+    END {
+      if (!done && NR > 0 && last !~ /^[[:space:]]*$/) print ""
+      emit()
+    }
+  ' "$file" "$file" >"$spliced"
+}
+
+outside_block() {
+  awk -v start="$block_start" -v end="$block_end" '
+    NR == FNR {
+      if ($0 == start && !e) s = FNR
+      else if ($0 == end && s && !e) e = FNR
+      next
+    }
+    !(e && FNR >= s && FNR <= e)
+  ' "$1" "$1"
+}
+
+# Written through rather than moved over, so a config symlinked from a dotfiles
+# repo stays a symlink and keeps its permissions.
+write_spliced() {
+  cmp -s "$spliced" "$1" || cat "$spliced" >"$1"
+}
+
+bat_theme_ready=""
+
+exec 9>"${XDG_RUNTIME_DIR:-/tmp}/maitri-theme-set-bat.lock"
+flock 9
+
+if maitri-cmd-present bat && [[ -f $tmtheme ]]; then
+  if grep -q '{{' "$tmtheme"; then
+    echo "Skipping bat theme: bat.tmTheme has unresolved colors." >&2
+  else
+    bat_dir=$(bat --config-dir)
+    mkdir -p "$bat_dir/themes"
+    tmp=$(mktemp "$bat_dir/themes/.maitri-theme.XXXXXX")
+    cp "$tmtheme" "$tmp"
+    mv "$tmp" "$bat_dir/themes/maitri.tmTheme"
+
+    if output=$(bat cache --build 2>&1); then
+      bat_theme_ready=1
+    else
+      echo "bat could not build its theme cache: $output" >&2
+      bat --list-themes >/dev/null 2>&1 || bat cache --clear >/dev/null 2>&1
+    fi
+
+    bat_config=$(bat --config-file)
+    if [[ -n $bat_theme_ready ]]; then
+      mkdir -p "$(dirname "$bat_config")"
+      touch "$bat_config"
+      if ! outside_block "$bat_config" | grep -qE '^[[:space:]]*--theme(-dark|-light)?(=|[[:space:]]|$)'; then
+        printf -- '--theme="maitri"\n' >"$block"
+        splice_block "$bat_config" && write_spliced "$bat_config"
+      fi
+    elif [[ -f $bat_config ]]; then
+      outside_block "$bat_config" >"$spliced" && write_spliced "$bat_config"
+    fi
+  fi
+fi
+
+if maitri-cmd-present delta && [[ -f $delta_theme ]]; then
+  # Only style keys with plain values are taken from the rendered file, so a
+  # theme can't set delta's pager or anything else git or delta would run.
+  awk -v ready="$bat_theme_ready" '
+    /^[[:space:]]*\[/ { in_delta = ($0 ~ /^[[:space:]]*\[delta\][[:space:]]*$/); next }
+    !in_delta || /^[[:space:]]*(#.*)?$/ { next }
+    {
+      line = $0
+      sub(/^[[:space:]]+/, "", line)
+      quotes = gsub(/"/, "\"", line)
+      if (line !~ /^(syntax-theme|blame-palette|[a-z-]+-styles?) = [A-Za-z0-9#" ,=>+-]+$/ || quotes % 2) {
+        bad = 1
+        exit
+      }
+      if (line ~ /^syntax-theme / && !ready) next
+      print "\t" line
+    }
+    END { exit bad }
+  ' "$delta_theme" >"$delta_keys"
+
+  if (( $? != 0 )); then
+    echo "Skipping delta theme: delta.gitconfig has a setting maitri doesn't apply." >&2
+  elif [[ -s $delta_keys ]]; then
+    { echo "[delta]"; cat "$delta_keys"; } >"$block"
+    mkdir -p "$(dirname "$git_config")"
+    touch "$git_config"
+    splice_block "$git_config" && write_spliced "$git_config"
+  fi
+fi

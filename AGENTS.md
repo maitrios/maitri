@@ -156,10 +156,17 @@ maitri is a rebranded fork that tracks Omarchy releases; see [`maitri.md`](maitr
   this). Resolve sync conflicts in the lid-close, sleep-lock and wake commands, the bindings,
   `config/hypr/hyprland.lua` and `enable-user-units.sh` toward maitri's side, and drop upstream
   migrations that drive the deleted helpers.
-- The brand is the block MAITRI wordmark from `logo.txt` and the open heart in `assets/brand/`.
-  `tools/brand.py` generates `logo.svg`, `icon.png`, the Plymouth and SDDM `logo.png`, every
-  `themes/*/unlock.png` and `preview-unlock.png`, and `default/plymouth/logos/heart.png`; never edit
-  those by hand, and `test/shell.d/brand-test.sh` fails when they drift. The heart glyph U+E900 is
-  redrawn with `maitri dev font replace U+E900 assets/brand/heart-glyph.svg`. Resolve sync conflicts
-  in those files, `icon.txt`, `maitri.ttf`, the boot and login background (`#0f0a18`) and the
-  Amethyst console palettes toward maitri's side.
+- The brand is the loop heart and the lowercase maitri wordmark. `tools/brand.py` draws the heart
+  from the circles and tangents in `HEART` into `assets/brand/heart.svg`, `heart-glyph.svg` and
+  `icon.svg`; `tools/wordmark.py` sets the wordmark at weight 800 from the vendored, unmodified
+  variable `assets/brand/fonts/Nunito-Variable.ttf` (with its OFL) as `assets/brand/wordmark.svg`.
+  From those `tools/brand.py` builds `assets/brand/lockup.svg` and `logo.svg` and renders `icon.png`,
+  the Plymouth and SDDM `logo.png`, every `themes/*/unlock.png` and `preview-unlock.png`, and
+  `default/plymouth/logos/heart.png`; never edit those by hand, and `test/shell.d/brand-test.sh`
+  fails when they drift. `logo.txt` (the wordmark) and `icon.txt` (the heart) are the terminal and
+  console versions, drawn by hand on a half-block pixel grid using only `█`, `▀` and `▄`, the block
+  glyphs in all three console fonts `maitri-provision-owner` picks from; redraw them when the mark
+  changes. The screensaver default is both, split by a form feed line, and takes turns showing them.
+  The heart glyph U+E900 is redrawn with `maitri dev font replace U+E900
+  assets/brand/heart-glyph.svg`. Resolve sync conflicts in those files, `maitri.ttf`, the boot and
+  login background (`#0f0a18`) and the Amethyst console palettes toward maitri's side.

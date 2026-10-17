@@ -21,3 +21,11 @@ MAITRI_PATH=$ROOT "$ROOT/bin/maitri-dev-font" replace U+E900 "$ROOT/assets/brand
 cmp -s "$font_dir/maitri.ttf" "$ROOT/default/fonts/maitri/maitri.ttf" ||
   fail "maitri.ttf carries the current heart glyph; rerun maitri dev font replace U+E900"
 pass "maitri.ttf carries the current heart glyph"
+
+for art in logo.txt icon.txt; do
+  stray=$(LC_ALL=C.UTF-8 grep -n '[^ █▀▄]' "$ROOT/$art" || true)
+  [[ -z $stray ]] || fail "$art uses only the block glyphs every console font has" "$stray"
+  width=$(LC_ALL=C.UTF-8 wc -L <"$ROOT/$art")
+  (( width <= 80 )) || fail "$art fits an 80-column console" "$width columns"
+done
+pass "logo.txt and icon.txt fit the console"

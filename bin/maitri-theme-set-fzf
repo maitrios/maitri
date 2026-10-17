@@ -1,0 +1,100 @@
+#!/bin/bash
+
+# maitri:summary=Apply the current maitri theme to fzf and bat in fish
+# maitri:hidden=true
+
+theme_dir="$HOME/.local/state/maitri/current/theme"
+src="$theme_dir/fzf.fish"
+fish_config="${XDG_CONFIG_HOME:-$HOME/.config}/fish/config.fish"
+block_start="# >>> maitri theme (rewritten by maitri theme set) >>>"
+block_end="# <<< maitri theme <<<"
+colors_line='^set -gx MAITRI_FZF_COLORS "--color=[a-z+-]+:(#[0-9A-Fa-f]{6}|-1)(,[a-z+-]+:(#[0-9A-Fa-f]{6}|-1))*"$'
+
+has_fzf=""
+has_bat=""
+maitri-cmd-present fzf && [[ -f $src ]] && has_fzf=1
+maitri-cmd-present bat && [[ -f $theme_dir/bat.tmTheme ]] && ! grep -q '{{' "$theme_dir/bat.tmTheme" &&
+  bat --list-themes --color=never 2>/dev/null | grep -qx maitri && has_bat=1
+
+block=$(mktemp)
+spliced=$(mktemp)
+trap 'rm -f "$block" "$spliced"' EXIT
+
+# fzf splits FZF_DEFAULT_OPTS into options, so the snippet is only taken when
+# its colour list is nothing but name:#rrggbb pairs and every other line is the
+# template's (the user's own, if they have one); a colour with a space in it
+# would otherwise add an option.
+if [[ -n $has_fzf ]]; then
+  tpl="$HOME/.config/maitri/themed/fzf.fish.tpl"
+  [[ -f $tpl ]] || tpl="$MAITRI_PATH/default/themed/fzf.fish.tpl"
+  if (( $(grep -c '^set -gx MAITRI_FZF_COLORS ' "$src") == 1 )) && grep -qE "$colors_line" "$src" &&
+    [[ $(grep -v '^set -gx MAITRI_FZF_COLORS ' "$src") == "$(grep -v '^set -gx MAITRI_FZF_COLORS ' "$tpl")" ]]; then
+    { echo "if command -q fzf"; sed 's/^/    /' "$src"; echo "end"; } >>"$block"
+  else
+    echo "Skipping fzf theme: fzf.fish isn't a plain colour list on the fzf.fish template." >&2
+  fi
+fi
+
+# maitri-fish's vendor conf.d sets BAT_THEME, which bat puts ahead of its own
+# config file. It's only pointed at maitri once bat's cache has the theme, or
+# every bat call warns.
+if [[ -n $has_bat ]]; then
+  echo "set -gx BAT_THEME maitri" >>"$block"
+fi
+
+# With nothing left to set, an existing block is taken out rather than left
+# pointing at a theme bat no longer has.
+drop=""
+if [[ ! -s $block ]]; then
+  [[ -f $fish_config ]] || exit 0
+  drop=1
+fi
+
+mkdir -p "$(dirname "$fish_config")"
+touch "$fish_config"
+
+exec 9>"${XDG_RUNTIME_DIR:-/tmp}/maitri-theme-set-fish.lock"
+flock 9
+
+# config.fish rather than conf.d: fish sources the user's conf.d before the
+# vendor one, which sets FZF_DEFAULT_OPTS and BAT_THEME outright. A block already
+# in the file is replaced where it stands; a new one goes above the first command
+# and the comments right before it, so anything the user sets further down wins.
+awk -v start="$block_start" -v end="$block_end" -v block="$block" -v drop="$drop" '
+  function emit(line) {
+    if (done || drop) return
+    print start
+    while ((getline line < block) > 0) print line
+    close(block)
+    print end
+    done = 1
+  }
+
+  NR == FNR {
+    if ($0 == start && !e) s = FNR
+    else if ($0 == end && s && !e) e = FNR
+    if (!first && $0 ~ /^[[:space:]]*$/) gap = FNR
+    else if (!first && $0 !~ /^[[:space:]]*#/) first = FNR
+    next
+  }
+
+  FNR == 1 && !e { s = 0 }
+  s && FNR == s { emit() }
+  s && FNR >= s && FNR <= e { next }
+  drop && e && FNR == e + 1 && /^[[:space:]]*$/ { next }
+  !s && !drop && first && FNR == gap + 1 { emit(); print "" }
+  { print; last = $0 }
+  END {
+    if (drop) exit
+    if (!done && NR > 0 && last !~ /^[[:space:]]*$/) print ""
+    emit()
+  }
+' "$fish_config" "$fish_config" >"$spliced" || exit 1
+
+cmp -s "$spliced" "$fish_config" && exit 0
+
+# Written through rather than moved over, so a config symlinked from a dotfiles
+# repo stays a symlink and keeps its permissions.
+cat "$spliced" >"$fish_config"
+
+echo "New fish shells pick up the maitri fzf and bat colours; open ones keep the old colours until restarted." >&2
