@@ -175,15 +175,24 @@ function M.build(c, mode)
     p.cursorline = p.bg_light
     p.code_border = p.bg_darker
   else
-    local lift = M.contrast(c.lighter_background, p.fg) >= 4.5 and c.lighter_background or p.bg
-    p.bg_dark = M.toward(lift, p.fg, p.bg, 1.22)
+    local lift = p.bg
+    if luminance(c.lighter_background) > luminance(p.bg) and M.contrast(c.lighter_background, p.fg) >= 4.5 then
+      lift = c.lighter_background
+    end
+    local function raise(ratio)
+      return M.toward(M.toward(p.bg, lift, p.bg, ratio), p.fg, p.bg, ratio)
+    end
+    p.bg_dark = raise(1.22)
     p.bg_light = M.toward(p.bg_dark, p.fg, p.bg_dark, 1.1)
-    p.cursorline = M.toward(lift, p.fg, p.bg, 1.15)
-    p.code_border = M.toward(lift, p.fg, p.bg, 1.35)
+    p.cursorline = M.toward(p.bg_dark, p.fg, p.bg_dark, 1.05)
+    p.code_border = raise(1.35)
+    p.line = M.toward(p.line, p.fg, p.bg_dark, 2)
   end
+  p.fg_dim = M.readable(p.fg_dim, p.bg_light, p.fg)
 
+  local text_floor = light and p.bg_dark or p.cursorline
   for _, key in ipairs({ "comment", "accent", "red", "green", "yellow", "blue", "magenta", "cyan", "orange" }) do
-    p[key] = M.readable(p[key], p.bg_dark, p.fg)
+    p[key] = M.readable(p[key], text_floor, p.fg)
   end
 
   local tint = light and 0.16 or 0.13
@@ -208,7 +217,7 @@ function M.build(c, mode)
 
   local diagnostics = { p.red, p.orange, p.cyan, p.green }
   if c.hint and clear(c.hint, diagnostics) then
-    p.hint = M.readable(c.hint, p.bg_dark, p.fg)
+    p.hint = M.readable(c.hint, text_floor, p.fg)
   else
     p.hint = apart(p.accent, { p.magenta, p.blue }, diagnostics)
   end
@@ -229,7 +238,7 @@ function M.build(c, mode)
   end
   for _, candidate in ipairs(links) do
     if M.hue_distance(candidate, p.accent) >= 60 then
-      p.link = M.readable(candidate, p.bg_dark, p.fg)
+      p.link = M.readable(candidate, text_floor, p.fg)
       break
     end
   end
@@ -241,6 +250,7 @@ function M.build(c, mode)
   p.border_dim = c.border or p.line
   p.nontext = light and blend(p.bg, p.comment, 0.55) or blend(p.line, p.comment, 0.35)
   p.reference = blend(p.bg, p.accent, light and 0.12 or 0.16)
+  p.reference_float = blend(p.bg_dark, p.accent, light and 0.12 or 0.16)
   p.menu_sel = blend(p.bg_dark, p.accent, light and 0.22 or 0.3)
 
   p.search = blend(p.bg, p.green, light and 0.3 or 0.32)

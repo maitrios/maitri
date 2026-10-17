@@ -109,7 +109,7 @@ return function(p)
     TroubleFilename = { fg = p.accent },
     TroubleDirectory = { fg = p.accent },
     TroubleIconDirectory = { fg = p.accent },
-    TroublePreview = { bg = p.reference, underline = true },
+    TroublePreview = { bg = p.reference_float, underline = true },
 
     FlashBackdrop = { fg = p.comment },
     FlashLabel = { fg = p.bg, bg = p.accent, bold = true },
