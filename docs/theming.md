@@ -550,7 +550,8 @@ of `default/nvim/maitri-theme`.
 `default/icons/` holds maitri's launcher icons, one file per app, named after
 the `Icon=` key in that app's `.desktop` file (`vscode.png` for `Icon=vscode`,
 `Alacritty.png` for `Icon=Alacritty`). Icons are 256px PNGs with every
-ancillary chunk stripped; an SVG named the same way works too.
+ancillary chunk stripped; an SVG named the same way works too. A PNG that isn't
+square at a size the hicolor theme lists (16 to 512) is skipped.
 
 A theme can have its own variants in `default/icons/<theme>/`, named the same
 way, with a base icon for each. For the current theme (`theme.name` in
@@ -585,9 +586,12 @@ The set is opt-in, from Style > App Icons in the menu or the commands:
   every change, so a run cut short leaves nothing restore can't find, and it
   stops without touching anything when `default/icons/` is missing. Each run
   also refreshes the icon copies from `default/icons/`, so new icon art from an
-  update reaches them, and removes copies no swap uses anymore. Swaps made
-  before icons were copied, which point at an absolute path, are moved over to
-  the names.
+  update reaches them, and removes copies no swap uses anymore. It never
+  overwrites or removes an icon file it didn't write, and it touches the icon
+  theme dir whenever a copy changes, so GTK rescans it. Swaps made before icons
+  were copied, which point at an absolute path, are moved over to the names. A
+  launcher whose icon has left the set (after `maitri dev unlink` from a branch
+  that added it, say) goes back the way restore would put it.
 - `maitri-icons-restore` undoes every swap still in place, removes the icon
   copies, and clears the record. Given desktop file names (`maitri-icons-restore code`, with or
   without `.desktop`), it undoes only those.

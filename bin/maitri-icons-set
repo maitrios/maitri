@@ -48,15 +48,29 @@ entry_fields() {
   ' "$1"
 }
 
+png_size() {
+  local signature size
+
+  signature="$(od -An -tx1 -N8 "$1" 2>/dev/null | tr -d ' \n')"
+  [[ $signature == "89504e470d0a1a0a" ]] || return 1
+  read -r size < <(od -An -tu1 -j16 -N8 "$1" | awk '{
+    w = $1 * 16777216 + $2 * 65536 + $3 * 256 + $4
+    h = $5 * 16777216 + $6 * 65536 + $7 * 256 + $8
+    print (w == h ? w : "")
+  }')
+  [[ " 16 22 24 32 36 48 64 72 96 128 192 256 512 " == *" $size "* && -n $size ]] || return 1
+  printf '%s\n' "$size"
+}
+
 icon_source() {
   local dir ext
 
   for dir in "${variant_dirs[@]}"; do
     for ext in png svg; do
-      if [[ -f $dir/$1.$ext ]]; then
-        printf '%s\n' "$dir/$1.$ext"
-        return 0
-      fi
+      [[ -f $dir/$1.$ext ]] || continue
+      [[ $ext == "svg" ]] || png_size "$dir/$1.$ext" >/dev/null || continue
+      printf '%s\n' "$dir/$1.$ext"
+      return 0
     done
   done
   return 1
@@ -76,7 +90,7 @@ icon_copy_path() {
   if [[ $source == *.svg ]]; then
     printf '%s\n' "$icon_theme_dir/scalable/apps/maitri-$1.svg"
   else
-    read -r size < <(od -An -tu1 -j16 -N4 "$source" | awk '{ print $1 * 16777216 + $2 * 65536 + $3 * 256 + $4 }')
+    size="$(png_size "$source")"
     printf '%s\n' "$icon_theme_dir/${size}x${size}/apps/maitri-$1.png"
   fi
 }
@@ -87,6 +101,13 @@ ensure_icon() {
   key="$(icon_key "$1")"
   source="$(icon_source "$key")" || return 0
   copy="$(icon_copy_path "$key")"
+  if ! grep -Fxqs "$copy" "$copies"; then
+    if [[ -e $copy || -L $copy ]]; then
+      echo "Leaving $copy alone: maitri didn't put it there" >&2
+      return 0
+    fi
+    printf '%s\n' "$copy" >>"$copies"
+  fi
   if ! cmp -s "$source" "$copy"; then
     mkdir -p "${copy%/*}"
     tmp="$(mktemp "${copy%/*}/.maitri-icon.XXXXXX")"
@@ -94,8 +115,8 @@ ensure_icon() {
     chmod 644 "$tmp"
     mv "$tmp" "$copy"
     tmp=""
+    touch "$icon_theme_dir"
   fi
-  grep -Fxqs "$copy" "$copies" || printf '%s\n' "$copy" >>"$copies"
 }
 
 prune_icons() {
@@ -108,8 +129,9 @@ prune_icons() {
     name="${name%.*}"
     if [[ -s $manifest ]] && cut -f3 "$manifest" | grep -Fxq "$name" && [[ $copy == "$(icon_copy_path "${name#maitri-}")" ]]; then
       kept+="$copy"$'\n'
-    else
+    elif [[ -e $copy || -L $copy ]]; then
       rm -f "$copy"
+      touch "$icon_theme_dir"
     fi
   done <"$copies"
   printf '%s' "$kept" >"$copies"
@@ -253,6 +275,16 @@ for id in "${ids[@]}"; do
 
   seen[$id]=1
   if [[ $kind != "created" ]]; then
+    if ! icon_source "$(icon_key "$icon")" >/dev/null; then
+      if [[ -n $hash && $(file_hash "$desktop_file") == "$hash" ]] && [[ -e $originals_dir/$id || -L $originals_dir/$id ]]; then
+        mv "$originals_dir/$id" "$desktop_file"
+      else
+        revert_icon "$desktop_file" "$icon"
+      fi
+      forget "$id"
+      echo "Dropped icon override for $id"
+      continue
+    fi
     wanted="maitri-$(icon_key "$icon")"
     if [[ $icon != "$wanted" ]] && icon_source "${wanted#maitri-}" >/dev/null; then
       ensure_icon "$wanted"
