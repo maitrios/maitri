@@ -23,7 +23,10 @@ Two Arch packages are built from this one repo (PKGBUILDs live in
 
 Two other packages live in `maitri-pkgs/` but stand alone:
 `maitri-keyring` (GPG keys for pacman) and `maitri-nvim` (the Neovim
-setup; independently seeds `/etc/skel`).
+setup; independently seeds `/etc/skel`). Existing users keep their copy of
+that setup, so changes reach them through migrations, such as
+`migrations/1792255956.sh` updating `~/.config/nvim/plugin/after/transparency.lua`
+only while it still matches the copy maitri shipped.
 
 `maitri-mail` is built from its own repo (`maitrios/maitri-mail`). It
 installs the Mail backend at `/usr/bin/maitri-mail` and its shell plugin
