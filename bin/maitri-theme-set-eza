@@ -30,13 +30,16 @@ value=$(IFS=:; echo "${colors[*]}")
 # from fish. Being exported, it also reaches the session's environment, and a
 # fish that inherits it from there holds the old value as a global that shadows
 # the universal one. The conf.d file drops that copy as each fish starts, and the
-# global erase here does the same for an EZA_COLORS inherited by this one.
+# global erase here does the same for an EZA_COLORS inherited by this one. It
+# sorts before the user's conf.d files and only drops a value shaped like
+# maitri's, so an EZA_COLORS the user sets anywhere stays theirs.
 config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/fish"
-conf_d="$config_dir/conf.d/maitri-eza.fish"
+conf_d="$config_dir/conf.d/00-maitri-eza.fish"
+maitri_entry='[A-Za-z]{2}=([0-9];)*38;2;[0-9]{1,3};[0-9]{1,3};[0-9]{1,3}'
 mkdir -p "$(dirname "$conf_d")"
 tmp=$(mktemp "$conf_d.XXXXXX")
-printf '%s\n' "# Written by maitri theme set: EZA_COLORS is a universal variable, so an inherited copy mustn't shadow it." \
-  "set -eg EZA_COLORS" >"$tmp"
+printf '%s\n' "# Written by maitri theme set: EZA_COLORS is a universal variable, so an inherited copy of maitri's colours mustn't shadow it." \
+  "set -qg EZA_COLORS; and string match -qr -- '^$maitri_entry(:$maitri_entry)*\$' \"\$EZA_COLORS\"; and set -eg EZA_COLORS" >"$tmp"
 if cmp -s "$tmp" "$conf_d"; then
   rm "$tmp"
 else

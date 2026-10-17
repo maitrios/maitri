@@ -398,8 +398,16 @@ run_hooks "$home" "$apps:$sandbox"
 rendered="$home/.local/state/maitri/current/theme"
 if [[ -n $has_fish ]]; then
   [[ $(eza_colors "$home") == "di=1;38;2;52;93;176:"* ]] || fail "a theme change replaces EZA_COLORS" "$(eza_colors "$home")"
-  got=$(isolated "$home" EZA_COLORS="di=31" fish -c 'echo $EZA_COLORS')
+  got=$(isolated "$home" EZA_COLORS="di=1;38;2;141;179;255:ex=1;38;2;133;220;140" fish -c 'echo $EZA_COLORS')
   [[ $got == "di=1;38;2;52;93;176:"* ]] || fail "a fish that inherits the old EZA_COLORS from the session gets the new one" "$got"
+  got=$(isolated "$home" EZA_COLORS="di=31" fish -c 'echo $EZA_COLORS')
+  [[ $got == "di=31" ]] || fail "a fish keeps an EZA_COLORS of the user's own from the session" "$got"
+  printf 'set -gx EZA_COLORS "di=35"\n' >"$home/.config/fish/conf.d/eza.fish"
+  [[ $(eza_colors "$home") == "di=35" ]] || fail "an EZA_COLORS set in the user's conf.d wins" "$(eza_colors "$home")"
+  run_hook "$home" maitri-theme-set-eza "$apps:$sandbox" || fail "maitri-theme-set-eza runs beside the user's conf.d"
+  grep -qF "eza.fish sets EZA_COLORS itself" "$home/hook.stderr" || fail "the eza hook says the user's conf.d hides its colours" "$(cat "$home/hook.stderr")"
+  [[ $(eza_colors "$home") == "di=35" ]] || fail "the user's conf.d still wins after another theme set" "$(eza_colors "$home")"
+  rm "$home/.config/fish/conf.d/eza.fish"
 fi
 for pair in "bat.tmTheme:.codex/themes/maitri.tmTheme" "voxtype.toml:.config/voxtype/osd/maitri/voxtype-osd.toml" \
   "gitkraken.json:.gitkraken/themes/maitri.jsonc" "opencode.json:.config/opencode/themes/maitri.json"; do
