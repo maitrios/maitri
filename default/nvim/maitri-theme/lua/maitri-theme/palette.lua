@@ -172,11 +172,15 @@ function M.build(c, mode)
     p.bg_darker = M.toward(p.bg_darker, p.fg, p.bg, 1.35)
     p.bg_light = M.toward(p.bg_light, p.fg, p.bg, 1.16)
     p.line = M.toward(p.line, p.fg, p.bg, 3)
+    p.cursorline = p.bg_light
+    p.code_border = p.bg_darker
   else
-    p.bg_dark = M.toward(c.lighter_background, p.fg, p.bg, 1.22)
-    p.bg_light = M.toward(c.lighter_background, p.fg, p.bg, 1.15)
+    local lift = M.contrast(c.lighter_background, p.fg) >= 4.5 and c.lighter_background or p.bg
+    p.bg_dark = M.toward(lift, p.fg, p.bg, 1.22)
+    p.bg_light = M.toward(p.bg_dark, p.fg, p.bg_dark, 1.1)
+    p.cursorline = M.toward(lift, p.fg, p.bg, 1.15)
+    p.code_border = M.toward(lift, p.fg, p.bg, 1.35)
   end
-  p.code_border = light and p.bg_darker or M.toward(c.lighter_background, p.fg, p.bg, 1.35)
 
   for _, key in ipairs({ "comment", "accent", "red", "green", "yellow", "blue", "magenta", "cyan", "orange" }) do
     p[key] = M.readable(p[key], p.bg_dark, p.fg)
@@ -231,7 +235,6 @@ function M.build(c, mode)
   end
 
   p.visual = c.selection or light and M.toward(p.bg, p.accent, p.bg, 1.5) or blend(p.bg, p.accent, 0.26)
-  p.cursorline = p.bg_light
   p.float = p.bg_dark
   p.border = c.border_focus or light and M.toward(p.bg, p.accent, p.float, 3) or blend(p.bg, p.accent, 0.6)
   p.border = M.toward(p.border, light and p.fg or p.accent, p.float, 3)

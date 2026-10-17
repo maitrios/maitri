@@ -209,7 +209,7 @@ return function(p)
     SnacksPickerList = { fg = p.fg, bg = p.float },
     SnacksPickerListCursorLine = { bg = p.menu_sel },
     SnacksPickerPreview = { fg = p.fg, bg = p.float },
-    SnacksPickerPreviewCursorLine = { bg = p.cursorline },
+    SnacksPickerPreviewCursorLine = { bg = p.bg_light },
     SnacksPickerPreviewTitle = { fg = p.accent, bg = p.float, bold = true },
     SnacksPickerBoxTitle = { fg = p.accent, bg = p.float, bold = true },
     SnacksPickerMatch = { fg = p.accent, bold = true },

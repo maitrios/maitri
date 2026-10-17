@@ -118,6 +118,15 @@ floor(ratio("Visual", "bg", "Normal", "bg"), 1.5, "Visual against Normal")
 floor(ratio("WinSeparator", "fg", "Normal", "bg"), 3, "WinSeparator")
 floor(ratio("FloatBorder", "fg", "Normal", "bg"), 3, "FloatBorder against Normal")
 
+if plugin.opts.mode == "dark" then
+  floor(ratio("SnacksPickerPreviewCursorLine", "bg", "NormalFloat", "bg"), 1.1, "the picker preview cursorline against NormalFloat")
+  local lualine_theme = require("lualine.themes.maitri")
+  floor(palette.contrast(lualine_theme.normal.b.bg, lualine_theme.normal.c.bg), 1.1, "lualine section b against section c")
+  for _, key in ipairs({ "fg", "fg_dim", "accent" }) do
+    floor(palette.contrast(p[key], p.bg_light), 4.5, key .. " on a raised chip")
+  end
+end
+
 local forbidden = { [colors.green:lower()] = "green", [colors.yellow:lower()] = "yellow" }
 for level = 1, 6 do
   for _, name in ipairs({ "RenderMarkdownH" .. level, "RenderMarkdownH" .. level .. "Bg", "@markup.heading." .. level .. ".markdown" }) do
