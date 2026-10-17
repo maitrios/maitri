@@ -62,6 +62,10 @@ awk -v start="$block_start" -v end="$block_end" -v theme="$theme" '
     return sprintf("%" width "s", "")
   }
 
+  function key(name) {
+    return "(" name "|\"" name "\"|\047" name "\047)[[:space:]]*:"
+  }
+
   function emit(unit, line, depth) {
     print pad(unit) start
     print pad(unit) "theme:"
@@ -94,7 +98,7 @@ awk -v start="$block_start" -v end="$block_end" -v theme="$theme" '
     }
 
     for (i = 1; i <= n; i++) {
-      if (lines[i] ~ /^gui[[:space:]]*:/) {
+      if (lines[i] ~ ("^" key("gui"))) {
         gui = i
         break
       }
@@ -102,7 +106,7 @@ awk -v start="$block_start" -v end="$block_end" -v theme="$theme" '
 
     unit = 2
     if (gui) {
-      if (lines[gui] !~ /^gui[[:space:]]*:[[:space:]]*(#.*)?$/) exit 3
+      if (lines[gui] !~ ("^" key("gui") "[[:space:]]*(#.*)?$")) exit 3
       for (i = gui + 1; i <= n; i++) {
         if (lines[i] ~ /^[[:space:]]*(#.*)?$/) continue
         if (lines[i] !~ /^ /) break
@@ -111,7 +115,7 @@ awk -v start="$block_start" -v end="$block_end" -v theme="$theme" '
           unit = RLENGTH
           seen = 1
         }
-        if (lines[i] ~ ("^" pad(unit) "theme[[:space:]]*:")) exit 4
+        if (lines[i] ~ ("^" pad(unit) key("theme"))) exit 4
       }
     }
 

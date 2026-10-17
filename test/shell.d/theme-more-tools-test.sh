@@ -450,6 +450,25 @@ if [[ -n $has_fish ]]; then
   grep -qF "sets EZA_COLORS itself" "$home/hook.stderr" || fail "the eza hook says config.fish hides its colours" "$(cat "$home/hook.stderr")"
 fi
 
+home=$(new_home quoted amethyst)
+mkdir -p "$home/.config/lazydocker"
+for gui in "'gui':" '"gui":'; do
+  printf '%s\n  showAllContainers: true\nlogs:\n  timestamps: false\n' "$gui" >"$home/.config/lazydocker/config.yml"
+  run_hook "$home" maitri-theme-set-lazydocker "$apps:$sandbox" || fail "maitri-theme-set-lazydocker runs beside a quoted $gui key"
+  lazydocker_config=$(<"$home/.config/lazydocker/config.yml")
+  [[ $lazydocker_config == "$gui"$'\n  # >>> maitri theme (rewritten by maitri theme set) >>>\n  theme:\n'* ]] && (( $(grep -c 'gui' <<<"$lazydocker_config") == 1 )) ||
+    fail "lazydocker's theme goes under a quoted $gui key instead of a second gui" "$lazydocker_config"
+done
+for theme_key in "'theme':" '"theme":'; do
+  printf 'gui:\n  %s\n    activeBorderColor:\n      - red\n' "$theme_key" >"$home/.config/lazydocker/config.yml"
+  cp "$home/.config/lazydocker/config.yml" "$home/lazydocker.before"
+  : >"$home/hook.stderr"
+  run_hook "$home" maitri-theme-set-lazydocker "$apps:$sandbox" || fail "maitri-theme-set-lazydocker runs beside a quoted $theme_key key"
+  cmp -s "$home/.config/lazydocker/config.yml" "$home/lazydocker.before" && grep -q "sets its own gui.theme" "$home/hook.stderr" ||
+    fail "lazydocker keeps the user's own quoted $theme_key" "$(cat "$home/.config/lazydocker/config.yml")"
+done
+pass "quoted gui and theme keys in lazydocker's config are recognised"
+
 home=$(new_home legacy amethyst)
 mkdir -p "$home/.config/opencode"
 printf '{"theme": "nord"}\n' >"$home/.config/opencode/opencode.json"
