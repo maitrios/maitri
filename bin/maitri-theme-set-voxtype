@@ -1,0 +1,86 @@
+#!/bin/bash
+
+# maitri:summary=Apply the current maitri theme to the voxtype dictation OSD
+# maitri:hidden=true
+
+src="$HOME/.local/state/maitri/current/theme/voxtype.toml"
+config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/voxtype"
+config="$config_dir/config.toml"
+package="$config_dir/osd/maitri/voxtype-osd.toml"
+runtime_style="${XDG_RUNTIME_DIR:-/tmp}/voxtype/quickshell-style.json"
+roles="accent|background|surface|foreground|muted|success|warning|error|recording|streaming|transcribing|idle"
+
+maitri-cmd-present voxtype || exit 0
+[[ -f $src && -f $config ]] || exit 0
+
+# A style package can also name QML for the OSD to run, so only its name,
+# version, description, palette and role colours are taken.
+if ! awk -v roles="^($roles) = \"#[0-9A-Fa-f]{6}\"$" '
+  /^[[:space:]]*(#.*)?$/ { next }
+  /^\[colors\]$/ && !colors { colors = 1; next }
+  colors && $0 ~ roles { next }
+  !colors && /^(name|version|description) = "[^"\\]*"$/ { next }
+  !colors && /^palette = "package"$/ { next }
+  { exit 1 }
+' "$src"; then
+  echo "Skipping voxtype theme: voxtype.toml has a line maitri doesn't apply." >&2
+  exit 0
+fi
+
+block=$(mktemp)
+trap 'rm -f "$block"' EXIT
+
+exec 9>"${XDG_RUNTIME_DIR:-/tmp}/maitri-theme-set-voxtype.lock"
+flock 9
+
+mkdir -p "$(dirname "$package")"
+if ! cmp -s "$src" "$package"; then
+  tmp=$(mktemp "$(dirname "$package")/.maitri-theme.XXXXXX")
+  cp "$src" "$tmp"
+  mv "$tmp" "$package"
+fi
+
+# Only the Quickshell OSD takes colours from a style package; the GTK4 and
+# native ones read a palette from a fixed path in another distro's tree.
+before=$(cksum <"$config")
+printf 'frontend = "quickshell"\nstyle = "maitri"\npalette = "package"\n' >"$block"
+dropped=$(maitri-theme-toml-block "$config" osd "$block")
+case $? in
+  0) ;;
+  3)
+    echo "voxtype's config.toml writes [osd] inline, so maitri leaves it as it is." >&2
+    exit 0
+    ;;
+  *) exit 1 ;;
+esac
+
+if [[ -n $dropped ]]; then
+  echo "voxtype's config.toml sets its own OSD $(paste -sd, <<<"$dropped" | sed 's/,/, /g'), so the maitri colours may not show. Remove it to follow the maitri theme." >&2
+fi
+
+if [[ $(cksum <"$config") != "$before" ]]; then
+  # The OSD settings are read when the daemon starts. It's only restarted while
+  # idle, so a dictation in progress is never cut off.
+  state=$(cat "${XDG_RUNTIME_DIR:-/tmp}/voxtype/state" 2>/dev/null)
+  if systemctl --user -q is-active voxtype.service 2>/dev/null; then
+    if [[ $state == "idle" ]]; then
+      systemctl --user try-restart voxtype.service
+    else
+      echo "Restart voxtype (systemctl --user restart voxtype) to show its OSD in the maitri colours." >&2
+    fi
+  fi
+elif [[ -f $runtime_style ]]; then
+  # A running Quickshell OSD watches the style file voxtype resolved at startup,
+  # so new colours reach it without a restart.
+  colors=$(awk -v roles="^($roles) = " '
+    /^\[colors\]$/ { on = 1; next }
+    on && $0 ~ roles { gsub(/"/, ""); printf "%s\t%s\n", $1, $3 }
+  ' "$src" | jq -Rn '[inputs | split("\t") | {(.[0]): .[1]}] | add')
+  tmp=$(mktemp "$runtime_style.XXXXXX")
+  if jq --argjson colors "$colors" -e 'select(.style == "maitri" and .palette == "package") | .colors += $colors' \
+    "$runtime_style" >"$tmp" 2>/dev/null && ! cmp -s "$tmp" "$runtime_style"; then
+    mv "$tmp" "$runtime_style"
+  else
+    rm -f "$tmp"
+  fi
+fi

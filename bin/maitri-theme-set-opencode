@@ -1,0 +1,68 @@
+#!/bin/bash
+
+# maitri:summary=Apply the current maitri theme to opencode
+# maitri:hidden=true
+
+src="$HOME/.local/state/maitri/current/theme/opencode.json"
+config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
+tui_config="$config_dir/tui.json"
+
+maitri-cmd-present opencode || exit 0
+[[ -f $src ]] || exit 0
+
+if ! jq -e '
+  (keys - ["$schema", "theme"] == []) and (.theme | type == "object") and
+  (.theme | to_entries | all(
+    (.key | test("^[a-zA-Z]+$")) and (.value | type == "string" and test("^(#[0-9A-Fa-f]{6}|none)$"))
+  ))
+' "$src" >/dev/null 2>&1; then
+  echo "Skipping opencode theme: opencode.json has a value maitri doesn't apply." >&2
+  exit 0
+fi
+
+merged=$(mktemp)
+trap 'rm -f "$merged"' EXIT
+
+exec 9>"${XDG_RUNTIME_DIR:-/tmp}/maitri-theme-set-opencode.lock"
+flock 9
+
+# opencode drops every custom theme when one file in themes/ fails to parse, so
+# the theme only ever lands whole. SIGUSR2 rereads it in running sessions.
+mkdir -p "$config_dir/themes"
+if ! cmp -s "$src" "$config_dir/themes/maitri.json"; then
+  tmp=$(mktemp "$config_dir/themes/.maitri-theme.XXXXXX")
+  cp "$src" "$tmp"
+  mv "$tmp" "$config_dir/themes/maitri.json"
+fi
+
+# The theme is picked in tui.json. "system" is what maitri shipped in
+# opencode.json before opencode moved the key, so it counts as no choice; an
+# older opencode.json theme of the user's own is left for opencode to move.
+legacy=$(jq -r '.theme // ""' "$config_dir/opencode.json" 2>/dev/null)
+if [[ -f $config_dir/tui.jsonc && ! -f $tui_config ]]; then
+  echo "opencode's tui.jsonc may have comments maitri can't keep, so it stays as it is. Pick maitri in /theme to follow the maitri theme." >&2
+  exit 0
+elif [[ ! -f $tui_config && -n $legacy && $legacy != "system" && $legacy != "maitri" ]]; then
+  echo "opencode uses its own theme, so it stays as it is. Pick maitri in /theme to follow the maitri theme." >&2
+  exit 0
+fi
+
+[[ -s $tui_config ]] || echo '{"$schema": "https://opencode.ai/tui.json"}' >"$tui_config"
+if ! jq 'if (.theme // "system") == "system" then .theme = "maitri" else . end' "$tui_config" >"$merged" 2>/dev/null; then
+  echo "opencode's tui.json isn't plain JSON, so maitri leaves it as it is." >&2
+  exit 0
+fi
+
+if [[ $(jq -r '.theme' "$merged") != "maitri" ]]; then
+  echo "opencode uses its own theme, so it stays as it is. Pick maitri in /theme to follow the maitri theme." >&2
+fi
+
+cmp -s "$merged" "$tui_config" && exit 0
+
+# Written through rather than moved over, so a config symlinked from a dotfiles
+# repo stays a symlink and keeps its permissions.
+cat "$merged" >"$tui_config"
+
+if pgrep -x opencode >/dev/null; then
+  echo "opencode picks its theme at startup; open sessions switch to maitri after a restart." >&2
+fi
