@@ -77,3 +77,13 @@ maitri font list               # Available fonts
 maitri font current            # Current font
 maitri font set <name>         # Change font
 ```
+
+## Launcher Icons
+
+```bash
+maitri icons set               # Swap launcher icons for apps in maitri's icon set
+maitri icons restore           # Put the original icons back
+```
+
+Off by default. `set` writes overrides into `~/.local/share/applications/` and
+never touches `/usr/share`. Run `set` again after installing an app to pick it up.

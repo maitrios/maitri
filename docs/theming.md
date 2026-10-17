@@ -412,6 +412,38 @@ To change the colorscheme for every theme, copy the template to
 `~/.config/maitri/themed/neovim.lua.tpl` and point its `dir` at your own copy
 of `default/nvim/maitri-theme`.
 
+## Launcher icons
+
+`default/icons/` holds maitri's launcher icons, one file per app, named after
+the `Icon=` key in that app's `.desktop` file (`vscode.png` for `Icon=vscode`,
+`Alacritty.png` for `Icon=Alacritty`). Icons are 256px PNGs with every
+ancillary chunk stripped; an SVG named the same way works too.
+
+The set is opt-in, from Style > App Icons in the menu or the commands:
+
+- `maitri-icons-set` walks the launchers the way the desktop resolves them: the
+  user dir (`$XDG_DATA_HOME/applications`, or `~/.local/share/applications`)
+  first, then each `$XDG_DATA_DIRS/applications`. For every launcher shown in
+  the launcher (no `NoDisplay=true` or `Hidden=true`) whose `Icon=` key has a
+  file in `default/icons/`, it points each matching `Icon=` line at that file's
+  absolute path. A launcher in a system dir gets a copy in the user dir; one
+  already in the user dir is edited in place after its original is saved.
+  Running it again only picks up launchers it hasn't swapped yet.
+- `maitri-icons-restore` undoes every swap still in place and clears the record.
+
+The record lives in `~/.local/state/maitri/icons/`:
+
+- `manifest`: one tab-separated line per launcher it changed,
+  `<desktop file name>\t<created|replaced>\t<icon path>`.
+- `originals/<desktop file name>`: the user-dir launcher as it was before a
+  `replaced` swap.
+
+Restore only touches a launcher whose `Icon=` still points at the recorded
+icon path. It deletes a `created` copy and moves a `replaced` original back;
+anything changed since (by the user, an update or `maitri-refresh-applications`)
+is left as it is. Set drops those stale entries the same way the next time it
+runs.
+
 ## Adding or overriding theme files
 
 - Add palette values to `themes/<name>/colors.toml`.
