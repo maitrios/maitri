@@ -119,11 +119,11 @@ button.suggested-action {
 }
 
 button.suggested-action:hover {
-  background-color: mix(@accent_bg_color, @accent_fg_color, 0.12);
+  background-color: mix(@accent_bg_color, @window_fg_color, 0.12);
 }
 
 button.suggested-action:active, button.suggested-action:checked {
-  background-color: mix(@accent_bg_color, @accent_fg_color, 0.24);
+  background-color: mix(@accent_bg_color, @window_fg_color, 0.24);
 }
 
 button.suggested-action:disabled {
@@ -143,11 +143,11 @@ button.destructive-action {
 }
 
 button.destructive-action:hover {
-  background-color: mix(@destructive_bg_color, @destructive_fg_color, 0.12);
+  background-color: mix(@destructive_bg_color, @window_fg_color, 0.12);
 }
 
 button.destructive-action:active, button.destructive-action:checked {
-  background-color: mix(@destructive_bg_color, @destructive_fg_color, 0.24);
+  background-color: mix(@destructive_bg_color, @window_fg_color, 0.24);
 }
 
 button.destructive-action:disabled {

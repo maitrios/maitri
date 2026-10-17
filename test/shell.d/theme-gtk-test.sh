@@ -130,6 +130,13 @@ for theme in themes:
     for surface in ["window", "view", "card"]:
         floor(f"accent fill on {surface}", "accent_bg_color", f"{surface}_bg_color", LINE)
 
+    # GTK3 hover and pressed fills mix toward the window text, as gtk-3.0.css does.
+    for fill in ["accent", "destructive"]:
+        for amount in (0.12, 0.24):
+            bg, fg = rgb(c[f"{fill}_bg_color"]), rgb(c["window_fg_color"])
+            c[f"{fill}_{amount}"] = "#" + "".join("%02x" % round(a * (1 - amount) + b * amount) for a, b in zip(bg, fg))
+            floor(f"text on {fill} at {amount:.0%}", f"{fill}_fg_color", f"{fill}_{amount}", TEXT)
+
     for name, role in ROLES.items():
         if c.get(name) != p.get(role):
             errors.append(f"{name} is {c.get(name)}, expected {role} {p.get(role)}")
