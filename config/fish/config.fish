@@ -1,7 +1,9 @@
 # maitri fish config. The maitri-fish package provides the shell functions,
 # aliases, completions, the pure prompt and tool integrations (mise, zoxide, fzf)
-# from its vendor conf.d, so this file only carries the maitri environment
-# and the look. Add your own aliases, functions and exports below.
+# from its vendor conf.d, so this file only carries the maitri environment. The
+# colours follow the maitri theme as universal variables, so a set -g
+# fish_color_* here would pin them. Add your own aliases, functions and exports
+# below.
 
 # MAITRI_PATH: /etc/maitri.conf is written by `maitri dev link`; otherwise the
 # package-backed install at /usr/share/maitri. Its bin/ only needs to be on
@@ -20,14 +22,3 @@ if test "$MAITRI_PATH" != /usr/share/maitri
     fish_add_path --prepend "$MAITRI_PATH/bin"
 end
 fish_add_path --append "$HOME/.local/share/mise/shims" "$HOME/.local/bin"
-
-if status is-interactive
-    # maitri "Amethyst" syntax colors
-    set -g fish_color_command B08CFF
-    set -g fish_color_param E6E9F0
-    set -g fish_color_quote 85DC8C
-    set -g fish_color_redirection B08CFF
-    set -g fish_color_error FD8993
-    set -g fish_color_autosuggestion 8C7EA6
-    set -g fish_color_comment 8C7EA6
-end
