@@ -287,6 +287,29 @@ run_migration "$home" || fail "the glamour migration runs over a glamour.json th
 [[ -s $home/refresh.log && ! -s $home/.local/state/maitri/current/theme/glamour.json ]] ||
   fail "the migration re-renders a glamour.json the theme supplied, so the deny list applies"
 
+failing_stubs="$test_tmp/failing-stubs"
+mkdir -p "$failing_stubs"
+cat >"$failing_stubs/maitri-theme-refresh" <<'SH'
+#!/bin/bash
+echo failed >>"$HOME/refresh.log"
+exit 1
+SH
+chmod +x "$failing_stubs/maitri-theme-refresh"
+
+home="$test_tmp/migration-refresh-fails"
+mkdir -p "$home/.config/fish" "$home/.local/state/maitri/current/theme"
+: >"$home/.config/fish/config.fish"
+echo amethyst >"$home/.local/state/maitri/current/theme.name"
+printf '{"h1":{"prefix":"theme"}}\n' >"$home/.local/state/maitri/current/theme/glamour.json"
+env -u XDG_CONFIG_HOME HOME="$home" MAITRI_PATH="$ROOT" PATH="$failing_stubs:$PATH" bash -euo pipefail "$migration" >/dev/null 2>"$home/migration.stderr" ||
+  fail "the glamour migration succeeds when the refresh fails, so the migration queue keeps moving"
+[[ -s $home/refresh.log ]] || fail "the migration tries the refresh"
+grep -q "Couldn't refresh the amethyst theme" "$home/migration.stderr" && grep -q "Open a new shell" "$home/migration.stderr" ||
+  fail "the migration says the refresh failed and that glow needs a new shell" "$(<"$home/migration.stderr")"
+[[ ! -e $home/.local/state/maitri/current/theme/glamour.json && -d $home/.local/state/maitri/current/theme ]] ||
+  fail "a failed refresh drops the glamour.json the theme supplied, so the fish lines never reach it"
+(( $(grep -cF '# maitri:glamour-style' "$home/.config/fish/config.fish") == 2 )) || fail "a failed refresh keeps the fish lines"
+
 home="$test_tmp/migration-read-only"
 mkdir -p "$home/.config/fish" "$home/.local/state/maitri/current/theme"
 printf 'set -gx FOO 1\n' >"$home/.config/fish/config.fish"
@@ -319,7 +342,13 @@ fi
 home="$test_tmp/migration-gone-theme"
 mkdir -p "$home/.local/state/maitri/current"
 echo retired-theme >"$home/.local/state/maitri/current/theme.name"
-run_migration "$home" || fail "the glamour migration runs when the current theme is gone"
+mkdir -p "$home/.local/state/maitri/current/theme"
+printf '{"h1":{"prefix":"theme"}}\n' >"$home/.local/state/maitri/current/theme/glamour.json"
+run_migration "$home" 2>"$home/migration.stderr" || fail "the glamour migration runs when the current theme is gone"
 [[ ! -e $home/refresh.log && ! -e $home/.config/fish ]] || fail "the migration neither refreshes a missing theme nor creates a fish config"
+[[ ! -e $home/.local/state/maitri/current/theme/glamour.json ]] && grep -q "Open a new shell" "$home/migration.stderr" ||
+  fail "the migration drops a glamour.json a theme it can't refresh supplied and says glow needs a new shell" "$(<"$home/migration.stderr")"
+run_migration "$home" 2>"$home/migration.stderr" || fail "the glamour migration runs again when the current theme is gone"
+[[ ! -s $home/migration.stderr ]] || fail "the migration says nothing when there is no glamour.json to drop" "$(<"$home/migration.stderr")"
 
 pass "the glamour migration adds the marked lines once, keeps a user's own style and renders the file"
