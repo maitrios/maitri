@@ -145,4 +145,4 @@ repository or organization secrets: re-tagging an old commit would bring back a 
 them from there. A new environment gets the same deployment rule (selected branches, `main` only)
 and goes in the list in `test/shell.d/workflow-secrets-guard-test.sh`, which fails when a workflow
 reads a secret outside one of them, in a job that isn't gated on `main`, or in a job that checks out
-another ref.
+another ref or runs anything but main's code.
