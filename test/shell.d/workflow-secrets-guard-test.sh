@@ -28,13 +28,29 @@ import yaml
 MAIN_ONLY_ENVIRONMENTS = {"release", "docker-hub", "maitri-pkgs"}
 MAIN_GATE = "github.ref == 'refs/heads/main'"
 
-ASSIGNMENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\+?=")
+ASSIGNMENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(?:\[[^]]*\])?\+?=")
 LEADERS = {"!", "{", "if", "then", "else", "elif", "while", "until", "do"}
 SKIPPED = {"for", "select", "case", "function", "}", "fi", "done", "esac", "[[", "(("}
 WRAPPERS = {"sudo", "env", "exec", "command", "nohup", "xargs", "timeout", "nice", "time"}
-INTERPRETERS = {"bash", "sh", "dash", "zsh", "ksh", "source", ".", "python", "python3", "node", "perl", "ruby", "pwsh"}
-GIT_MOVES = {"checkout", "switch", "restore", "worktree", "pull", "reset", "merge", "clone"}
-TOOLS = re.compile(r"(?:^|=|^-[A-Za-z])(?:\./|\$\{?GITHUB_WORKSPACE\}?/)?tools(?:/|$)")
+WRAPPER_OPTIONS_WITH_VALUES = {
+    "sudo": {"-u", "-g", "-C", "-D", "-h", "-p", "-r", "-t", "-U", "-T"},
+    "env": {"-u", "-C", "-S", "--unset", "--chdir", "--split-string"},
+    "nice": {"-n", "--adjustment"},
+    "xargs": {"-I", "-n", "-P", "-d", "-a", "-L", "-s", "-E", "--max-args", "--max-procs", "--delimiter", "--arg-file", "--replace"},
+    "timeout": {"-s", "-k", "--signal", "--kill-after"},
+    "time": {"-f", "-o", "--format", "--output"},
+    "exec": {"-a"},
+}
+INTERPRETER_FAMILIES = {
+    "bash": "shell", "sh": "shell", "dash": "shell", "zsh": "shell", "ksh": "shell", "source": "source", ".": "source",
+    "python": "python", "python3": "python", "node": "node", "perl": "perl", "ruby": "ruby", "pwsh": "pwsh",
+}
+INLINE_CODE = {"python": {"-c"}, "node": {"-e", "--eval", "-p", "--print"}, "perl": {"-e", "-E"}, "ruby": {"-e"}, "pwsh": {"-c", "-Command", "-EncodedCommand"}}
+OPTIONS_WITH_VALUES = {"shell": {"-o", "+o", "-O", "+O", "--rcfile", "--init-file"}, "python": {"-W", "-X"}, "node": {"-r", "--require", "--import", "-C"}, "perl": {"-I", "-M"}, "ruby": {"-I", "-r"}}
+GIT_MOVES = {"checkout", "switch", "restore", "worktree", "pull", "reset", "merge", "clone", "rebase", "cherry-pick", "apply", "am", "submodule", "stash"}
+GIT_READS = {"diff", "log", "show", "status", "ls-files", "blame", "grep", "rev-parse", "cat-file", "ls-tree"}
+READ_ONLY = {"ls", "cat", "head", "tail", "wc", "grep", "rg", "diff", "cmp", "stat", "file", "sha256sum", "sha512sum", "md5sum", "shellcheck", "test", "[", "echo", "printf", "readlink", "realpath", "basename", "dirname", "less", "du", "tree", "jq"}
+TOOLS = re.compile(r"(?:^|=|^-[A-Za-z])(?:\./|\$\{?(?:GITHUB_WORKSPACE|PWD)\}?/|\$\(pwd\)/)?tools(?:/|$)")
 
 root = sys.argv[1]
 workflows_dir = os.path.join(root, ".github", "workflows")
@@ -163,12 +179,15 @@ def substitutions(text):
 
 
 def shell_commands(text):
-    """The simple commands in a script, each as (words, redirect targets).
+    """The simple commands in a script, each as (words, redirects, terminator,
+    heredoc bodies), where redirects are (operator, target) pairs.
 
-    Words lose their quotes, comments and heredoc bodies are skipped, and the
-    scripts inside $( ), backticks and <( ) are read as commands of their own."""
-    commands, words, redirects, heredocs = [], [], [], []
-    state = {"word": None, "target": False}
+    Words lose their quotes, comments are skipped, heredoc bodies are kept apart
+    from the commands, and the scripts inside $( ), backticks and <( ) are read
+    as commands of their own."""
+    commands, pending = [], []
+    current = {"words": [], "redirects": [], "bodies": []}
+    state = {"word": None, "target": None}
     i, n = 0, len(text)
 
     def add(part):
@@ -178,20 +197,20 @@ def shell_commands(text):
         word, target = state["word"], state["target"]
         if word is None:
             return
-        if target == "heredoc":
-            heredocs.append(word)
+        if target in ("<<", "<<-"):
+            pending.append((word, current["bodies"]))
         elif target:
-            redirects.append(word)
+            current["redirects"].append((target, word))
         else:
-            words.append(word)
-        state.update(word=None, target=False)
+            current["words"].append(word)
+        state.update(word=None, target=None)
 
-    def end_command():
-        nonlocal words, redirects
+    def end_command(terminator):
+        nonlocal current
         end_word()
-        if words or redirects:
-            commands.append((words, redirects))
-        words, redirects = [], []
+        if current["words"] or current["redirects"]:
+            commands.append((current["words"], current["redirects"], terminator, current["bodies"]))
+        current = {"words": [], "redirects": [], "bodies": []}
 
     def nested(inner):
         for part in inner:
@@ -252,16 +271,19 @@ def shell_commands(text):
             end = text.find("\n", i)
             i = n if end < 0 else end
         elif c == "\n":
-            end_command()
+            end_command("\n")
             i += 1
-            for delimiter in heredocs:
+            for delimiter, bodies in pending:
+                body = []
                 while i < n:
                     end = text.find("\n", i)
                     line = text[i:n if end < 0 else end]
                     i = n if end < 0 else end + 1
-                    if line.lstrip("\t") == delimiter:
+                    if line.strip() == delimiter:
                         break
-            heredocs.clear()
+                    body.append(line)
+                bodies.append("\n".join(body))
+            pending.clear()
         elif c in " \t":
             end_word()
             i += 1
@@ -271,15 +293,15 @@ def shell_commands(text):
             else:
                 end_word()
             operator = re.match(r"&>>?|<<<|<<-?|<>|>>|>\||>&|<&|>|<", text[i:]).group(0)
-            state["target"] = "heredoc" if operator in ("<<", "<<-") else True
+            state["target"] = operator
             i += len(operator)
         elif c in ";&|()":
-            end_command()
+            end_command(c)
             i += 1
         else:
             add(c)
             i += 1
-    end_command()
+    end_command("")
     return commands
 
 
@@ -287,56 +309,123 @@ def safe_tool(word):
     return re.fullmatch(r"tools/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*", word) is not None and ".." not in word.split("/")
 
 
-def shell_problem(text):
-    for words, redirects in shell_commands(text):
-        everything = words + redirects
-        for word in everything:
-            if re.match(r"(?:PATH|BASH_ENV)\+?=", word):
-                return f"sets {word.split('=')[0]}: {words}"
-            if re.search(r"GITHUB_(?:PATH|ENV)\b", word):
-                return f"writes to $GITHUB_PATH or $GITHUB_ENV: {everything}"
-        for target in redirects:
-            if TOOLS.search(target):
-                return f"writes into tools/: {target}"
-        i = 0
-        while i < len(words) and (words[i] in LEADERS or ASSIGNMENT.match(words[i])):
-            i += 1
-        if i == len(words) or words[i] in SKIPPED:
+def interpreter_problem(command, args, redirects, bodies):
+    family = INTERPRETER_FAMILIES[command]
+    if args in (["--version"], ["-V"], ["--help"]):
+        return None, args
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if family == "shell" and re.fullmatch(r"-[A-Za-z]*c[A-Za-z]*", arg) or arg in INLINE_CODE.get(family, ()):
+            return f"runs {command} on inline code: {[command] + args}", args
+        if family == "python" and arg == "-m":
+            return None, args[:i] + args[i + 2:]
+        if arg in OPTIONS_WITH_VALUES.get(family, ()):
+            i += 2
             continue
-        while i < len(words) and words[i] in WRAPPERS:
-            wrapper = words[i]
+        if arg != "-" and arg[:1] in ("-", "+") and family != "source":
             i += 1
-            while i < len(words) and (words[i].startswith("-") or (wrapper == "env" and ASSIGNMENT.match(words[i]))):
-                i += 1
-            if wrapper == "timeout" and i < len(words):
-                i += 1
-        if i == len(words):
             continue
-        command, args = words[i], words[i + 1:]
-        if command == "eval":
-            return f"runs eval: {words}"
-        if command in ("cd", "pushd", "popd"):
-            return f"changes directory away from main's checkout: {words}"
-        if command in INTERPRETERS:
-            if any(re.fullmatch(r"-[A-Za-z]*c[A-Za-z]*", a) for a in args if not a.startswith("--")):
-                return f"runs {command} -c: {words}"
-            target = next((a for a in args if not a.startswith("-")), None)
-            if target is None or not safe_tool(target):
-                return f"runs {command} on something other than main's tools/: {words}"
-            args = [a for a in args if a is not target]
-        elif command == "git":
-            j = 0
-            while j < len(args) and args[j].startswith("-"):
-                j += 2 if args[j] in ("-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path") else 1
-            if j < len(args) and args[j] in GIT_MOVES:
-                return f"moves or replaces its checkout: {words}"
-        elif command == "gh" and args[:2] in (["pr", "checkout"], ["repo", "clone"]):
+        break
+    target = args[i] if i < len(args) else "-"
+    if target == "-":
+        if bodies or any(operator == "<<<" for operator, _ in redirects):
+            if family == "shell":
+                for body in bodies:
+                    problem = shell_problem(body)
+                    if problem:
+                        return problem, args
+            return None, args[:i] + args[i + 1:]
+        return f"runs {command} on code from a pipe or a terminal: {[command] + args}", args
+    if not safe_tool(target):
+        return f"runs {command} on something other than main's tools/: {[command] + args}", args
+    return None, args[:i] + args[i + 1:]
+
+
+def command_problem(words, redirects, bodies):
+    everything = words + [target for _, target in redirects]
+    for word in everything:
+        if re.match(r"(?:PATH|BASH_ENV)\+?=", word):
+            return f"sets {word.split('=')[0]}: {words}"
+        if re.search(r"GITHUB_(?:PATH|ENV)\b", word):
+            return f"writes to $GITHUB_PATH or $GITHUB_ENV: {everything}"
+    for operator, target in redirects:
+        if operator not in ("<", "<<<", "<&") and TOOLS.search(target):
+            return f"writes into tools/: {operator}{target}"
+    i = 0
+    while i < len(words) and (words[i] in LEADERS or ASSIGNMENT.match(words[i])):
+        i += 1
+    if i == len(words) or words[i] in SKIPPED:
+        return None
+    while i < len(words) and words[i] in WRAPPERS:
+        wrapper = words[i]
+        i += 1
+        while i < len(words) and (words[i].startswith("-") or (wrapper == "env" and ASSIGNMENT.match(words[i]))):
+            i += 2 if words[i] in WRAPPER_OPTIONS_WITH_VALUES.get(wrapper, ()) else 1
+        if wrapper == "timeout" and i < len(words):
+            i += 1
+    if i >= len(words):
+        return None
+    command, args = words[i], words[i + 1:]
+    read_only = command in READ_ONLY
+    if command == "eval":
+        return f"runs eval: {words}"
+    if command in ("cd", "pushd", "popd"):
+        return f"changes directory away from main's checkout: {words}"
+    if command in INTERPRETER_FAMILIES:
+        problem, args = interpreter_problem(command, args, redirects, bodies)
+        if problem:
+            return problem
+    elif command == "find":
+        read_only = True
+        for start, arg in enumerate(args):
+            if arg in ("-exec", "-execdir", "-ok", "-okdir"):
+                end = next((j for j in range(start + 1, len(args)) if args[j] in (";", "+")), len(args))
+                problem = command_problem(args[start + 1:end], [], [])
+                if problem:
+                    return f"find {arg} {problem}"
+    elif command == "git":
+        j = 0
+        while j < len(args) and args[j].startswith("-"):
+            j += 2 if args[j] in ("-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path") else 1
+        if j < len(args) and args[j] in GIT_MOVES:
+            return f"moves or replaces its checkout: {words}"
+        read_only = j < len(args) and args[j] in GIT_READS
+    elif command == "gh":
+        positional, j = [], 0
+        while j < len(args):
+            if args[j] in ("-R", "--repo"):
+                j += 2
+                continue
+            if not args[j].startswith("-"):
+                positional.append(args[j])
+            j += 1
+        if positional[:2] in (["pr", "checkout"], ["repo", "clone"]):
             return f"checks out other code: {words}"
-        elif not (safe_tool(command) or re.fullmatch(r"[A-Za-z0-9_+:\[\]-][A-Za-z0-9_.+:\[\]-]*", command)):
-            return f"runs a file it didn't check out from main: {words}"
+    elif not (safe_tool(command) or re.fullmatch(r"[A-Za-z0-9_+:\[\]-][A-Za-z0-9_.+:\[\]-]*", command)):
+        return f"runs a file it didn't check out from main: {words}"
+    if not read_only:
         for arg in args:
             if TOOLS.search(arg):
-                return f"writes into tools/, or names it for something other than running it: {words}"
+                return f"writes into tools/, or hands it to a command that might: {words}"
+    return None
+
+
+def shell_problem(text):
+    case_depth = 0
+    for words, redirects, terminator, bodies in shell_commands(text):
+        first = next((w for w in words if w not in LEADERS), None)
+        if first == "case":
+            case_depth += 1
+            continue
+        if first == "esac":
+            case_depth = max(case_depth - 1, 0)
+            continue
+        if case_depth and terminator == ")":
+            continue
+        problem = command_problem(words, redirects, bodies)
+        if problem:
+            return problem
     return None
 
 
@@ -423,28 +512,41 @@ check(record is not None and max(trees) < record < docker and runs(steps(build)[
 check(build.get("outputs") == {"commit": "${{ steps.tree.outputs.commit }}"}, "the build job hands on the commit it built",
       str(build.get("outputs")))
 stable = first_step(build, lambda s: s.get("id") == "stable")
-check(stable is not None and stable < docker and runs(steps(build)[stable], 'echo "version=$have" >>"$GITHUB_OUTPUT"'),
-      "a release build records the maitri version the stable channel carries before it builds")
+check(stable is not None and stable < docker and runs(steps(build)[stable], "for package in maitri maitri-settings maitri-nvim maitri-keyring; do")
+      and runs(steps(build)[stable], 'echo "versions=${versions% }" >>"$GITHUB_OUTPUT"'),
+      "a release build records the versions the stable channel carries for all four maitri packages before it builds")
 docker_step = steps(build)[docker]
-check((docker_step.get("env") or {}).get("MAITRI_EXPECT_VERSION") == "${{ steps.stable.outputs.version }}"
-      and runs(docker_step, "-e MAITRI_EXPECT_VERSION "),
-      "the builder is held to that version")
-name_step = first_step(build, lambda s: runs(s, 'mv -f release/runtime.version "release/$NAME.version"'))
-check(name_step is not None and docker < name_step and (steps(build)[name_step].get("env") or {}).get("MAITRI_EXPECT_VERSION") == "${{ steps.stable.outputs.version }}"
-      and runs(steps(build)[name_step], '$(<"release/$NAME.version") == "maitri $MAITRI_EXPECT_VERSION" ]] ||'),
-      "a release build refuses an ISO whose recorded maitri version isn't the one it started with")
+check((docker_step.get("env") or {}).get("MAITRI_EXPECT_VERSIONS") == "${{ steps.stable.outputs.versions }}"
+      and runs(docker_step, "-e MAITRI_EXPECT_VERSIONS "),
+      "the builder is held to those versions")
+name_step = first_step(build, lambda s: runs(s, 'mv -f release/maitri-packages.version "release/$NAME.version"'))
+check(name_step is not None and docker < name_step
+      and (steps(build)[name_step].get("env") or {}).get("MAITRI_EXPECT_VERSIONS") == "${{ steps.stable.outputs.versions }}"
+      and runs(steps(build)[name_step], '$(LC_ALL=C sort "release/$NAME.version") == "$expected" ]] ||'),
+      "a release build refuses an ISO whose recorded maitri packages aren't the ones it started with")
 upload = first_step(build, lambda s: uses(s, "actions/upload-artifact"))
 check(upload is not None and name_step < upload and lower_keys(steps(build)[upload]["with"]).get("overwrite") is True
       and "release/*.version" in str(lower_keys(steps(build)[upload]["with"]).get("path")),
-      "the ISO, its checksum and its version are uploaded, and a full re-run replaces them")
+      "the ISO, its checksum and its versions are uploaded, and a full re-run replaces them")
 with open(os.path.join(root, "iso", "builder", "build-iso.sh")) as f:
     builder = f.read()
 assemble = builder.find("\nmkarchiso ")
-check(re.search(r'check_runtime_version\(\) \{\n  \[\[ -z \$\{MAITRI_EXPECT_VERSION:-\} \|\| \$1 == "\$MAITRI_EXPECT_VERSION" \]\] && return\n.*\n  exit 1\n\}', builder) is not None,
-      "the builder stops when maitri isn't the version it was given")
-for marker in ('check_runtime_version "$bootstrap_version"', 'check_runtime_version "${runtime_versions[0]}"',
-               '"${runtime_versions[0]}" >/out/runtime.version'):
-    check(0 <= builder.find(marker) < assemble, f"the builder runs {marker} before it assembles the ISO")
+check('maitri_packages=("$MAITRI_RUNTIME_PACKAGE" "$MAITRI_SETTINGS_PACKAGE" "$MAITRI_NVIM_PACKAGE" maitri-keyring)' in builder,
+      "the builder holds all four maitri packages")
+check(re.search(r'check_version\(\) \{\n  \[\[ -z \$\{MAITRI_EXPECT_VERSIONS:-\} \|\| \$2 == "\$\(expected_version "\$1"\)" \]\] && return\n.*\n  exit 1\n\}', builder) is not None,
+      "the builder stops when a maitri package isn't the version it was given")
+check(re.search(r'package_version\(\) \{\n.*\n  line=\$\(pacman -Qp "\$1" 2>/dev/null\) \|\| true\n  if \[\[ \$line != \*" "\* \]\]; then\n.*\n    exit 1\n', builder) is not None,
+      "the builder stops with a message when pacman can't read a package")
+sync = builder[builder.find("sync_channel() {"):]
+check(re.search(r'for attempt in 1 2 3 4 5; do\n    pacman [^\n]*--dbpath "\$dbpath" --noconfirm -Syy', sync) is not None
+      and "-Si \"$package\"" in sync and "sleep 30" in sync and 'echo "ERROR: after 5 syncs' in sync,
+      "the builder syncs the channel until it carries the held versions, a few times, then gives up with a message")
+for marker in ("sync_channel /tmp/offlinedb-bootstrap\n  pacman --config /configs/pacman-online-${MAITRI_MIRROR}.conf --noconfirm -Sw ",
+               'check_version "$MAITRI_RUNTIME_PACKAGE" "${bootstrap_package#* }"',
+               "sync_channel /tmp/offlinedb\ndownload_offline_packages() {\n  pacman --config /configs/pacman-online-${MAITRI_MIRROR}.conf --noconfirm -Sw ",
+               'check_version "$package" "${versions[0]}"', 'printf \'%s\\n\' "${bundled[@]}" >/out/maitri-packages.version'):
+    check(0 <= builder.find(marker) < assemble, f"the builder runs {marker.splitlines()[0]} before it assembles the ISO")
+check(" -Syw " not in builder, "every download uses the database sync_channel checked, without syncing again")
 ok("the build job runs the tree it builds with no environment, no secrets and a read-only token")
 
 check(publish.get("needs") == "build", "the publish job runs after the build")
@@ -466,12 +568,14 @@ for fragment, description in [
     ('[[ $found == "$name"$\'\\n\'"$name.sha256"$\'\\n\'"$name.version" ]] ||', "the artifact holds exactly the ISO, its checksum and its version"),
     ('[[ -f $dir/$name && ! -L $dir/$name ]] ||', "the ISO is a plain file"),
     ('sha256sum "$name" >"$name.sha256"', "the checksum is worked out again from the ISO"),
-    ('${BASH_REMATCH[1]} == "${TAG#v}" ]] ||', "the ISO bundles maitri at the tag's version"),
+    ('(( ${#bundled[@]} == 4 )) && [[ ${bundled[maitri]%%-*} == "${TAG#v}" ]] ||', "the ISO bundles four maitri packages, maitri at the tag's version"),
+    ('[[ $package =~ ^maitri(-settings|-nvim|-keyring)?$ && -z ${bundled[$package]:-} && -z $extra &&', "each line of its versions is one maitri package"),
 ]:
     check(runs(steps(publish)[iso], fragment), f"the publish job checks that {description}", script(steps(publish)[iso]))
 publish_step = steps(publish)[secret]
 check((publish_step.get("env") or {}).get("MAITRI_VERSION") == "${{ steps.iso.outputs.maitri }}"
-      and runs(publish_step, '--annotation "io.maitri.package.version=$MAITRI_VERSION"'),
+      and (publish_step.get("env") or {}).get("MAITRI_PACKAGES") == "${{ steps.iso.outputs.packages }}"
+      and runs(publish_step, '--annotation "io.maitri.package.version=$MAITRI_VERSION"') and runs(publish_step, '"$MAITRI_PACKAGES"'),
       "the publish job shows the maitri version the ISO bundles")
 attest = first_step(publish, lambda s: uses(s, "actions/attest-build-provenance"))
 check(attest is not None and iso < attest, "the publish job attests the ISO it checked")
