@@ -23,12 +23,59 @@ esac
 : "${MAITRI_NVIM_PACKAGE:=maitri-nvim}"
 export MAITRI_RUNTIME_PACKAGE MAITRI_SETTINGS_PACKAGE MAITRI_NVIM_PACKAGE
 
-# A release build passes the maitri version its channel carried when the run
-# started. Each download below syncs the channel again, so stop if it moved
-# rather than assemble an ISO around another release.
-check_runtime_version() {
-  [[ -z ${MAITRI_EXPECT_VERSION:-} || $1 == "$MAITRI_EXPECT_VERSION" ]] && return
-  echo "ERROR: $MAITRI_RUNTIME_PACKAGE is $1 on the $MAITRI_MIRROR channel now, but this build started at $MAITRI_EXPECT_VERSION" >&2
+# A release build passes the versions its channel carried for the maitri
+# packages when the run started, as name=version words in
+# MAITRI_EXPECT_VERSIONS, and the ISO is held to them. Each download below syncs
+# the channel again, so stop if it moved rather than assemble an ISO around
+# another release.
+maitri_packages=("$MAITRI_RUNTIME_PACKAGE" "$MAITRI_SETTINGS_PACKAGE" "$MAITRI_NVIM_PACKAGE" maitri-keyring)
+
+expected_version() {
+  local pair
+  for pair in ${MAITRI_EXPECT_VERSIONS:-}; do
+    [[ ${pair%%=*} == "$1" ]] && echo "${pair#*=}"
+  done
+  return 0
+}
+
+check_version() {
+  [[ -z ${MAITRI_EXPECT_VERSIONS:-} || $2 == "$(expected_version "$1")" ]] && return
+  echo "ERROR: $1 is ${2:-missing} on the $MAITRI_MIRROR channel now, but this build started at $(expected_version "$1")" >&2
+  exit 1
+}
+
+package_version() {
+  local line
+  line=$(pacman -Qp "$1" 2>/dev/null) || true
+  if [[ $line != *" "* ]]; then
+    echo "ERROR: pacman can't read the name and version of $1" >&2
+    exit 1
+  fi
+  echo "$line"
+}
+
+# The channel's database sits behind a CDN that can hand out a stale copy for a
+# while after a release, and pacman can't cache-bust it. Sync until it carries
+# the versions a release build expects, and give up clearly after a few tries.
+sync_channel() {
+  local dbpath=$1 attempt package want have stale
+  for attempt in 1 2 3 4 5; do
+    pacman --config "/configs/pacman-online-${MAITRI_MIRROR}.conf" --dbpath "$dbpath" --noconfirm -Syy >/dev/null
+    [[ -n ${MAITRI_EXPECT_VERSIONS:-} ]] || return 0
+    stale=""
+    for package in "${maitri_packages[@]}"; do
+      want=$(expected_version "$package")
+      have=$(pacman --config "/configs/pacman-online-${MAITRI_MIRROR}.conf" --dbpath "$dbpath" -Si "$package" 2>/dev/null |
+        awk -F' *: ' '$1 == "Version" { print $2; exit }')
+      [[ $have == "$want" ]] || stale+=" $package ${have:-missing} (this build wants ${want:-nothing})"
+    done
+    [[ -z $stale ]] && return
+    echo "The $MAITRI_MIRROR channel's database doesn't match this build yet:$stale. Syncing again ($attempt/5)." >&2
+    sleep 30
+  done
+  echo "ERROR: after 5 syncs the $MAITRI_MIRROR channel still has$stale." >&2
+  echo "       An older version is a stale CDN copy, which clears within minutes; a newer one means" >&2
+  echo "       the channel moved since the build started. Either way, run the release build again." >&2
   exit 1
 }
 
@@ -106,7 +153,7 @@ if [[ ${MAITRI_INSTALL_DEBUG:-} == "1" ]]; then
 fi
 
 # When --local-source is in effect, build maitri* from the mounted source
-# trees and drop them in the offline mirror. Otherwise pacman -Syw below
+# trees and drop them in the offline mirror. Otherwise pacman -Sw below
 # downloads the published versions from the maitri network mirror.
 if [[ -d /maitri-source && -d /maitri-pkgs ]]; then
   bash /builder/build-maitri-packages.sh "$offline_mirror_dir"
@@ -145,7 +192,7 @@ sed -i -E '/^(linux|broadcom-wl)$/d' "$build_cache_dir/packages.x86_64"
 
 # Build the offline mirror: everything pacstrap might want during the target
 # install. With --local-source, the maitri* packages we just built are
-# already in the mirror and we filter them out below. Without it, pacman -Syw
+# already in the mirror and we filter them out below. Without it, pacman -Sw
 # pulls the published maitri* from the network mirror like any other package.
 if [[ -d /maitri-source ]]; then
   base_pkg_lists=(/maitri-source/install/maitri-base.packages /maitri-source/install/maitri-other.packages)
@@ -156,14 +203,15 @@ else
   bootstrap_cache_dir=/tmp/maitri-pkg-bootstrap
   rm -rf "$bootstrap_cache_dir" /tmp/offlinedb-bootstrap /tmp/maitri-pkglists
   mkdir -p "$bootstrap_cache_dir" /tmp/offlinedb-bootstrap
-  pacman --config /configs/pacman-online-${MAITRI_MIRROR}.conf --noconfirm -Syw "$MAITRI_RUNTIME_PACKAGE" --cachedir "$bootstrap_cache_dir" --dbpath /tmp/offlinedb-bootstrap >/dev/null
+  sync_channel /tmp/offlinedb-bootstrap
+  pacman --config /configs/pacman-online-${MAITRI_MIRROR}.conf --noconfirm -Sw "$MAITRI_RUNTIME_PACKAGE" --cachedir "$bootstrap_cache_dir" --dbpath /tmp/offlinedb-bootstrap >/dev/null
   maitri_pkg=$(find "$bootstrap_cache_dir" -maxdepth 1 -type f -name "$MAITRI_RUNTIME_PACKAGE-*.pkg.tar.zst" | sort | head -1)
   if [[ -z $maitri_pkg ]]; then
     echo "ERROR: downloaded package for $MAITRI_RUNTIME_PACKAGE not found in $bootstrap_cache_dir" >&2
     exit 1
   fi
-  read -r _ bootstrap_version < <(pacman -Qp "$maitri_pkg")
-  check_runtime_version "$bootstrap_version"
+  bootstrap_package=$(package_version "$maitri_pkg")
+  check_version "$MAITRI_RUNTIME_PACKAGE" "${bootstrap_package#* }"
   mkdir -p /tmp/maitri-pkglists
   bsdtar -xf "$maitri_pkg" -C /tmp/maitri-pkglists usr/share/maitri/install/maitri-base.packages usr/share/maitri/install/maitri-other.packages
   base_pkg_lists=(/tmp/maitri-pkglists/usr/share/maitri/install/maitri-base.packages /tmp/maitri-pkglists/usr/share/maitri/install/maitri-other.packages)
@@ -229,7 +277,7 @@ mapfile -t all_packages < <(
 )
 
 # With --local-source we already built these maitri* packages directly into
-# the mirror; strip them from the pacman -Syw list so it doesn't try to fetch
+# the mirror; strip them from the pacman -Sw list so it doesn't try to fetch
 # the published versions on top.
 if [[ -n ${LOCAL_MAITRI_BUILD:-} ]]; then
   mapfile -t all_packages < <(
@@ -242,8 +290,9 @@ if [[ -n ${LOCAL_MAITRI_BUILD:-} ]]; then
 fi
 
 mkdir -p /tmp/offlinedb
+sync_channel /tmp/offlinedb
 download_offline_packages() {
-  pacman --config /configs/pacman-online-${MAITRI_MIRROR}.conf --noconfirm -Syw \
+  pacman --config /configs/pacman-online-${MAITRI_MIRROR}.conf --noconfirm -Sw \
     "${all_packages[@]}" --cachedir "$offline_mirror_dir/" --dbpath /tmp/offlinedb --needed
 }
 
@@ -297,21 +346,25 @@ fi
 printf '%s\n' "${required_package_files[@]}" |
   bash /builder/prune-offline-mirror.sh "$offline_mirror_dir"
 
-# The ISO ships the one runtime package left in the mirror. Its version goes
-# next to the ISO, where the release workflow checks it and publishes it.
-runtime_versions=()
-for candidate in "$offline_mirror_dir/$MAITRI_RUNTIME_PACKAGE-"*.pkg.tar.*; do
-  [[ -f $candidate && $candidate != *.sig ]] || continue
-  read -r candidate_name candidate_version < <(pacman -Qp "$candidate" 2>/dev/null) || continue
-  [[ $candidate_name == "$MAITRI_RUNTIME_PACKAGE" ]] || continue
-  runtime_versions+=("$candidate_version")
+# The ISO ships one of each maitri package left in the mirror. Their versions go
+# next to the ISO, where the release workflow checks them and publishes them.
+bundled=()
+for package in "${maitri_packages[@]}"; do
+  versions=()
+  for candidate in "$offline_mirror_dir/$package-"*.pkg.tar.*; do
+    [[ -f $candidate && $candidate != *.sig ]] || continue
+    candidate_package=$(package_version "$candidate")
+    [[ ${candidate_package%% *} == "$package" ]] || continue
+    versions+=("${candidate_package#* }")
+  done
+  if (( ${#versions[@]} != 1 )); then
+    echo "ERROR: expected one $package package in the offline mirror, found ${#versions[@]}" >&2
+    exit 1
+  fi
+  check_version "$package" "${versions[0]}"
+  bundled+=("$package ${versions[0]}")
 done
-if (( ${#runtime_versions[@]} != 1 )); then
-  echo "ERROR: expected one $MAITRI_RUNTIME_PACKAGE package in the offline mirror, found ${#runtime_versions[@]}" >&2
-  exit 1
-fi
-check_runtime_version "${runtime_versions[0]}"
-printf '%s %s\n' "$MAITRI_RUNTIME_PACKAGE" "${runtime_versions[0]}" >/out/runtime.version
+printf '%s\n' "${bundled[@]}" >/out/maitri-packages.version
 
 # Rebuild the offline repo db from scratch so size/checksum/depends entries
 # always reflect only the package files selected for this build.

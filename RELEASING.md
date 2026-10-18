@@ -118,12 +118,14 @@ Every push to `main` triggers `notify-pkgs.yml`, which asks maitri-pkgs to rebui
 
 The offline ISO is several gigabytes, so `build-iso.yml` pushes it to Docker Hub as an OCI artifact via
 [ORAS](https://oras.land). Its `build` job builds the tag's tree with no environment, no secrets and a
-read-only token. The build is held to the maitri version the `stable` channel carried when it
-started: if the channel moves mid-build, it stops before assembling the ISO, and the version it
-bundled goes next to the ISO as `maitri-vX.Y.Z.iso.version`. Its `publish` job checks out only
-`main`, checks the tag again, and refuses the ISO unless the tag still points at the commit it was
-built from and it bundles maitri at the tag's version, which it shows in the release notes. It's the
-only job in the `docker-hub` environment, which holds `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` (see
+read-only token. The build is held to the versions the `stable` channel carried for maitri,
+maitri-settings, maitri-nvim and maitri-keyring when it started. Before each download it syncs
+until the channel's database carries them, trying a few times in case the CDN hands out a stale
+copy. If they still differ, or the channel moves mid-build, it stops before assembling the ISO. The
+versions it bundled go next to the ISO as `maitri-vX.Y.Z.iso.version`. Its `publish` job checks out
+only `main`, checks the tag again, and refuses the ISO unless the tag still points at the commit it
+was built from and it bundles maitri at the tag's version. It lists all four in the release notes.
+It's the only job in the `docker-hub` environment, which holds `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` (see
 [Secrets](#secrets)). `DOCKERHUB_NAMESPACE`, a repository variable, is optional. Users download with:
 
 ```sh
