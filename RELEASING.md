@@ -25,15 +25,20 @@ maitri uses SemVer tags `vMAJOR.MINOR.PATCH`. `v0.x` is pre-stable; `v0.3.0` is 
 
    Verify with `gh release view stable -R maitrios/maitri-pkgs` (or `pacman -Sy && pacman -Si
    maitri` on a stable machine).
-4. Publish the GitHub release, which triggers the ISO build:
+4. Publish the GitHub release, then start the ISO build. The run has to start on `main`:
 
    ```bash
    gh release create vX.Y.Z --repo maitrios/maitri --target main --title "maitri vX.Y.Z" --generate-notes
    ```
 
-   `build-iso.yml` waits for the `stable` channel to carry `maitri X.Y.Z`, builds the ISO, pushes it
-   to Docker Hub as an OCI artifact (GitHub caps release assets at 2 GiB), attaches the `.sha256`,
-   and appends the download link to the release notes.
+   ```bash
+   gh workflow run build-iso.yml --repo maitrios/maitri --ref main -f release_tag=vX.Y.Z
+   ```
+
+   `build-iso.yml` checks that the tag is a release tag on `main`, waits for the `stable` channel to
+   carry `maitri X.Y.Z`, builds the ISO, pushes it to Docker Hub as an OCI artifact (GitHub caps
+   release assets at 2 GiB), attaches the `.sha256`, and appends the download link to the release
+   notes.
 
 5. If there are new wallpapers, stage them under `wallpapers/<theme>/`, pack them and attach them
    to the release:
@@ -91,8 +96,10 @@ takes it; Andrew's approval of the PR that bumped `version` was the approval for
    `gh release upload vX.Y.Z wallpapers.tar --repo maitrios/maitri`. Then publish the wallpaper
    manifest, with or without new wallpapers, and check that the run passed:
    `gh workflow run wallpapers.yml --repo maitrios/maitri --ref main -f tag=vX.Y.Z`.
-4. Check that `build-iso.yml` started for the release. If it didn't, start it with
-   `gh workflow run build-iso.yml -R maitrios/maitri -f release_tag=vX.Y.Z` (see its inputs).
+4. Start the ISO build and check that the run passed:
+   `gh workflow run build-iso.yml --repo maitrios/maitri --ref main -f release_tag=vX.Y.Z`.
+   If only its `publish` job failed, re-run that job with `gh run rerun <run-id> --failed --repo
+   maitrios/maitri`; it reuses the build, which is kept for 7 days.
 5. Comment on the issue with the tag, the maitri-pkgs commit and the release link, then close it.
    The QEMU smoke test stays with Andrew.
 
@@ -108,9 +115,33 @@ Every push to `main` triggers `notify-pkgs.yml`, which asks maitri-pkgs to rebui
 ## ISO hosting
 
 The offline ISO is several gigabytes, so `build-iso.yml` pushes it to Docker Hub as an OCI artifact via
-[ORAS](https://oras.land). Repo settings needed: `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` (secrets)
-and optionally `DOCKERHUB_NAMESPACE` (variable). Users download with:
+[ORAS](https://oras.land). Its `build` job builds the tag's tree with no environment, no secrets and a
+read-only token. Its `publish` job checks out only `main`, checks the tag again, and is the only job
+in the `docker-hub` environment, which holds `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` (see
+[Secrets](#secrets)). `DOCKERHUB_NAMESPACE`, a repository variable, is optional. Users download with:
 
 ```sh
 oras pull docker.io/<namespace>/maitri-iso:<tag>
 ```
+
+## Secrets
+
+Every secret the workflows use lives in a GitHub environment that only accepts `main`:
+
+| Environment | Secrets | Used by |
+| --- | --- | --- |
+| `release` | `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT` | `wallpapers.yml`, `publish` job |
+| `docker-hub` | `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN` | `build-iso.yml`, `publish` job |
+| `maitri-pkgs` | `MAITRI_PKGS_DISPATCH_TOKEN` | `notify-pkgs.yml` |
+
+GitHub runs a workflow from the ref it starts on, so a run on any branch or tag uses that commit's
+workflow files, reviewed or not. Those runs aren't on `main`, and the environments turn them away. Every
+run that can reach a secret uses a workflow file from `main`, and the jobs that hold one check out
+only `main`, so every script that sees a secret is main's reviewed copy.
+
+That only holds while the secrets live in their environment and nowhere else. Never add them as
+repository or organization secrets: re-tagging an old commit would bring back a workflow that reads
+them from there. A new environment gets the same deployment rule (selected branches, `main` only)
+and goes in the list in `test/shell.d/workflow-secrets-guard-test.sh`, which fails when a workflow
+reads a secret outside one of them, in a job that isn't gated on `main`, or in a job that checks out
+another ref.
