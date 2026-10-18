@@ -99,7 +99,9 @@ takes it; Andrew's approval of the PR that bumped `version` was the approval for
 4. Start the ISO build and check that the run passed:
    `gh workflow run build-iso.yml --repo maitrios/maitri --ref main -f release_tag=vX.Y.Z`.
    If only its `publish` job failed, re-run that job with `gh run rerun <run-id> --failed --repo
-   maitrios/maitri`; it reuses the build, which is kept for 7 days.
+   maitrios/maitri`; it reuses the build, which is kept for 7 days. If this is the first release
+   since the ISO moved to the `docker-hub` environment, tell Andrew once `publish` passes, so he can
+   delete the old repository copies (see [Secrets](#secrets)).
 5. Comment on the issue with the tag, the maitri-pkgs commit and the release link, then close it.
    The QEMU smoke test stays with Andrew.
 
@@ -146,3 +148,10 @@ them from there. A new environment gets the same deployment rule (selected branc
 and goes in the list in `test/shell.d/workflow-secrets-guard-test.sh`, which fails when a workflow
 reads a secret outside one of them, in a job that isn't gated on `main`, or in a job that checks out
 another ref or runs anything but main's code.
+
+One exception while the move settles: `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` also stay as
+repository secrets until the first release after the move has published its ISO from `docker-hub`.
+Once that release's `publish` job passes, Andrew deletes the repository copies with
+`gh secret delete DOCKERHUB_USERNAME -R maitrios/maitri` and
+`gh secret delete DOCKERHUB_TOKEN -R maitrios/maitri`. Until then, a workflow edited on a branch or
+tag can still read them.
