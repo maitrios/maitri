@@ -455,6 +455,7 @@ pass "the theme-set hook is a no-op when icons aren't applied"
 grep -qxE '  maitri-theme-set-icons' "$ROOT/bin/maitri-theme-set" ||
   fail "maitri-theme-set runs the icon hook with the other theme hooks"
 pass "maitri-theme-set runs the icon hook"
+
 png_header() {
   printf '\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR'
   printf "\\x$(printf '%02x' $(( $1 >> 24 & 255 )))\\x$(printf '%02x' $(( $1 >> 16 & 255 )))\\x$(printf '%02x' $(( $1 >> 8 & 255 )))\\x$(printf '%02x' $(( $1 & 255 )))"

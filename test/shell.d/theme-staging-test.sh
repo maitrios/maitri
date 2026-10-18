@@ -212,7 +212,7 @@ pass "a theme name cannot climb out of the theme directories"
 # generates. Every generated theme file is either denied to an installed theme or
 # recorded here as carrying colour, so a new template fails until it is placed.
 denied=(alacritty.toml emacs-theme.el firefox-userChrome.css firefox-userContent.css foot.ini ghostty.conf glamour.json herdr.toml kitty.conf gum_env.lua hyprland.lua neovim.lua vscode.json)
-colour_only=(bat.tmTheme btop.theme chromium-policy.json claude.json delta.gitconfig eza.fish fish.fish fzf.fish gemini-cli.json gitkraken.json gtk.css helix.toml hermes.yaml hyprland-preview-share-picker.css insomnia-theme.json jetbrains.icls keyboard.rgb lazydocker.yml lazygit.yml maitri.sublime-color-scheme mpv.conf obsidian.css opencode.json pi.json shell.toml slack.txt t3code.json vicinae.toml voxtype.toml vscode-theme.json warp.yaml yazi.toml zed.json)
+colour_only=(bat.tmTheme btop.theme chromium-policy.json claude.json delta.gitconfig eza.fish fish.fish fzf.fish gemini-cli.json gh-dash.yml gitkraken.json gtk.css helix.toml hermes.yaml hyprland-preview-share-picker.css insomnia-theme.json jetbrains.icls keyboard.rgb lazydocker.yml lazygit.yml maitri.sublime-color-scheme mpv.conf obsidian.css opencode.json pi.json shell.toml slack.txt t3code.json vicinae.toml voxtype.toml vscode-theme.json warp.yaml yazi.toml zed.json)
 
 
 for tpl in "$ROOT"/default/themed/*.tpl; do
@@ -232,3 +232,12 @@ for tpl in "$ROOT"/default/themed/*.tpl; do
 done
 
 pass "every file maitri generates is classified as code or colour"
+
+mapfile -t installed_denied < <(sed -n 's/^INSTALLED_THEME_DENIED=(\(.*\))$/\1/p' "$ROOT/bin/maitri-theme-set" | tr ' ' '\n')
+(( ${#installed_denied[@]} > 0 )) || fail "the installed-theme denylist is read from maitri-theme-set"
+for name in "${installed_denied[@]}"; do
+  grep -qE "^- .*\`$name\`" "$ROOT/docs/theming.md" ||
+    fail "docs/theming.md lists every file dropped from a cloned theme" "$name is in INSTALLED_THEME_DENIED but not in the list"
+done
+
+pass "the docs list every file a cloned theme has dropped"

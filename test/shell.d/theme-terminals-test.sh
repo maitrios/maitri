@@ -33,6 +33,19 @@ def norm(value):
     value = value.strip().strip("'\"")
     return ("#" + value.lstrip("#")).lower()
 
+def oklab(color):
+    h = color.lstrip("#")
+    r, g, b = (channel(int(h[i:i + 2], 16)) for i in (0, 2, 4))
+    lms = [(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b) ** (1 / 3),
+           (0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b) ** (1 / 3),
+           (0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b) ** (1 / 3)]
+    return (0.2104542553 * lms[0] + 0.7936177850 * lms[1] - 0.0040720468 * lms[2],
+            1.9779984951 * lms[0] - 2.4285922050 * lms[1] + 0.4505937099 * lms[2],
+            0.0259040371 * lms[0] + 0.7827717662 * lms[1] - 0.8086757660 * lms[2])
+
+def distance(a, b):
+    return 100 * sum((x - y) ** 2 for x, y in zip(oklab(a), oklab(b))) ** 0.5
+
 def read(name):
     return open(f"{theme_dir}/{name}").read()
 
@@ -112,6 +125,11 @@ def checks():
     check("btop", "followed_fg", b["followed_fg"], b["followed_bg"], TEXT)
     for key in ("proc_pause_bg", "proc_follow_bg", "proc_banner_bg"):
         check("btop", f"banner on {key}", b["proc_banner_fg"], b[key], TEXT)
+    banners = ("proc_pause_bg", "proc_follow_bg", "proc_banner_bg")
+    for i, first in enumerate(banners):
+        for second in banners[i + 1:]:
+            if distance(b[first], b[second]) < 5:
+                fail(f"btop {first} and {second} look alike ({distance(b[first], b[second]):.1f} apart)")
     for key in ("cpu_box", "mem_box", "net_box", "proc_box", "div_line"):
         check("btop", key, b[key], bg, LINE)
     for key in sorted(b):

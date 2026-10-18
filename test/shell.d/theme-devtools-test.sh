@@ -170,6 +170,9 @@ def pi():
     syntax = {palette[h] for h in ("red", "green", "yellow", "blue", "magenta", "cyan") if palette[h] != palette["accent"]}
     if set(ramp) & syntax:
         fail("pi thinking levels use a syntax hue")
+    steps = ramp[1:] if mode == "light" else ramp[1:4]
+    for low, high in zip(steps, steps[1:]):
+        apart("pi", f"thinking level {high} after {low}", low, high, 1.3)
 
 def t3code():
     data = json.loads(read("t3code.json"))
