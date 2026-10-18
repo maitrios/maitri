@@ -14,6 +14,7 @@ fi
 # The path check must see a branded path even when the file list is far larger
 # than a pipe buffer; grep -q under pipefail used to turn an early match into a pass.
 scratch=$(mktemp -d)
+trap 'rm -rf "$scratch"' EXIT
 mkdir -p "$scratch/tools"
 cp "$ROOT/tools/rebrand.sh" "$scratch/tools/"
 git -C "$scratch" init -q
@@ -22,9 +23,10 @@ mkdir -p "$scratch/a"
 touch "$scratch/a/0-$brand.txt"
 for i in $(seq 1 3000); do touch "$scratch/a/padding-file-with-a-long-name-to-fill-the-pipe-buffer-$i.txt"; done
 git -C "$scratch" add -A
-if "$scratch/tools/rebrand.sh" --check >/dev/null 2>&1; then
+if output=$("$scratch/tools/rebrand.sh" --check 2>&1); then
   fail "a branded path is caught in a file list larger than a pipe buffer"
+elif [[ $output != *"paths still carry the upstream brand"* ]]; then
+  fail "a branded path is caught in a file list larger than a pipe buffer" "$output"
 else
   pass "a branded path is caught in a file list larger than a pipe buffer"
 fi
-rm -rf "$scratch"
