@@ -572,6 +572,15 @@ the `Icon=` key in that app's `.desktop` file (`vscode.png` for `Icon=vscode`,
 ancillary chunk stripped; an SVG named the same way works too. A PNG that isn't
 square at a size the hicolor theme lists (16 to 512) is skipped.
 
+A theme can have its own variants in `default/icons/<theme>/`, named the same
+way, with a base icon for each. For the current theme (`theme.name` in
+`~/.local/state/maitri/current/`), `maitri-icons-set` uses that theme's variant
+of an icon when there is one and the base icon otherwise; daybreak has no
+folder, so it uses the base set. The launchers keep the same `maitri-<key>`
+names whichever variant is in use, and `maitri-theme-set` runs
+`maitri-theme-set-icons` on every theme change, which copies the new theme's
+variants over them. It does nothing unless icons are applied.
+
 The set is opt-in, from Style > App Icons in the menu or the commands:
 
 - `maitri-icons-set` walks the launchers the way the desktop resolves them: the

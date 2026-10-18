@@ -12,6 +12,11 @@ copies="$state_dir/copies"
 user_dir="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
 icon_theme_dir="${XDG_DATA_HOME:-$HOME/.local/share}/icons/hicolor"
 
+variant_dirs=()
+theme_name="$(cat "$HOME/.local/state/maitri/current/theme.name" 2>/dev/null || true)"
+[[ $theme_name =~ ^[a-z0-9-]+$ ]] && variant_dirs+=("$icon_dir/$theme_name")
+variant_dirs+=("$icon_dir")
+
 system_dirs=()
 IFS=: read -ra data_dirs <<<"${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
 for data_dir in "${data_dirs[@]}"; do
@@ -58,13 +63,15 @@ png_size() {
 }
 
 icon_source() {
-  local ext
+  local dir ext
 
-  for ext in png svg; do
-    [[ -f $icon_dir/$1.$ext ]] || continue
-    [[ $ext == "svg" ]] || png_size "$icon_dir/$1.$ext" >/dev/null || continue
-    printf '%s\n' "$icon_dir/$1.$ext"
-    return 0
+  for dir in "${variant_dirs[@]}"; do
+    for ext in png svg; do
+      [[ -f $dir/$1.$ext ]] || continue
+      [[ $ext == "svg" ]] || png_size "$dir/$1.$ext" >/dev/null || continue
+      printf '%s\n' "$dir/$1.$ext"
+      return 0
+    done
   done
   return 1
 }
