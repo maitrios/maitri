@@ -210,10 +210,11 @@ rewrite_all() {
 }
 
 check() {
-  local rc=0 f
-  if git ls-files | grep -qi omarchy; then
+  local rc=0 f brand_paths
+  brand_paths=$(git ls-files | grep -i omarchy || true)
+  if [[ -n $brand_paths ]]; then
     echo "rebrand: paths still carry the upstream brand:" >&2
-    git ls-files | grep -i omarchy >&2
+    printf '%s\n' "$brand_paths" >&2
     rc=1
   fi
   while IFS= read -r -d '' f; do
