@@ -558,6 +558,14 @@ for run in 1 2 3 4 5; do
     >/dev/null 2>"$test_tmp/plan"; then
     fail "making previews with AWS_PROFILE set is refused even with a large environment (run $run)"
   fi
+  grep -q "won't decode images with R2_\\* or AWS_\\* variables set" "$test_tmp/plan" ||
+    fail "the large-environment refusal names the credentials (run $run)" "$(cat "$test_tmp/plan")"
+done
+for bad_home in "" relative/home; do
+  if env HOME="$bad_home" "$ROOT/tools/wallpapers-upload.sh" --make-previews "$test_tmp/artifact" --tar "$test_tmp/wallpapers.tar" v1.5.0 \
+    >/dev/null 2>"$test_tmp/plan"; then
+    fail "making previews with HOME='$bad_home' is refused"
+  fi
 done
 for case in credentials config dangling-credentials dangling-dir; do
   rm -rf "$test_tmp/aws-home" && mkdir -p "$test_tmp/aws-home"
