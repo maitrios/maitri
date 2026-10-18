@@ -8,7 +8,7 @@ name: Leak gate
 # checked out or run. Leak gate PR (leak-gate-pr.yml) starts it for PRs, forks
 # and Dependabot included. With the leak-gate GitHub App set up
 # (LEAK_GATE_APP_ID and LEAK_GATE_APP_KEY in the environment), the status is
-# posted as that app, so main's required check can accept it from nothing else.
+# posted as that app, so a required check on main can be pinned to it.
 
 run-name: Leak gate
 
