@@ -48,7 +48,7 @@ jobs:
       - name: Refuse a tag that is not a release tag on main
         run: |
           [[ $GITHUB_REF == "refs/heads/main" ]] || { echo "Start the run on main (--ref main), not $GITHUB_REF" >&2; exit 1; }
-          tools/wallpapers-check-tag.sh "$TAG"
+          tools/check-release-tag.sh "$TAG"
 
       - name: Fetch the release's wallpapers
         id: release
@@ -99,7 +99,7 @@ jobs:
       - name: Refuse a tag that is not a release tag on main
         run: |
           [[ $GITHUB_REF == "refs/heads/main" ]] || { echo "Start the run on main (--ref main), not $GITHUB_REF" >&2; exit 1; }
-          tools/wallpapers-check-tag.sh "$TAG"
+          tools/check-release-tag.sh "$TAG"
 
       - name: Fetch the release's wallpapers
         id: release
