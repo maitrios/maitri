@@ -116,8 +116,9 @@ Every push to `main` triggers `notify-pkgs.yml`, which asks maitri-pkgs to rebui
 
 The offline ISO is several gigabytes, so `build-iso.yml` pushes it to Docker Hub as an OCI artifact via
 [ORAS](https://oras.land). Its `build` job builds the tag's tree with no environment, no secrets and a
-read-only token. Its `publish` job checks out only `main`, checks the tag again, and is the only job
-in the `docker-hub` environment, which holds `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` (see
+read-only token. Its `publish` job checks out only `main`, checks the tag again, refuses the ISO
+unless the tag still points at the commit it was built from, and is the only job in the `docker-hub`
+environment, which holds `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` (see
 [Secrets](#secrets)). `DOCKERHUB_NAMESPACE`, a repository variable, is optional. Users download with:
 
 ```sh

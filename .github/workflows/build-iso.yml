@@ -43,6 +43,8 @@ jobs:
     timeout-minutes: 150
     permissions:
       contents: read
+    outputs:
+      commit: ${{ steps.tree.outputs.commit }}
     env:
       RELEASE_TAG: ${{ inputs.release_tag }}
     steps:
@@ -65,21 +67,19 @@ jobs:
             { echo "$RELEASE_TAG has no GitHub release yet; publish it first" >&2; exit 1; }
           echo "commit=$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")" >>"$GITHUB_OUTPUT"
 
-      - name: Resolve build ref and channel
+      - name: Resolve the ISO's name and channel
         id: ref
         env:
-          TAG_COMMIT: ${{ steps.tag.outputs.commit }}
           TEST_REF: ${{ inputs.ref }}
           TEST_CHANNEL: ${{ inputs.channel }}
         run: |
           if [[ -n $RELEASE_TAG ]]; then
-            ref=$TAG_COMMIT label=$RELEASE_TAG channel=stable iso_ref=stable
+            label=$RELEASE_TAG channel=stable iso_ref=stable
           else
-            ref=${TEST_REF:-main} label=${TEST_REF:-main} channel=${TEST_CHANNEL:-stable}
+            label=${TEST_REF:-main} channel=${TEST_CHANNEL:-stable}
             if [[ $channel == "edge" ]]; then iso_ref=edge; else iso_ref=main; fi
           fi
           {
-            echo "ref=$ref"
             echo "name=maitri-${label//\//-}.iso"
             echo "channel=$channel"
             echo "iso_ref=$iso_ref"
@@ -107,12 +107,31 @@ jobs:
           large-packages: true
           swap-storage: false
 
-      - name: Check out the tree to build
+      - name: Check out the release's commit
+        if: inputs.release_tag != ''
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ steps.ref.outputs.ref }}
+          ref: ${{ steps.tag.outputs.commit }}
           path: src
           persist-credentials: false
+
+      - name: Check out the ref to test
+        if: inputs.release_tag == ''
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || 'main' }}
+          path: src
+          persist-credentials: false
+
+      # The publish job refuses the ISO unless the tag still points here.
+      - name: Record the commit being built
+        id: tree
+        env:
+          TAG_COMMIT: ${{ steps.tag.outputs.commit }}
+        run: |
+          commit=$(git -C src rev-parse HEAD)
+          [[ -z $RELEASE_TAG || $commit == "$TAG_COMMIT" ]] || { echo "checked out $commit, not $RELEASE_TAG's $TAG_COMMIT" >&2; exit 1; }
+          echo "commit=$commit" >>"$GITHUB_OUTPUT"
 
       - name: Build ISO (archiso inside an Arch container)
         env:
@@ -173,10 +192,14 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Refuse a tag that is not a release tag on main
+      - name: Refuse a tag that is not a release tag on main, or has moved since the build
+        env:
+          BUILT_COMMIT: ${{ needs.build.outputs.commit }}
         run: |
           [[ $GITHUB_REF == "refs/heads/main" ]] || { echo "Start the run on main (--ref main), not $GITHUB_REF" >&2; exit 1; }
           tools/check-release-tag.sh "$TAG"
+          commit=$(git rev-parse "refs/tags/$TAG^{commit}")
+          [[ $commit == "$BUILT_COMMIT" ]] || { echo "$TAG is $commit, but the ISO was built from ${BUILT_COMMIT:-an unknown commit}" >&2; exit 1; }
 
       # The ISO is ~7 GB.
       - name: Free up disk space
@@ -191,9 +214,9 @@ jobs:
           name: maitri-iso-${{ github.run_number }}
           path: ${{ runner.temp }}/iso
 
-      # The build job ran the tag's tree, so nothing it hands over is trusted
-      # but the ISO's bytes: the name comes from the tag and the checksum from
-      # the file here.
+      # The build job ran the tag's tree, so all publish takes from it is the
+      # ISO's bytes and the commit it built, which must be the tag's: the name
+      # comes from the tag and the checksum from the file here.
       - name: Check the ISO
         id: iso
         run: |
