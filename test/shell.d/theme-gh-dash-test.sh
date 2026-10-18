@@ -73,7 +73,7 @@ for theme in themes:
             errors.append(f"{label}: {ratio:.2f}:1 ({fg} on {bg}), floor {minimum}:1")
 
     roles = {
-        "text": {"primary": "foreground", "secondary": "light_foreground", "inverted": "background", "faint": "comment",
+        "text": {"primary": "foreground", "secondary": "accent", "inverted": "background", "faint": "comment",
                  "warning": "orange", "success": "green", "error": "red", "actor": "accent"},
         "background": {"selected": "lighter_background"},
         "border": {"primary": "border_focus", "secondary": "border"},
@@ -94,13 +94,13 @@ for theme in themes:
     for key, color in colors["icon"].items():
         floor(f"icon.{key}", color, p["background"])
     # gh-dash fills with some of these slots too: the selected row and footer,
-    # the view switcher on border.faint, and the help and draft pills on
-    # text.faint.
+    # the view switcher and the comment box's cursor line on border.faint, and
+    # the help and draft pills on text.faint.
     for key in ("primary", "secondary", "faint", "warning", "actor"):
         floor(f"text.{key} on background.selected", text[key], selected)
     for role in ANSI:
         floor(f"{role} on background.selected", p[role], selected)
-    for key in ("primary", "faint"):
+    for key in ("primary", "secondary", "faint"):
         floor(f"text.{key} on border.faint", text[key], border["faint"])
     floor("background.selected on text.faint", selected, text["faint"])
     floor("text.inverted on text.faint", text["inverted"], text["faint"])
