@@ -192,8 +192,9 @@ make_preview() {
 }
 
 make_all_previews() {
-  local i
-  ! compgen -e | grep -qE '^(R2|AWS)_' && [[ ! -e $HOME/.aws/credentials ]] ||
+  local i credentials
+  credentials=$(compgen -e | grep -E '^(R2|AWS)_' || true)
+  [[ -z $credentials && ! -e $HOME/.aws/credentials ]] ||
     die "won't decode images with R2_* or AWS_* variables set or ~/.aws/credentials present; make the previews with --make-previews in a job without them"
   for i in "${!preview_keys[@]}"; do
     mkdir -p "$1/${preview_keys[$i]%/*}"
