@@ -184,7 +184,7 @@ If `wallpapers.tar` is attached and is at most 1 GiB, it downloads it, installs
 `tools/wallpapers-upload.sh --make-previews <dir> --tar wallpapers.tar vX.Y.Z`.
 That checks the files the same way the publish job does (steps 1 and 2 below),
 writes each preview, and refuses to run at all while any `R2_*` or `AWS_*`
-variable is set or `~/.aws/credentials` exists. The previews go to the publish job as a workflow artifact.
+variable is set or `~/.aws` exists (any file, or a symlink). The previews go to the publish job as a workflow artifact.
 
 The `publish` job is the only one in the `release` environment. It runs after
 `previews`, checks the tag before any step that sees a secret, reads the
