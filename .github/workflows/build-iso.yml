@@ -170,6 +170,7 @@ jobs:
             release/*.iso
             release/*.sha256
           if-no-files-found: error
+          overwrite: true
           retention-days: 7
           compression-level: 0
 
