@@ -201,7 +201,7 @@ picture webp "$staging/garnet/glow.webp"
 new_dawn=$(sha256_of "$staging/amethyst/New Dawn.JPEG")
 glow=$(sha256_of "$staging/garnet/glow.webp")
 
-MAITRI_WALLPAPERS_URL="$base_url" "$ROOT/tools/wallpapers-upload.sh" --dry-run --from "$staging" v1.2.0 \
+HOME="$test_home" MAITRI_WALLPAPERS_URL="$base_url" "$ROOT/tools/wallpapers-upload.sh" --dry-run --from "$staging" v1.2.0 \
   >"$test_tmp/manifest.json" 2>"$test_tmp/plan" ||
   fail "a dry run of the upload succeeds" "$(cat "$test_tmp/plan")"
 grep -qx "would upload themes/amethyst/$new_dawn.jpg" "$test_tmp/plan" &&
@@ -234,7 +234,7 @@ pass "the upload builds a manifest from the published one plus the staged files"
 
 mkdir -p "$staging/nosuchtheme"
 cp "$test_tmp/good.jpg" "$staging/nosuchtheme/"
-if MAITRI_WALLPAPERS_URL="$base_url" "$ROOT/tools/wallpapers-upload.sh" --dry-run --from "$staging" v1.2.0 \
+if HOME="$test_home" MAITRI_WALLPAPERS_URL="$base_url" "$ROOT/tools/wallpapers-upload.sh" --dry-run --from "$staging" v1.2.0 \
   >/dev/null 2>"$test_tmp/plan"; then
   fail "the upload refuses a directory that is not a maitri theme"
 fi
@@ -297,7 +297,7 @@ grep -q "could not be fetched, nothing changed" "$test_tmp/out" || fail "a manif
 pass "a manifest over 1 MiB is refused"
 
 upload() {
-  MAITRI_WALLPAPERS_URL="$base_url" "$ROOT/tools/wallpapers-upload.sh" "$@" >"$test_tmp/manifest.json" 2>"$test_tmp/plan"
+  HOME="${upload_home:-$test_home}" MAITRI_WALLPAPERS_URL="$base_url" "$ROOT/tools/wallpapers-upload.sh" "$@" >"$test_tmp/manifest.json" 2>"$test_tmp/plan"
 }
 
 tar -cf "$test_tmp/wallpapers.tar" -C "$staging" --exclude README.md .
@@ -544,19 +544,34 @@ if with_token --tar "$test_tmp/wallpapers.tar" v1.5.0; then
 fi
 grep -q "a real run takes its previews from --previews" "$test_tmp/plan" || fail "the uploader says a real run needs --previews" "$(cat "$test_tmp/plan")"
 for variable in R2_SECRET_ACCESS_KEY=test R2_ENDPOINT=http://r2.invalid AWS_PROFILE=maitri AWS_SHARED_CREDENTIALS_FILE=/nonexistent AWS_SESSION_TOKEN=test; do
-  if env "$variable" "$ROOT/tools/wallpapers-upload.sh" --make-previews "$test_tmp/artifact" --tar "$test_tmp/wallpapers.tar" v1.5.0 \
+  if env HOME="$test_home" "$variable" "$ROOT/tools/wallpapers-upload.sh" --make-previews "$test_tmp/artifact" --tar "$test_tmp/wallpapers.tar" v1.5.0 \
     >/dev/null 2>"$test_tmp/plan"; then
     fail "making previews with $variable set is refused"
   fi
   grep -q "won't decode images with R2_\* or AWS_\* variables set" "$test_tmp/plan" ||
     fail "the uploader says why it won't decode with $variable set" "$(cat "$test_tmp/plan")"
 done
-mkdir -p "$test_tmp/aws-home/.aws"
-: >"$test_tmp/aws-home/.aws/credentials"
-if HOME="$test_tmp/aws-home" upload --make-previews "$test_tmp/artifact" --tar "$test_tmp/wallpapers.tar" v1.5.0; then
-  fail "making previews with ~/.aws/credentials present is refused"
-fi
-grep -q "or ~/.aws/credentials present" "$test_tmp/plan" || fail "the uploader says why it won't decode with ~/.aws/credentials present" "$(cat "$test_tmp/plan")"
+padding=()
+for i in $(seq 1 3000); do padding+=("MAITRI_TEST_PADDING_$i=a-value-long-enough-to-fill-more-than-one-pipe-buffer"); done
+for run in 1 2 3 4 5; do
+  if env HOME="$test_home" "${padding[@]}" AWS_PROFILE=maitri "$ROOT/tools/wallpapers-upload.sh" --make-previews "$test_tmp/artifact" --tar "$test_tmp/wallpapers.tar" v1.5.0 \
+    >/dev/null 2>"$test_tmp/plan"; then
+    fail "making previews with AWS_PROFILE set is refused even with a large environment (run $run)"
+  fi
+done
+for case in credentials config dangling-credentials dangling-dir; do
+  rm -rf "$test_tmp/aws-home" && mkdir -p "$test_tmp/aws-home"
+  case $case in
+    credentials) mkdir "$test_tmp/aws-home/.aws" && : >"$test_tmp/aws-home/.aws/credentials" ;;
+    config) mkdir "$test_tmp/aws-home/.aws" && printf '[default]\ncredential_process = /bin/true\n' >"$test_tmp/aws-home/.aws/config" ;;
+    dangling-credentials) mkdir "$test_tmp/aws-home/.aws" && ln -s /nonexistent "$test_tmp/aws-home/.aws/credentials" ;;
+    dangling-dir) ln -s /nonexistent "$test_tmp/aws-home/.aws" ;;
+  esac
+  if upload_home="$test_tmp/aws-home" upload --make-previews "$test_tmp/artifact" --tar "$test_tmp/wallpapers.tar" v1.5.0; then
+    fail "making previews with ~/.aws present ($case) is refused"
+  fi
+  grep -q "or ~/.aws present" "$test_tmp/plan" || fail "the uploader says why it won't decode with ~/.aws present ($case)" "$(cat "$test_tmp/plan")"
+done
 [[ ! -s $served.log && ! -s $test_tmp/decoders.log ]] || fail "neither refusal uploads or decodes anything" "$(cat "$served.log" "$test_tmp/decoders.log")"
 : >"$served.log"
 if publish_with_previews "$test_tmp/artifact" --tar "$test_tmp/gzipped.tar" v1.5.0; then
@@ -564,7 +579,7 @@ if publish_with_previews "$test_tmp/artifact" --tar "$test_tmp/gzipped.tar" v1.5
 fi
 grep -q "must be a plain, uncompressed tar" "$test_tmp/plan" || fail "the publish step says why it refuses a compressed tar" "$(cat "$test_tmp/plan")"
 [[ ! -s $served.log ]] || fail "a compressed tar uploads nothing" "$(cat "$served.log")"
-pass "images are only decoded by --make-previews, never with R2_*, AWS_* or ~/.aws/credentials around, and a compressed tar never reaches tar"
+pass "images are only decoded by --make-previews, never with R2_*, AWS_* or ~/.aws around, and a compressed tar never reaches tar"
 
 staging3="$test_tmp/staging3"
 cp -r "$staging2" "$staging3"
