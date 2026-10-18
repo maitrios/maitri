@@ -38,7 +38,8 @@
     "mutedText": "{{ light_foreground }}",
     "dimText": "{{ comment }}",
     "punctuation": "{{ light_foreground }}",
-    "thinkingLow": "{{ mix border_focus accent 50% }}",
+    "thinkingMinimal": "{{ mix background accent 70% }}",
+    "thinkingLow": "{{ mix background accent 85% }}",
     "thinkingHigh": "{{ mix accent foreground 26% }}",
     "thinkingXhigh": "{{ mix accent foreground 52% }}"
   },
@@ -92,7 +93,7 @@
     "syntaxOperator": "color5",
     "syntaxPunctuation": "punctuation",
     "thinkingOff": "borderMuted",
-    "thinkingMinimal": "border",
+    "thinkingMinimal": "thinkingMinimal",
     "thinkingLow": "thinkingLow",
     "thinkingMedium": "accent",
     "thinkingHigh": "thinkingHigh",

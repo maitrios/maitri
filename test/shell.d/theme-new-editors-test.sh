@@ -395,6 +395,7 @@ PY
 
 pass "Zed, JetBrains and Emacs render for every theme with readable contrast and the shared mapping"
 
+[[ -z ${GITHUB_ACTIONS:-} ]] || require_command emacs
 if command -v emacs >/dev/null 2>&1; then
   for theme in "${themes[@]}"; do
     rendered="$test_tmp/$theme/.local/state/maitri/current/next-theme"

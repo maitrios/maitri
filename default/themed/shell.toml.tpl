@@ -44,8 +44,8 @@ hover-cursor-border       = "{{ mix border foreground 25% }}"
 hover-cursor-border-width = 1
 hover-cursor-border-alpha = 1.0
 
-# Focus: Qt activeFocus. Same fill as hover-cursor, with an accent ring so
-# tab focus stays visible.
+# Focus: Qt activeFocus. Same fill as hover-cursor, with a border_focus ring
+# so tab focus stays visible.
 focus-color        = "{{ foreground }}"
 focus-fill-alpha   = 0.08
 focus-border       = "{{ border_focus }}"

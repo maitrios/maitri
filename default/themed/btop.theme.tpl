@@ -83,11 +83,11 @@ theme[process_mid]="{{ accent }}"
 theme[process_end]="{{ mix accent foreground 50% }}"
 
 # Process list banner while paused, following, or both
-theme[proc_pause_bg]="{{ mix background orange 30% }}"
-theme[proc_follow_bg]="{{ mix background accent 30% }}"
+theme[proc_pause_bg]="{{ mix background yellow 30% }}"
+theme[proc_follow_bg]="{{ mix background blue 30% }}"
 theme[proc_banner_bg]="{{ mix background red 30% }}"
 theme[proc_banner_fg]="{{ foreground }}"
 
 # Followed process row
-theme[followed_bg]="{{ mix background accent 30% }}"
+theme[followed_bg]="{{ mix background blue 30% }}"
 theme[followed_fg]="{{ foreground }}"
