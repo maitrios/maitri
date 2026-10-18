@@ -23,6 +23,15 @@ esac
 : "${MAITRI_NVIM_PACKAGE:=maitri-nvim}"
 export MAITRI_RUNTIME_PACKAGE MAITRI_SETTINGS_PACKAGE MAITRI_NVIM_PACKAGE
 
+# A release build passes the maitri version its channel carried when the run
+# started. Each download below syncs the channel again, so stop if it moved
+# rather than assemble an ISO around another release.
+check_runtime_version() {
+  [[ -z ${MAITRI_EXPECT_VERSION:-} || $1 == "$MAITRI_EXPECT_VERSION" ]] && return
+  echo "ERROR: $MAITRI_RUNTIME_PACKAGE is $1 on the $MAITRI_MIRROR channel now, but this build started at $MAITRI_EXPECT_VERSION" >&2
+  exit 1
+}
+
 # Packages installed into the Arch container used to build the ISO.
 pacman-key --init
 pacman --noconfirm -Sy archlinux-keyring
@@ -153,6 +162,8 @@ else
     echo "ERROR: downloaded package for $MAITRI_RUNTIME_PACKAGE not found in $bootstrap_cache_dir" >&2
     exit 1
   fi
+  read -r _ bootstrap_version < <(pacman -Qp "$maitri_pkg")
+  check_runtime_version "$bootstrap_version"
   mkdir -p /tmp/maitri-pkglists
   bsdtar -xf "$maitri_pkg" -C /tmp/maitri-pkglists usr/share/maitri/install/maitri-base.packages usr/share/maitri/install/maitri-other.packages
   base_pkg_lists=(/tmp/maitri-pkglists/usr/share/maitri/install/maitri-base.packages /tmp/maitri-pkglists/usr/share/maitri/install/maitri-other.packages)
@@ -285,6 +296,22 @@ fi
 
 printf '%s\n' "${required_package_files[@]}" |
   bash /builder/prune-offline-mirror.sh "$offline_mirror_dir"
+
+# The ISO ships the one runtime package left in the mirror. Its version goes
+# next to the ISO, where the release workflow checks it and publishes it.
+runtime_versions=()
+for candidate in "$offline_mirror_dir/$MAITRI_RUNTIME_PACKAGE-"*.pkg.tar.*; do
+  [[ -f $candidate && $candidate != *.sig ]] || continue
+  read -r candidate_name candidate_version < <(pacman -Qp "$candidate" 2>/dev/null) || continue
+  [[ $candidate_name == "$MAITRI_RUNTIME_PACKAGE" ]] || continue
+  runtime_versions+=("$candidate_version")
+done
+if (( ${#runtime_versions[@]} != 1 )); then
+  echo "ERROR: expected one $MAITRI_RUNTIME_PACKAGE package in the offline mirror, found ${#runtime_versions[@]}" >&2
+  exit 1
+fi
+check_runtime_version "${runtime_versions[0]}"
+printf '%s %s\n' "$MAITRI_RUNTIME_PACKAGE" "${runtime_versions[0]}" >/out/runtime.version
 
 # Rebuild the offline repo db from scratch so size/checksum/depends entries
 # always reflect only the package files selected for this build.

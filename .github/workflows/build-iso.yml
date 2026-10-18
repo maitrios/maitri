@@ -85,14 +85,21 @@ jobs:
             echo "iso_ref=$iso_ref"
           } >>"$GITHUB_OUTPUT"
 
+      # The build is held to the version found here, so the ISO can't pick up
+      # a different maitri if the channel moves while it runs.
       - name: Wait for the maitri package on the channel
+        id: stable
         if: inputs.release_tag != ''
         run: |
           want="${RELEASE_TAG#v}"
           db="https://github.com/maitrios/maitri-pkgs/releases/download/stable/maitri.db.tar.gz"
           for attempt in $(seq 1 40); do
             have=$(curl -fsSL "$db?nocache=$(date +%s)" 2>/dev/null | tar -xzO --wildcards 'maitri-[0-9]*/desc' 2>/dev/null | awk '/^%VERSION%$/ { getline; print; exit }' || true)
-            if [[ ${have%%-*} == "$want" ]]; then echo "stable carries maitri $have"; exit 0; fi
+            if [[ ${have%%-*} == "$want" ]]; then
+              echo "stable carries maitri $have"
+              echo "version=$have" >>"$GITHUB_OUTPUT"
+              exit 0
+            fi
             echo "stable carries maitri ${have:-nothing}; waiting for $want ($attempt/40)"
             sleep 30
           done
@@ -137,11 +144,13 @@ jobs:
         env:
           MAITRI_ISO_REF: ${{ steps.ref.outputs.iso_ref }}
           MAITRI_MIRROR: ${{ steps.ref.outputs.channel }}
+          MAITRI_EXPECT_VERSION: ${{ steps.stable.outputs.version }}
         run: |
           mkdir -p release
           docker run --rm --privileged \
             -e MAITRI_ISO_REF \
             -e MAITRI_MIRROR \
+            -e MAITRI_EXPECT_VERSION \
             -e HOST_UID="$(id -u)" \
             -e HOST_GID="$(id -g)" \
             -v "$PWD/src/iso/configs:/configs:ro" \
@@ -153,11 +162,17 @@ jobs:
       - name: Name the ISO
         env:
           NAME: ${{ steps.ref.outputs.name }}
+          MAITRI_EXPECT_VERSION: ${{ steps.stable.outputs.version }}
         run: |
           built=(release/*.iso)
           (( ${#built[@]} == 1 )) && [[ -f ${built[0]} ]] || { echo "expected one ISO in release/, found: ${built[*]}" >&2; exit 1; }
           mv -f "${built[0]}" "release/$NAME"
           (cd release && sha256sum "$NAME" >"$NAME.sha256")
+          if [[ -f release/runtime.version ]]; then mv -f release/runtime.version "release/$NAME.version"; fi
+          if [[ -n $RELEASE_TAG ]]; then
+            [[ -f release/$NAME.version && $(<"release/$NAME.version") == "maitri $MAITRI_EXPECT_VERSION" ]] ||
+              { echo "the ISO should bundle maitri $MAITRI_EXPECT_VERSION, but the build recorded: $(cat "release/$NAME.version" 2>/dev/null || echo nothing)" >&2; exit 1; }
+          fi
           ls -lh release/
 
       # The publish job takes the ISO from here. Test builds stop here, and a
@@ -169,6 +184,7 @@ jobs:
           path: |
             release/*.iso
             release/*.sha256
+            release/*.version
           if-no-files-found: error
           overwrite: true
           retention-days: 7
@@ -216,18 +232,31 @@ jobs:
           path: ${{ runner.temp }}/iso
 
       # The build job ran the tag's tree, so all publish takes from it is the
-      # ISO's bytes and the commit it built, which must be the tag's: the name
-      # comes from the tag and the checksum from the file here.
+      # ISO's bytes, the commit it built, which must be the tag's, and the maitri
+      # version it bundled, which must be the tag's version. The name comes from
+      # the tag and the checksum from the file here. The ISO moves next to main's
+      # checkout so nothing has to cd into the artifact; its name is fixed by the
+      # tag, so it can't land on anything main runs.
       - name: Check the ISO
         id: iso
         run: |
           name="maitri-$TAG.iso"
           dir="$RUNNER_TEMP/iso"
-          found=$(find "$dir" -mindepth 1 -printf '%P\n' | sort)
-          [[ $found == "$name"$'\n'"$name.sha256" ]] || { echo "the artifact should hold $name and $name.sha256, not: $found" >&2; exit 1; }
+          found=$(find "$dir" -mindepth 1 -printf '%P\n' | LC_ALL=C sort)
+          [[ $found == "$name"$'\n'"$name.sha256"$'\n'"$name.version" ]] || { echo "the artifact should hold $name, $name.sha256 and $name.version, not: $found" >&2; exit 1; }
           [[ -f $dir/$name && ! -L $dir/$name ]] || { echo "$name is not a plain file" >&2; exit 1; }
-          (cd "$dir" && sha256sum "$name" >"$name.sha256")
-          echo "path=$dir/$name" >>"$GITHUB_OUTPUT"
+          version_file="$dir/$name.version"
+          pattern='^maitri ([0-9][0-9A-Za-z.+_~]*)-([0-9]+(\.[0-9]+)?)$'
+          [[ -f $version_file && ! -L $version_file ]] && (( $(stat -c %s "$version_file") <= 200 )) &&
+            [[ $(<"$version_file") =~ $pattern && ${BASH_REMATCH[1]} == "${TAG#v}" ]] ||
+            { echo "$name should bundle maitri ${TAG#v}, and its $name.version says otherwise" >&2; exit 1; }
+          version="${BASH_REMATCH[1]}-${BASH_REMATCH[2]}"
+          mv "$dir/$name" "$GITHUB_WORKSPACE/$name"
+          sha256sum "$name" >"$name.sha256"
+          {
+            echo "path=$GITHUB_WORKSPACE/$name"
+            echo "maitri=$version"
+          } >>"$GITHUB_OUTPUT"
 
       - name: Attest ISO build provenance
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
@@ -249,6 +278,7 @@ jobs:
           DOCKERHUB_NAMESPACE: ${{ vars.DOCKERHUB_NAMESPACE }}
           GH_TOKEN: ${{ github.token }}
           ISO: ${{ steps.iso.outputs.path }}
+          MAITRI_VERSION: ${{ steps.iso.outputs.maitri }}
         run: |
           set -euo pipefail
           [[ -n $DOCKERHUB_USERNAME && -n $DOCKERHUB_TOKEN ]] || { echo "::error::DOCKERHUB_USERNAME / DOCKERHUB_TOKEN are empty; they belong in the docker-hub environment"; exit 1; }
@@ -256,24 +286,25 @@ jobs:
           ns="${DOCKERHUB_NAMESPACE:-$DOCKERHUB_USERNAME}"
           ns="${ns%/maitri-iso}"
           repo="docker.io/$ns/maitri-iso"
-          sha=$(cut -d' ' -f1 "$ISO.sha256")
+          sha=$(cut -d' ' -f1 "$name.sha256")
 
           echo "$DOCKERHUB_TOKEN" | oras login docker.io -u "$DOCKERHUB_USERNAME" --password-stdin
-          ( cd "$(dirname "$ISO")" && oras push "$repo:$TAG" \
-              --artifact-type application/vnd.maitri.iso \
-              --annotation "org.opencontainers.image.title=$name" \
-              --annotation "io.maitri.iso.sha256=$sha" \
-              "$name:application/octet-stream" )
+          oras push "$repo:$TAG" \
+            --artifact-type application/vnd.maitri.iso \
+            --annotation "org.opencontainers.image.title=$name" \
+            --annotation "io.maitri.iso.sha256=$sha" \
+            --annotation "io.maitri.package.version=$MAITRI_VERSION" \
+            "$name:application/octet-stream"
           oras tag "$repo:$TAG" latest
 
-          gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber "$ISO.sha256"
+          gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber "$name.sha256"
 
           body=$(gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json body -q .body)
           # shellcheck disable=SC2016
           {
             printf '%s\n\n---\n\n' "$body"
             printf '## 📀 Download\n\n'
-            printf 'The installer ISO (offline-capable) is published as an OCI artifact on Docker Hub.\n'
+            printf 'The installer ISO (offline-capable) bundles maitri %s and is published as an OCI artifact on Docker Hub.\n' "$MAITRI_VERSION"
             printf 'Pull it with [ORAS](https://oras.land):\n\n'
             printf '```sh\noras pull %s:%s\nsha256sum -c %s.sha256\ngh attestation verify %s -R %s\n```\n\n' "$repo" "$TAG" "$name" "$name" "$GITHUB_REPOSITORY"
             printf '`sha256: %s`\n' "$sha"
