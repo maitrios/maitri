@@ -432,6 +432,18 @@ resolve_theme_colors() {
 
   resolve_theme_mode
   THEME_COLORS[theme_type]="${THEME_COLORS[mode]}"
+
+  if [[ ${THEME_COLORS[mode]} == light ]]; then
+    [[ ${THEME_COLORS[ansi_black]} ]]        || THEME_COLORS[ansi_black]="${THEME_COLORS[bright_foreground]}"
+    [[ ${THEME_COLORS[ansi_white]} ]]        || THEME_COLORS[ansi_white]="${THEME_COLORS[dark_background]}"
+    [[ ${THEME_COLORS[ansi_bright_black]} ]] || THEME_COLORS[ansi_bright_black]="${THEME_COLORS[comment]}"
+    [[ ${THEME_COLORS[ansi_bright_white]} ]] || THEME_COLORS[ansi_bright_white]="${THEME_COLORS[background]}"
+  else
+    [[ ${THEME_COLORS[ansi_black]} ]]        || THEME_COLORS[ansi_black]="${THEME_COLORS[background]}"
+    [[ ${THEME_COLORS[ansi_white]} ]]        || THEME_COLORS[ansi_white]="${THEME_COLORS[foreground]}"
+    [[ ${THEME_COLORS[ansi_bright_black]} ]] || THEME_COLORS[ansi_bright_black]="${THEME_COLORS[comment]}"
+    [[ ${THEME_COLORS[ansi_bright_white]} ]] || THEME_COLORS[ansi_bright_white]="${THEME_COLORS[bright_foreground]}"
+  fi
 }
 
 parse_colors_file
