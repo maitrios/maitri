@@ -74,7 +74,15 @@ hl.config({
   },
 })
 
--- Scroll nicely in the terminal.
-o.window("(Alacritty|kitty|foot)", { scroll_touchpad = 1.5 })
-o.window("com.mitchellh.ghostty", { scroll_touchpad = 0.2 })
+-- Scroll nicely in the terminal. TUIs launched under their own app-id
+-- (org.maitri.agent in the console, org.maitri.btop, TUI.float, ...) no longer
+-- carry the terminal's class, but their initial title is still the terminal's
+-- name, so they are matched by that to scroll at the same rate.
+local function terminal_scroll(class, title, factor)
+  o.window(class, { scroll_touchpad = factor })
+  o.window({ class = "(org\\.maitri\\..*|TUI\\..*)", initial_title = title }, { scroll_touchpad = factor })
+end
+
+terminal_scroll("(Alacritty|kitty|foot)", "(Alacritty|kitty|foot)", 1.5)
+terminal_scroll("com.mitchellh.ghostty", "Ghostty", 0.2)
 o.window("org.maitri.herdr", { scroll_touchpad = o.cmd_present("ghostty") and 0.2 or 1.5 })
