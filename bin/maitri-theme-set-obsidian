@@ -8,12 +8,14 @@ CURRENT_THEME_DIR="$HOME/.local/state/maitri/current/theme"
 [[ -f $CURRENT_THEME_DIR/obsidian.css ]] || exit 0
 
 jq -r '.vaults | values[].path' ~/.config/obsidian/obsidian.json 2>/dev/null | while read -r vault_path; do
-  [[ -d $vault_path/.obsidian ]] || continue
+  for config_dir in "$vault_path"/.obsidian*/; do
+    config_dir=${config_dir%/}
+    [[ -f $config_dir/app.json || -f $config_dir/appearance.json ]] || continue
 
-  theme_dir="$vault_path/.obsidian/themes/maitri"
-  mkdir -p "$theme_dir"
+    theme_dir="$config_dir/themes/maitri"
+    mkdir -p "$theme_dir"
 
-  [[ -f $theme_dir/manifest.json ]] || cat >"$theme_dir/manifest.json" <<'EOF'
+    [[ -f $theme_dir/manifest.json ]] || cat >"$theme_dir/manifest.json" <<'EOF'
 {
   "name": "maitri",
   "version": "1.0.0",
@@ -24,5 +26,12 @@ jq -r '.vaults | values[].path' ~/.config/obsidian/obsidian.json 2>/dev/null | w
 }
 EOF
 
-  cp "$CURRENT_THEME_DIR/obsidian.css" "$theme_dir/theme.css"
+    cp "$CURRENT_THEME_DIR/obsidian.css" "$theme_dir/theme.css"
+
+    appearance=$config_dir/appearance.json
+    [[ -f $appearance ]] || echo '{}' >"$appearance"
+    if [[ $(jq -r '.cssTheme // ""' "$appearance" 2>/dev/null) != maitri ]]; then
+      jq '.cssTheme = "maitri"' "$appearance" >"$appearance.tmp" && mv "$appearance.tmp" "$appearance"
+    fi
+  done
 done
