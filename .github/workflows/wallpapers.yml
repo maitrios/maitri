@@ -20,8 +20,7 @@ on:
         type: boolean
         default: false
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
   group: wallpapers
@@ -89,6 +88,8 @@ jobs:
     environment: release
     env:
       TAG: ${{ inputs.tag }}
+    permissions:
+      contents: read
     steps:
       - name: Check out main
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
