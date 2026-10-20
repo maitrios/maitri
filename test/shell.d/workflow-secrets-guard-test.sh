@@ -28,6 +28,27 @@ import yaml
 MAIN_ONLY_ENVIRONMENTS = {"release", "docker-hub", "maitri-pkgs"}
 MAIN_GATE = "github.ref == 'refs/heads/main'"
 
+# Workaround (k7lab/maitrios#53): the leak gate breaks the rules above on
+# purpose. It runs on workflow_run, so it has no main gate of its own, and it
+# cd's into a bare clone under $RUNNER_TEMP to run main's copy of its scripts
+# without checking out the PR. Only this exact job is exempt, and it's pinned
+# to the shape below instead, so any edit to it fails here until reviewed.
+LEAK_GATE_JOB = ("leak-gate.yml", "leak-gate")
+LEAK_GATE_IF = "github.event_name != 'workflow_run' || github.event.workflow_run.event == 'pull_request'"
+LEAK_GATE_ENV = {"GH_TOKEN", "LEAK_PATTERN", "HEAD_SHA", "RUN_URL"}
+LEAK_GATE_SCRIPT = """\
+git init -q "$RUNNER_TEMP/repo"
+cd "$RUNNER_TEMP/repo"
+git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+# git asks for the token when it needs it; it's never written down.
+# shellcheck disable=SC2016
+git config credential.helper '!f() { echo username=x-access-token; echo "password=$GH_TOKEN"; }; f'
+git fetch -q --no-tags --filter=blob:none origin "$GITHUB_SHA"
+git show "$GITHUB_SHA:tools/leak-gate.sh" >"$RUNNER_TEMP/leak-gate.sh"
+git show "$GITHUB_SHA:tools/leak-gate-ci.sh" >"$RUNNER_TEMP/leak-gate-ci.sh"
+bash "$RUNNER_TEMP/leak-gate-ci.sh" "$RUNNER_TEMP/leak-gate.sh"
+"""
+
 ASSIGNMENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(?:\[[^]]*\])?\+?=")
 LEADERS = {"!", "{", "if", "then", "else", "elif", "while", "until", "do"}
 SKIPPED = {"for", "select", "case", "function", "}", "fi", "done", "esac", "[[", "(("}
@@ -441,7 +462,7 @@ for name, workflow in workflows.items():
     for job_name, job in (workflow.get("jobs") or {}).items():
         where = f"{name}: {job_name}"
         check("secrets" not in job, f"{where} passes no secrets on to another workflow")
-        if not sees_secret(job):
+        if not sees_secret(job) or (name, job_name) == LEAK_GATE_JOB:
             continue
         check(environment(job) in MAIN_ONLY_ENVIRONMENTS, f"{where} reads a secret, so it runs in a main-only environment",
               f"environment: {environment(job)!r}, expected one of {sorted(MAIN_ONLY_ENVIRONMENTS)}")
@@ -590,6 +611,24 @@ dispatch = notify["jobs"]["dispatch"]
 check(environment(dispatch) == "maitri-pkgs", "the dispatch job is in the maitri-pkgs environment")
 check(not any((s.get("uses") or "") for s in steps(dispatch)), "the dispatch job checks nothing out and runs no action")
 ok("notify-pkgs.yml reaches the dispatch token only from main, without running anything from the tree")
+
+leak_gate_workflow = workflows[LEAK_GATE_JOB[0]]
+check(set(leak_gate_workflow["on"]) == {"workflow_run", "push", "workflow_dispatch"}
+      and leak_gate_workflow["on"]["push"] == {"branches": ["main"]},
+      "leak-gate.yml only runs main's copy (workflow_run, pushes to main) or by hand", str(leak_gate_workflow["on"]))
+check(set(leak_gate_workflow["jobs"]) == {LEAK_GATE_JOB[1]}, "leak-gate.yml has one job")
+leak_gate = leak_gate_workflow["jobs"][LEAK_GATE_JOB[1]]
+check(environment(leak_gate) == "leak-gate", "the leak gate is in the leak-gate environment")
+check(str(leak_gate.get("if", "")).strip() == LEAK_GATE_IF, "the leak gate keeps its pinned condition", f"if: {leak_gate.get('if')!r}")
+check(not sees_secret(leak_gate.get("env") or {}) and "defaults" not in leak_gate and "defaults" not in leak_gate_workflow,
+      "the leak gate keeps its secrets in its step and runs it with bash")
+check(len(steps(leak_gate)) == 1, "the leak gate has one step")
+leak_gate_step = steps(leak_gate)[0]
+check(set(leak_gate_step) == {"name", "env", "run"} and set(leak_gate_step["env"]) == LEAK_GATE_ENV,
+      "the leak gate's step uses no action, shell or working directory, and only its pinned env", yaml.safe_dump(leak_gate_step))
+check(leak_gate_step["run"] == LEAK_GATE_SCRIPT, "the leak gate runs only its pinned script, which reads main's scripts from git",
+      leak_gate_step["run"])
+ok("leak-gate.yml is the one reviewed exception, pinned to its exact shape")
 EOF
 
 /usr/bin/python3 -I "$test_tmp/guard.py" "$ROOT"
