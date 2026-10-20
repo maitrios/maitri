@@ -438,14 +438,10 @@ expect_status "a PR that appears at the SHA during the check gets error too" 2
 expect_posted "a PR that appears at the SHA during the check gets error too" "$head pending"$'\n'"$head error"
 pass "a PR that appears at the SHA during the check gets error too"
 
-run_ci workflow_run "$(run_event clean)" STATUS_TOKEN=app-token
-expect_status "statuses go out with the app's token when there is one" 0
-[[ $(sort -u "$work/gh/tokens") == "app-token" ]] || fail "statuses go out with the app's token when there is one" "$(<"$work/gh/tokens")"
-pass "statuses go out with the app's token when there is one"
-
-run_ci workflow_run "$(run_event clean)"
-[[ $(sort -u "$work/gh/tokens") == "job-token" ]] || fail "without the app, statuses go out with the job's token" "$(<"$work/gh/tokens")"
-pass "without the app, statuses go out with the job's token"
+run_ci workflow_run "$(run_event clean)" STATUS_TOKEN=other-token
+expect_status "statuses go out with the job's token" 0
+[[ $(sort -u "$work/gh/tokens") == "job-token" ]] || fail "statuses go out with the job's token" "$(<"$work/gh/tokens")"
+pass "statuses go out with the job's token"
 
 touch "$work/gh/status-fails"
 run_ci workflow_dispatch "{}" HEAD_SHA="$(git rev-parse clean)"

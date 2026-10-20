@@ -12,7 +12,6 @@
 # while it checked, it posts error, never a success for text it didn't see. A
 # PR from a fork only learns pass or fail. Once pending is posted, any failure
 # posts error instead of leaving pending (or another PR's success) behind.
-# Statuses go out with STATUS_TOKEN (the leak-gate app's) when it's set.
 #
 #   leak-gate-ci.sh <leak-gate.sh>
 
@@ -24,7 +23,7 @@ sha=""
 posted=""
 
 set_status() {
-  if ! GH_TOKEN=${STATUS_TOKEN:-${GH_TOKEN:-}} gh api -X POST "repos/$repo/statuses/$sha" -f context=leak-gate \
+  if ! gh api -X POST "repos/$repo/statuses/$sha" -f context=leak-gate \
     -f state="$1" -f description="$2" -f target_url="$RUN_URL" >/dev/null; then
     echo "::error::Couldn't post the leak-gate status on ${sha:0:12}. A token that can't write statuses can't post it; bypass the check for this PR and say why."
     return 1
