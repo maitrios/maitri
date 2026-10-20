@@ -721,3 +721,23 @@ mapfile -d '' -t launch_args <"$launch_log"
   ${launch_args[4]} == "Review this project" ]] ||
   fail "OpenClaw receives prompts through --message" "argv: ${launch_args[*]}"
 pass "OpenClaw receives prompts through --message"
+
+# With the package and no openclaw command, the launcher sets OpenClaw up, so
+# the agent hands over to it rather than calling OpenClaw missing.
+cat >"$mock_bin/maitri-pkg-present" <<'SH'
+#!/bin/bash
+[[ " ${MAITRI_TEST_PACKAGES:-} " == *" $1 "* ]]
+SH
+chmod +x "$mock_bin/maitri-pkg-present"
+: >"$launch_log"
+MAITRI_TEST_MISSING_COMMAND=openclaw MAITRI_TEST_PACKAGES=openclaw maitri-agent >/dev/null 2>&1 ||
+  fail "OpenClaw's agent launches with the package and no command yet"
+mapfile -d '' -t launch_args <"$launch_log"
+[[ ${launch_args[*]} == "--app-id=org.maitri.agent maitri-launch-openclaw --tui" ]] ||
+  fail "OpenClaw's agent hands a missing command to its launcher when the package is there" "argv: ${launch_args[*]}"
+: >"$launch_log"
+if MAITRI_TEST_MISSING_COMMAND=openclaw MAITRI_TEST_PACKAGES= maitri-agent >/dev/null 2>&1; then
+  fail "OpenClaw's agent without the package is still missing"
+fi
+[[ ! -s $launch_log ]] || fail "OpenClaw's agent without the package starts nothing"
+pass "OpenClaw's agent hands a missing command to its launcher only when the package is there"

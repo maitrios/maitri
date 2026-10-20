@@ -37,6 +37,8 @@ PROTECTED_TOKENS=(
   # Upstream of the vendored maitri.display panel, and the fork its scale row comes from.
   'crmne/omarchy-hyprmoncfg'
   'gdeyoung/omarchy-displayplus'
+  # Quickshell pragma read by omarchy-pkgs' patched quickshell; Arch's quickshell only warns on it.
+  'OmarchyLoadPatch'
 )
 
 # Files whose contents are never rewritten.
