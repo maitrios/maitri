@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# maitri:summary=Tell ChatGPT desktop users how to apply the current maitri colours
+# maitri:hidden=true
+
+src="$HOME/.local/state/maitri/current/theme/chatgpt.txt"
+[[ -f $src ]] || exit 0
+maitri-cmd-present chatgpt || exit 0
+
+# The app keeps its theme in its own profile and only takes a new one through
+# Settings > Appearance, so the colours can only reach it by being pasted in.
+echo "ChatGPT takes the maitri colours from a paste: run maitri theme chatgpt-copy, then paste it into Settings > Appearance with the Import button." >&2

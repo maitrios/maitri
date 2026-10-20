@@ -2,7 +2,7 @@ theme:
   colors:
     text:
       primary: "{{ foreground }}"
-      secondary: "{{ light_foreground }}"
+      secondary: "{{ accent }}"
       inverted: "{{ background }}"
       faint: "{{ comment }}"
       warning: "{{ orange }}"
