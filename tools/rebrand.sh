@@ -34,6 +34,9 @@ PROTECTED_TOKENS=(
   'Heinemeier'
   # The upstream release we track, named in migrations and comments as "Omarchy 4".
   'Omarchy 4'
+  # Upstream of the vendored maitri.display panel, and the fork its scale row comes from.
+  'crmne/omarchy-hyprmoncfg'
+  'gdeyoung/omarchy-displayplus'
 )
 
 # Files whose contents are never rewritten.
@@ -82,10 +85,43 @@ DELETE_LIST=(
   'default/themed/chromium.theme.tpl'
   'install/config/browser-policy.sh'
   'test/shell.d/browser-policy-sudoers-test.sh'
+  # Omarchy 4.0.4 moved every machine onto its bespoke linux-omarchy kernel; maitri stays on
+  # stock linux (plus linux-ptl on Dell XPS Panther Lake), see AGENTS.md.
+  'migrations/1789325478.sh'
+  'migrations/1789444024.sh'
+  'test/shell.d/omarchy-kernel-migration-test.sh'
+  'test/shell.d/kernel-headers-migration-test.sh'
+  'test/shell.d/limine-defaults-test.sh'
+  # hyprmoncfgd owns monitor config and the vendored maitri.display panel replaces the
+  # stock Display panel; see AGENTS.md.
+  'shell/plugins/panels/monitor'
+  'bin/omarchy-monitor-state'
+  'test/shell.d/monitor-test.sh'
+  'test/shell.d/monitor-state-test.sh'
+  'bin/omarchy-hyprland-monitor-watch'
+  'bin/omarchy-hyprland-monitor-clamshell'
+  'bin/omarchy-hyprland-monitor-modeless'
+  'bin/omarchy-hyprland-monitor-scaling'
+  'bin/omarchy-hyprland-monitor-internal'
+  'bin/omarchy-hyprland-monitor-internal-mirror'
+  'bin/omarchy-hyprland-monitor-external-active'
+  'bin/omarchy-hyprland-monitor-laptop'
+  'bin/omarchy-hw-clamshell'
+  'bin/omarchy-hw-recover-internal-monitor'
+  'default/systemd/user/omarchy-recover-internal-monitor.service'
+  'test/shell.d/monitor-clamshell-scale-test.sh'
+  'test/shell.d/monitor-modeless-test.sh'
+  'test/shell.d/monitor-output-name-test.sh'
+  'test/shell.d/monitor-recovery-test.sh'
+  'test/shell.d/monitor-scaling-test.sh'
+  # A compatibility wrapper for an Omarchy-era unit name maitri installs never had.
+  'bin/omarchy-update-user-notify'
+  # The maitri heart in default/plymouth/logos/heart.png replaces upstream's alternate boot logo.
+  'default/plymouth/logos/oma.png'
 )
 
 # Stock upstream themes are not shipped; only maitri's own live in themes/.
-KEEP_THEMES=(spark harbor orchid ember garnet amethyst daybreak)
+KEEP_THEMES=(spark harbor ember garnet amethyst daybreak)
 
 mode=all
 paths=()
@@ -174,10 +210,11 @@ rewrite_all() {
 }
 
 check() {
-  local rc=0 f
-  if git ls-files | grep -qi omarchy; then
+  local rc=0 f brand_paths
+  brand_paths=$(git ls-files | grep -i omarchy || true)
+  if [[ -n $brand_paths ]]; then
     echo "rebrand: paths still carry the upstream brand:" >&2
-    git ls-files | grep -i omarchy >&2
+    printf '%s\n' "$brand_paths" >&2
     rc=1
   fi
   while IFS= read -r -d '' f; do
