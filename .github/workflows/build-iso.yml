@@ -30,8 +30,7 @@ on:
         description: "Publish as this existing release (e.g. v0.3.0); builds that tag from stable"
         default: ""
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
   group: build-iso-${{ inputs.release_tag || github.ref_name }}
