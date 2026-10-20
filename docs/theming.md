@@ -429,6 +429,7 @@ Plugin and shell QML should use `BorderSurface` for theme-aware borders:
 
 ```qml
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 
 BorderSurface {

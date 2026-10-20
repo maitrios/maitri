@@ -5,7 +5,8 @@
 # maitri:examples=maitri default browser firefox | maitri default browser brave
 
 if (($# == 0)); then
-  case "$(env -u BROWSER xdg-settings get default-web-browser)" in
+  current_browser=$(maitri-cmd-default-browser)
+  case "$current_browser" in
   helium.desktop) echo "helium" ;;
   chromium.desktop) echo "chromium" ;;
   google-chrome.desktop) echo "chrome" ;;
@@ -14,7 +15,7 @@ if (($# == 0)); then
   microsoft-edge.desktop) echo "edge" ;;
   firefox.desktop) echo "firefox" ;;
   zen.desktop) echo "zen" ;;
-  *) env -u BROWSER xdg-settings get default-web-browser ;;
+  *) echo "$current_browser" ;;
   esac
   exit 0
 fi
@@ -34,6 +35,9 @@ zen) desktop_id="zen.desktop"; name="Zen"; glyph=󰖟 ;;
   ;;
 esac
 
-env -u BROWSER xdg-settings set default-web-browser "$desktop_id" || exit 1
+# xdg-settings checks what it set by reading the handler back, which the
+# desktop-specific list would answer with maitri-browser.desktop, so it must
+# only see mimeapps.list, where the browser itself is kept.
+env -u BROWSER XDG_CURRENT_DESKTOP= xdg-settings set default-web-browser "$desktop_id" || exit 1
 
 maitri-notification-send -g $glyph "$name is now the default browser"
