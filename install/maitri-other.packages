@@ -61,7 +61,7 @@ linux-firmware-marvell
 
 # Dell laptop support packages
 dell-xps-touchpad-haptics
-linux-firmware-cirrus-dx13260
+# linux-firmware-cirrus-dx13260 (XPS 13 DX13260 speakers) is left out: maitri-pkgs doesn't build it.
 
 # Speaker tunings (LV2 limiter every tuning ends in)
 lsp-plugins-lv2
