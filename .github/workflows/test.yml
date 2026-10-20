@@ -5,8 +5,7 @@ on:
   push:
     branches: [main]
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
   group: test-${{ github.ref }}
@@ -19,6 +18,8 @@ jobs:
       image: archlinux:latest
       # An init reaps orphaned processes, as systemd does on a real machine.
       options: --init
+    permissions:
+      contents: read
     steps:
       - name: Install test dependencies
         run: |
