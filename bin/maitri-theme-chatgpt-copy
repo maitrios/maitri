@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# maitri:summary=Copy the current theme's ChatGPT desktop theme string to the clipboard
+
+src="$HOME/.local/state/maitri/current/theme/chatgpt.txt"
+
+if [[ ! -f $src ]]; then
+  echo "The current theme has no ChatGPT theme." >&2
+  exit 1
+fi
+
+theme=$(tr -d '\n' <"$src")
+
+if [[ $theme != codex-theme-v1:* ]] || ! jq -e . <<<"${theme#codex-theme-v1:}" >/dev/null 2>&1; then
+  echo "chatgpt.txt in the current theme is not a ChatGPT theme: $theme" >&2
+  exit 1
+fi
+
+printf '%s' "$theme" | wl-copy || exit 1
+echo "Copied the $(jq -r .variant <<<"${theme#codex-theme-v1:}") theme. In ChatGPT, paste it into Settings > Appearance with the Import button."

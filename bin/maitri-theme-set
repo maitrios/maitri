@@ -351,7 +351,7 @@ post_theme_commands=(
   maitri-theme-set-icons
   # fzf only points fish's BAT_THEME at maitri once bat's cache has the theme.
   maitri-theme-set-lazygit "maitri-theme-set-bat; maitri-theme-set-fzf" maitri-theme-set-yazi
-  maitri-theme-set-slack maitri-theme-set-insomnia maitri-theme-set-fish
+  maitri-theme-set-slack maitri-theme-set-chatgpt maitri-theme-set-insomnia maitri-theme-set-fish
   maitri-theme-set-eza maitri-theme-set-codex maitri-theme-set-voxtype maitri-theme-set-gitkraken maitri-theme-set-gemini maitri-theme-set-lazydocker maitri-theme-set-mpv
   maitri-theme-set-gh-dash
 )

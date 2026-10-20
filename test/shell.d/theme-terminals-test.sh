@@ -80,7 +80,8 @@ def checks():
     primary, bright, sel = toml_section(a, "colors.primary"), toml_section(a, "colors.bright"), toml_section(a, "colors.selection")
     terminal("alacritty", primary["background"], primary["foreground"], sel["text"], sel["background"], bright["black"])
     normal = toml_section(a, "colors.normal")
-    for name, value in [(f"normal {n}", v) for n, v in normal.items() if n != "black"] + [(f"bright {n}", v) for n, v in bright.items()]:
+    surface = "white" if palette.get("mode", "dark") == "light" else ""
+    for name, value in [(f"normal {n}", v) for n, v in normal.items() if n not in ("black", surface)] + [(f"bright {n}", v) for n, v in bright.items() if n != surface]:
         check("alacritty", name, value, primary["background"], TEXT)
     for section in ("colors.search.matches", "colors.search.focused_match"):
         s = toml_section(a, section)
