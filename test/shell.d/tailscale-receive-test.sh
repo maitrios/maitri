@@ -124,3 +124,9 @@ pass "taildrop receive ignores downloads that arrive while it waits"
 [[ -z $(ls -A "$downloads/.maitri-taildrop") ]] ||
   fail "taildrop receive empties its staging directory" "$(ls -A "$downloads/.maitri-taildrop")"
 pass "taildrop receive empties its staging directory"
+
+# A save location under HOME reads as ~, not the expanded path.
+printf 'png' >"$WORKDIR/outbox/home.png"
+receive 1 env HOME="$WORKDIR"
+assert_notification "$downloads/home.png" "Received home.png" "Saved to ~/downloads"
+pass "taildrop receive shortens a save location under HOME"
