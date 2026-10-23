@@ -274,7 +274,13 @@ chmod +x "$apps/wl-copy"
 run_hook() {
   local home="$1" hook="$2" path="$3"
 
-  env -u XDG_CONFIG_HOME -u XDG_DATA_HOME HOME="$home" MAITRI_PATH="$ROOT" PATH="$ROOT/bin:$path" "$BASH" "$ROOT/bin/$hook" 2>>"$home/hook.stderr"
+  # mise, which fish activates, looks for .config/mise in every directory
+  # above the working one, so a checkout under the real home would find the
+  # developer's config, untrusted under the scratch HOME's state.
+  (
+    cd "$home" || exit
+    env -u XDG_CONFIG_HOME -u XDG_DATA_HOME HOME="$home" MAITRI_PATH="$ROOT" PATH="$ROOT/bin:$path" "$BASH" "$ROOT/bin/$hook" 2>>"$home/hook.stderr"
+  )
 }
 
 stage_theme() {
