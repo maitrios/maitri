@@ -8,7 +8,7 @@ TMPDIR=$(mktemp -d)
 # The /tmp-fallback case (below) must place its decoy at exactly the fixed path the
 # old wrapper would have formed, so it cannot use a random mktemp name. Track whether
 # we created it and remove it on exit only then -- never touch a path we did not create.
-tmp_cache="/tmp/maitri-brightness-display-apple.device"
+tmp_cache="/tmp/maitri-brightness-display-apple.devices"
 created_tmp_cache=0
 
 cleanup() {
@@ -54,6 +54,12 @@ exit 0
 STUB
 chmod +x "$stub_dir/asdcontrol"
 
+cat >"$stub_dir/hyprctl" <<'STUB'
+#!/bin/bash
+printf '%s\n' '[{"name":"DP-1","make":"Apple Computer Inc","model":"StudioDisplay","serial":"1","focused":true}]'
+STUB
+chmod +x "$stub_dir/hyprctl"
+
 cat >"$stub_dir/maitri-osd" <<'STUB'
 #!/bin/bash
 exit 0
@@ -66,10 +72,10 @@ run_wrapper() {
   shift
   : >"$asd_log"
   if [[ -n $xdg ]]; then
-    XDG_RUNTIME_DIR="$xdg" PATH="$stub_dir:$ROOT/bin:$PATH" \
+    XDG_RUNTIME_DIR="$xdg" XDG_STATE_HOME="$TMPDIR/state" PATH="$stub_dir:$ROOT/bin:$PATH" \
       maitri-brightness-display-apple "$@" 2>&1 || true
   else
-    env -u XDG_RUNTIME_DIR PATH="$stub_dir:$ROOT/bin:$PATH" \
+    env -u XDG_RUNTIME_DIR XDG_STATE_HOME="$TMPDIR/state" PATH="$stub_dir:$ROOT/bin:$PATH" \
       maitri-brightness-display-apple "$@" 2>&1 || true
   fi
 }
@@ -77,7 +83,7 @@ run_wrapper() {
 # --- A cache value that is not a hiddev character device is rejected ----------
 xdg_dir="$TMPDIR/xdg"
 mkdir -p "$xdg_dir"
-cache_file="$xdg_dir/maitri-brightness-display-apple.device"
+cache_file="$xdg_dir/maitri-brightness-display-apple.devices"
 
 regular_file="$TMPDIR/not-a-device"
 : >"$regular_file"
@@ -95,7 +101,7 @@ if [[ ! -e /dev/hiddev999 ]]; then
 fi
 
 for poison in "${poisons[@]}"; do
-  printf '%s\n' "$poison" >"$cache_file"
+  printf '%s %s\n' "$poison" "$poison" >"$cache_file"
   output=$(run_wrapper "$xdg_dir" "+5%")
   if grep -qF -- "$poison -- +5%" "$asd_log"; then
     fail "wrapper handed a non-hiddev cache value to asdcontrol: $poison" "$output"
@@ -117,7 +123,8 @@ for candidate in /dev/usb/hiddev* /dev/hiddev*; do
   fi
 done
 if [[ -n $real_hiddev ]]; then
-  printf '%s\n' "$real_hiddev" >"$cache_file"
+  real_serial=$(cat "$(readlink -f "/sys/class/usbmisc/${real_hiddev##*/}/device" 2>/dev/null)/../serial" 2>/dev/null || printf '%s' "$real_hiddev")
+  printf '%s %s\n' "$real_serial" "$real_hiddev" >"$cache_file"
   run_wrapper "$xdg_dir" "+5%" >/dev/null
   grep -qF -- "$real_hiddev -- +5%" "$asd_log" ||
     fail "wrapper did not trust a valid cached hiddev node: $real_hiddev"
@@ -139,7 +146,7 @@ fi
 if mkfifo "$tmp_cache" 2>/dev/null; then
   created_tmp_cache=1
   status=0
-  env -u XDG_RUNTIME_DIR PATH="$stub_dir:$ROOT/bin:$PATH" \
+  env -u XDG_RUNTIME_DIR XDG_STATE_HOME="$TMPDIR/state" PATH="$stub_dir:$ROOT/bin:$PATH" \
     timeout 5 maitri-brightness-display-apple "+5%" >/dev/null 2>&1 || status=$?
   rm -f "$tmp_cache"
   created_tmp_cache=0

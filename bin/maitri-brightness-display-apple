@@ -1,25 +1,70 @@
 #!/bin/bash
 
 # maitri:summary=Show or adjust Apple Studio Display and Apple XDR Display brightness using asdcontrol.
-# maitri:args=[--no-osd] [+N%|N%-|N%] | --reapply
-# maitri:examples=maitri brightness display apple | maitri brightness display apple +5% | maitri brightness display apple --no-osd 50% | maitri brightness display apple --reapply
+# maitri:args=[--no-osd] [--monitor name] [+N%|N%-|N%] | --reapply [--monitor name] | --pair [--monitor name]
+# maitri:examples=maitri brightness display apple | maitri brightness display apple +5% | maitri brightness display apple --monitor DP-2 50% | maitri brightness display apple --reapply | maitri brightness display apple --pair
 
 # Only cache under the user-private runtime dir. With no XDG_RUNTIME_DIR we skip
 # caching (detect every run) rather than fall back to a predictable, world-writable
 # /tmp path another user could pre-create.
 device_cache=""
 if [[ -n ${XDG_RUNTIME_DIR:-} ]]; then
-  device_cache="$XDG_RUNTIME_DIR/maitri-brightness-display-apple.device"
+  device_cache="$XDG_RUNTIME_DIR/maitri-brightness-display-apple.devices"
 fi
-no_osd=0
-if [[ ${1:-} == "--no-osd" ]]; then
-  no_osd=1
-  shift
-fi
+pair_file="${XDG_STATE_HOME:-$HOME/.local/state}/maitri/apple-displays"
 
-detect_apple_display_device() {
+no_osd=0
+monitor=""
+mode="step"
+while (( $# > 0 )); do
+  case "$1" in
+  --no-osd)
+    no_osd=1
+    shift
+    ;;
+  --monitor)
+    (( $# >= 2 )) || exit 1
+    monitor="$2"
+    shift 2
+    ;;
+  --reapply)
+    mode="reapply"
+    shift
+    ;;
+  --pair)
+    mode="pair"
+    shift
+    ;;
+  *)
+    break
+    ;;
+  esac
+done
+
+# name, key (EDID serial, or the name when the EDID has none), focused
+apple_monitors() {
+  hyprctl monitors -j 2>/dev/null | jq -r '
+    .[]
+    | select(.make == "Apple Computer Inc" and (.model | test("StudioDisplay|ProDisplayXDR|Studio XDR")))
+    | [.name, (if (.serial // "") == "" then .name else .serial end), (.focused // false)]
+    | @tsv
+  '
+}
+
+# Hyprland names each monitor by its connector, but the display's HID device
+# hangs off its own USB path, so nothing in sysfs says which belongs to which. A
+# pairing of EDID serial to USB serial is stored the first time it is known.
+device_serial() {
+  local node="${1##*/}" link=""
+
+  link="$(readlink -f "/sys/class/usbmisc/$node/device" 2>/dev/null)" || return 1
+  [[ -r $link/../serial ]] || return 1
+  cat "$link/../serial"
+}
+
+detect_apple_display_devices() {
   local devices=()
-  local path=""
+  local path="" device="" serial=""
 
   for path in /dev/usb/hiddev* /dev/hiddev*; do
     [[ -e $path ]] && devices+=("$path")
@@ -27,33 +72,120 @@ detect_apple_display_device() {
 
   (( ${#devices[@]} > 0 )) || return 1
 
-  sudo asdcontrol --detect "${devices[@]}" 2>/dev/null | awk -F: '/^\/dev\/(usb\/)?hiddev/{ print $1; exit }'
+  while IFS= read -r device; do
+    serial="$(device_serial "$device" || true)"
+    printf '%s %s\n' "${serial:-$device}" "$device"
+  done < <(sudo asdcontrol --detect "${devices[@]}" 2>/dev/null | awk -F: '/^\/dev\/(usb\/)?hiddev[0-9]+:/{ print $1 }')
 }
 
-find_apple_display_device() {
-  local cached=""
-  local device=""
+# Lines of "<usb serial> <hiddev>". A cached device is trusted only while it still
+# names a hiddev character device whose USB serial is the one it was cached under,
+# since a replugged display renumbers its hiddev node. A stale or unexpected cache
+# line (a regular file, a non-hiddev node, another display's node) is ignored and we
+# re-detect instead of handing an arbitrary path to asdcontrol. The globs are left
+# unquoted on purpose: [[ ]] pattern-matches an unquoted right side, and quoting
+# them would turn the match into a literal string comparison.
+cached_devices() {
+  local serial="" device=""
 
-  if [[ -n $device_cache && -r $device_cache ]]; then
-    read -r cached <"$device_cache" || true
-    # Trust a cached value only if it still names a hiddev character device. A
-    # stale or unexpected cache (a regular file, a non-hiddev node) is ignored and
-    # we re-detect instead of handing an arbitrary path to asdcontrol. The globs
-    # are left unquoted on purpose: [[ ]] pattern-matches an unquoted right side,
-    # and quoting them would turn the match into a literal string comparison.
-    if [[ ( $cached == /dev/hiddev* || $cached == /dev/usb/hiddev* ) && -c $cached ]]; then
-      printf '%s\n' "$cached"
+  [[ -n $device_cache && -r $device_cache ]] || return 0
+  while read -r serial device; do
+    [[ $device == /dev/hiddev* || $device == /dev/usb/hiddev* ]] || continue
+    [[ -c $device ]] || continue
+    [[ $serial == "$(device_serial "$device" || printf '%s' "$device")" ]] || continue
+    printf '%s %s\n' "$serial" "$device"
+  done <"$device_cache"
+}
+
+apple_display_devices() {
+  local fresh="${1:-}" devices=""
+
+  if [[ -z $fresh ]]; then
+    devices="$(cached_devices)"
+    if [[ -n $devices ]] && (( $(wc -l <<<"$devices") >= $(apple_monitors | wc -l) )); then
+      printf '%s\n' "$devices"
       return 0
     fi
   fi
 
-  device="$(detect_apple_display_device)" || return 1
-  [[ -n $device ]] || return 1
-
+  devices="$(detect_apple_display_devices)" || return 1
+  [[ -n $devices ]] || return 1
   if [[ -n $device_cache ]]; then
-    printf '%s\n' "$device" >"$device_cache"
+    printf '%s\n' "$devices" >"$device_cache"
   fi
+  printf '%s\n' "$devices"
+}
+
+paired_serial() {
+  local key="$1" paired="" usb=""
+
+  [[ -r $pair_file ]] || return 1
+  while read -r paired usb; do
+    [[ $paired == "$key" ]] && { printf '%s\n' "$usb"; return 0; }
+  done <"$pair_file"
+  return 1
+}
+
+save_pair() {
+  local key="$1" usb="$2" paired="" other=""
+
+  mkdir -p "${pair_file%/*}"
+  {
+    if [[ -r $pair_file ]]; then
+      while read -r paired other; do
+        [[ $paired == "$key" || $other == "$usb" ]] || printf '%s %s\n' "$paired" "$other"
+      done <"$pair_file"
+    fi
+    printf '%s %s\n' "$key" "$usb"
+  } >"$pair_file.tmp" && mv "$pair_file.tmp" "$pair_file"
+}
+
+# The hiddev for one monitor: its stored pairing, else the one device no other
+# monitor is paired to. With more than one candidate left there is no way to
+# tell them apart, so refuse instead of dimming the wrong display.
+resolve_device() {
+  local key="$1" fresh="${2:-}" devices="" usb="" serial="" device="" other="" other_usb=""
+  local taken=" " candidates=()
+
+  devices="$(apple_display_devices "$fresh")" || return 1
+
+  if usb="$(paired_serial "$key")"; then
+    while read -r serial device; do
+      [[ $serial == "$usb" ]] && { printf '%s\n' "$device"; return 0; }
+    done <<<"$devices"
+    return 1
+  fi
+
+  while read -r _ other _; do
+    [[ -n $other && $other != "$key" ]] || continue
+    other_usb="$(paired_serial "$other")" && taken+="$other_usb "
+  done < <(apple_monitors)
+
+  while read -r serial device; do
+    [[ $taken == *" $serial "* ]] || candidates+=("$serial $device")
+  done <<<"$devices"
+
+  (( ${#candidates[@]} == 1 )) || return 2
+  read -r usb device <<<"${candidates[0]}"
+  save_pair "$key" "$usb"
   printf '%s\n' "$device"
+}
+
+target_monitor() {
+  local name="" key="" focused="" first="" count=0
+
+  while IFS=$'\t' read -r name key focused; do
+    (( count++ )) || first="$name"$'\t'"$key"
+    if [[ -n $monitor ]]; then
+      [[ $name == "$monitor" ]] && { printf '%s\t%s\n' "$name" "$key"; return 0; }
+    elif [[ $focused == "true" ]]; then
+      printf '%s\t%s\n' "$name" "$key"
+      return 0
+    fi
+  done < <(apple_monitors)
+
+  [[ -z $monitor ]] && (( count == 1 )) && { printf '%s\n' "$first"; return 0; }
+  return 1
 }
 
 current_brightness() {
@@ -69,47 +201,86 @@ current_brightness() {
   '
 }
 
-retry_with_fresh_device() {
-  rm -f "$device_cache"
-  device="$(find_apple_display_device || true)"
-  if [[ -z $device ]]; then
-    echo "No Apple Display HID device found" >&2
+pair_hint() {
+  echo "Can't tell which Apple display $1 is. Run: maitri brightness display apple --pair" >&2
+}
+
+device_for() {
+  local name="$1" key="$2" fresh="${3:-}" status=0
+
+  device="$(resolve_device "$key" "$fresh")" || status=$?
+  if (( status == 2 )); then
+    pair_hint "$name"
     exit 1
   fi
+  (( status == 0 )) && [[ -n $device ]]
 }
 
-apple_display_connected() {
-  local name
-  while IFS= read -r name; do
-    maitri-hyprland-monitor-focused-apple "$name" && return 0
-  done < <(hyprctl monitors -j 2>/dev/null | jq -r '.[].name')
-  return 1
-}
+reapply_display() {
+  local name="$1" key="$2" device="" level="" away="" back=""
 
-# After a reconnect, a Studio Display reports its saved brightness but drives the
-# panel dimmer until the brightness changes, so step one notch away and back.
-# Relative steps land on the exact saved value.
-if [[ ${1:-} == "--reapply" ]]; then
-  apple_display_connected || exit 0
-  device="$(find_apple_display_device || true)"
-  [[ -n $device ]] || exit 0
-  level="$(current_brightness "$device")" || exit 0
+  device_for "$name" "$key" || return 0
+  level="$(current_brightness "$device")" || return 0
   if (( level > 0 )); then
     away="-1%" back="+1%"
   else
     away="+1%" back="-1%"
   fi
-  sudo asdcontrol "$device" -- "$away" >/dev/null || exit 1
+  sudo asdcontrol "$device" -- "$away" >/dev/null || return 1
   sleep 0.3
   sudo asdcontrol "$device" -- "$back" >/dev/null
+}
+
+# After a reconnect, a Studio Display reports its saved brightness but drives the
+# panel dimmer until the brightness changes, so step one notch away and back.
+# Relative steps land on the exact saved value.
+if [[ $mode == "reapply" ]]; then
+  status=0
+  while IFS=$'\t' read -r name key _; do
+    [[ -z $monitor || $name == "$monitor" ]] || continue
+    reapply_display "$name" "$key" || status=1
+  done < <(apple_monitors)
+  exit "$status"
+fi
+
+if [[ $mode == "pair" ]]; then
+  [[ -t 0 && -t 1 ]] || { echo "--pair needs a terminal to ask which display dimmed" >&2; exit 1; }
+  devices="$(apple_display_devices fresh)" || { echo "No Apple Display HID device found" >&2; exit 1; }
+
+  while IFS=$'\t' read -r name key _; do
+    [[ -z $monitor || $name == "$monitor" ]] || continue
+    while read -r usb device; do
+      level="$(current_brightness "$device")" || continue
+      sudo asdcontrol "$device" -- 20% >/dev/null
+      sleep 1
+      read -r -p "Did $name get dimmer? [y/n] " answer
+      sudo asdcontrol "$device" -- "$level%" >/dev/null
+      if [[ $answer == [yY]* ]]; then
+        save_pair "$key" "$usb"
+        echo "$name is $device"
+        continue 2
+      fi
+    done <<<"$devices"
+    echo "Left $name unpaired" >&2
+  done < <(apple_monitors)
   exit
 fi
 
-device="$(find_apple_display_device || true)"
-if [[ -z $device ]]; then
+target="$(target_monitor)" || { echo "No Apple Display found" >&2; exit 1; }
+IFS=$'\t' read -r name key <<<"$target"
+
+device_for "$name" "$key" || {
   echo "No Apple Display HID device found" >&2
   exit 1
-fi
+}
+
+retry_with_fresh_device() {
+  rm -f "$device_cache"
+  device_for "$name" "$key" fresh || {
+    echo "No Apple Display HID device found" >&2
+    exit 1
+  }
+}
 
 if (( $# == 0 )); then
   if current_brightness "$device"; then
