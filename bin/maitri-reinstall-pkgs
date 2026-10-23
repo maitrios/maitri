@@ -8,7 +8,7 @@ set -e
 # Reinstall all default maitri packages from the stable channel and downgrade any packages that are too new.
 
 # Set the package repository to the stable mirrors
-maitri-refresh-pacman
+maitri-refresh-pacman stable
 
 # Downgrade any packages to the stable setup
 maitri-update-pacman -Suu --noconfirm
