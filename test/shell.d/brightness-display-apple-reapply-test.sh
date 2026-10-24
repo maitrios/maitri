@@ -31,18 +31,24 @@ printf '%s\n' "$*" >>"$MAITRI_TEST_CALLS"
 exit 0
 SH
 
+cat >"$stub_bin/readlink" <<'SH'
+#!/bin/bash
+[[ $2 == /sys/class/usbmisc/* ]] && exit 1
+exec /usr/bin/readlink "$@"
+SH
+
 cat >"$stub_bin/sleep" <<'SH'
 #!/bin/bash
 SH
 chmod +x "$stub_bin"/*
 
-apple_monitors='[{"name":"eDP-1","make":"Samsung Display Corp.","model":"ATNA40HQ09-0"},{"name":"DP-1","make":"Apple Computer Inc","model":"StudioDisplay"}]'
+apple_monitors='[{"name":"eDP-1","make":"Samsung Display Corp.","model":"ATNA40HQ09-0"},{"name":"DP-1","make":"Apple Computer Inc","model":"StudioDisplay","serial":"1"}]'
 other_monitors='[{"name":"eDP-1","make":"Samsung Display Corp.","model":"ATNA40HQ09-0"},{"name":"DP-2","make":"Dell Inc.","model":"U2723QE"}]'
 
 reapply() {
   printf '%s\n' "$1" >"$test_tmp/monitors.json"
   : >"$calls"
-  env XDG_RUNTIME_DIR="$test_tmp/run" MAITRI_TEST_MONITORS="$test_tmp/monitors.json" \
+  env XDG_RUNTIME_DIR="$test_tmp/run" XDG_STATE_HOME="$test_tmp/state" MAITRI_TEST_MONITORS="$test_tmp/monitors.json" \
     MAITRI_TEST_CALLS="$calls" MAITRI_TEST_BRIGHTNESS="${2:-60000}" \
     PATH="$stub_bin:$ROOT/bin:$PATH" "$ROOT/bin/maitri-brightness-display-apple" --reapply
 }
@@ -72,9 +78,9 @@ steps_at() {
     ln -s /proc/self/fd /dev/fd
     : >/dev/null
     mkdir -p /dev/usb && touch /dev/usb/hiddev0 && mount --bind "$tmp/null" /dev/usb/hiddev0
-    printf "/dev/usb/hiddev0\n" >"$tmp/run/maitri-brightness-display-apple.device"
+    printf "/dev/usb/hiddev0 /dev/usb/hiddev0\n" >"$tmp/run/maitri-brightness-display-apple.devices"
     : >"$tmp/asdcontrol.log"
-    env XDG_RUNTIME_DIR="$tmp/run" MAITRI_TEST_MONITORS="$tmp/monitors.json" \
+    env XDG_RUNTIME_DIR="$tmp/run" XDG_STATE_HOME="$tmp/state" MAITRI_TEST_MONITORS="$tmp/monitors.json" \
       MAITRI_TEST_CALLS="$tmp/asdcontrol.log" MAITRI_TEST_BRIGHTNESS="$brightness" \
       PATH="$tmp/bin:$3/bin:$PATH" "$3/bin/maitri-brightness-display-apple" --reapply
   ' _ "$test_tmp" "$1" "$ROOT"

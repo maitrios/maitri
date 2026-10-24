@@ -45,7 +45,7 @@ use_ddc_display() {
 
 if (( $# == 0 )); then
   if use_apple_display; then
-    maitri-brightness-display-apple
+    maitri-brightness-display-apple --monitor "$monitor"
     exit
   elif use_ddc_display; then
     maitri-brightness-display-ddc "$monitor"
@@ -78,9 +78,9 @@ flock -n "$lock_fd" || exit 0
 
 if use_apple_display; then
   if (( no_osd )); then
-    maitri-brightness-display-apple --no-osd "$step"
+    maitri-brightness-display-apple --no-osd --monitor "$monitor" "$step"
   else
-    maitri-brightness-display-apple "$step"
+    maitri-brightness-display-apple --monitor "$monitor" "$step"
   fi
 elif use_ddc_display; then
   brightness="$(maitri-brightness-display-ddc "$monitor" "$step")" || exit 1
