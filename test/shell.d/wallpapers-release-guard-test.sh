@@ -29,7 +29,7 @@ checkout="$test_tmp/checkout"
 git clone -q --no-tags "$origin" "$checkout"
 
 check_tag() {
-  (cd "$checkout" && "$ROOT/tools/wallpapers-check-tag.sh" "$@") >"$test_tmp/out" 2>"$test_tmp/err"
+  (cd "$checkout" && "$ROOT/tools/check-release-tag.sh" "$@") >"$test_tmp/out" 2>"$test_tmp/err"
 }
 
 check_tag v1.0.0 || fail "an annotated release tag on main passes" "$(cat "$test_tmp/err")"
@@ -79,9 +79,9 @@ publish_job=$(job publish)
 [[ $(grep -c "^    if: github.ref == 'refs/heads/main'$" "$workflow") == 2 ]] ||
   fail "both jobs only run on main"
 for definition in "$previews_job" "$publish_job"; do
-  grep -q 'tools/wallpapers-check-tag.sh "$TAG"' <<<"$definition" || fail "each job checks the tag"
+  grep -q 'tools/check-release-tag.sh "$TAG"' <<<"$definition" || fail "each job checks the tag"
 done
-guard=$(grep -n 'tools/wallpapers-check-tag.sh "$TAG"' <<<"$publish_job" | cut -d: -f1)
+guard=$(grep -n 'tools/check-release-tag.sh "$TAG"' <<<"$publish_job" | cut -d: -f1)
 first_secret=$(grep -n 'secrets\.' <<<"$publish_job" | head -n 1 | cut -d: -f1)
 [[ -n $guard && -n $first_secret ]] && (( guard < first_secret )) ||
   fail "the tag is checked before any step that sees a secret"
