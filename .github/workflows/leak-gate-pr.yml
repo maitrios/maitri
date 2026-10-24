@@ -1,0 +1,21 @@
+name: Leak gate PR
+
+# Starts leak-gate.yml for each PR event. That one checks the PR from main's
+# copy with the LEAK_PATTERN secret; this run gets no secrets and runs nothing
+# from the PR. test.yml covers tools/leak-gate.sh and tools/leak-gate-ci.sh.
+
+run-name: "Leak gate PR #${{ github.event.pull_request.number }}"
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+permissions: {}
+
+jobs:
+  start:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Hand over to leak-gate.yml
+        run: echo "leak-gate.yml checks this PR from main once this run finishes."
