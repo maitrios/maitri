@@ -1,0 +1,359 @@
+#!/usr/bin/python3
+# maitri:summary=Check an install set manifest against the schema and the no-secrets rules
+# maitri:group=set
+# maitri:args=<maitri-set.toml> [--json] | --choices <field>
+# maitri:examples=maitri set validate ./laptop.maitri-set.toml | maitri set validate laptop.toml --json
+"""Validate a maitri install set (maitri-set.toml, schema 1).
+
+A set is declarative. Every key it may hold is listed here, unknown keys are
+errors at every level, and every effect it can have is a key into the
+installer and step tables in maitri-set-apply, never a command line. Values
+that look like credentials are refused, since a set is meant to be shared as a
+public URL.
+
+--json prints the manifest with defaults filled in, for maitri-set-apply.
+--choices defaults.<kind> lists the values a default may take, for maitri-set-export.
+"""
+
+import json
+import math
+import re
+import sys
+import tomllib
+
+SCHEMA = 1
+MAX_BYTES = 256 * 1024
+
+INSTALLERS = {
+    "browser": ["chromium", "chrome", "brave", "brave-origin", "edge", "firefox", "zen"],
+    "terminal": ["alacritty", "ghostty", "kitty"],
+    "editor": ["emacs", "helix", "vscode", "zed"],
+    "service": ["1password", "dropbox", "nordvpn", "once", "signal", "spotify", "sunshine", "tailscale"],
+    "gaming": ["battlenet", "geforce-now", "gpu-lib32", "heroic", "lutris", "retroarch", "steam",
+               "xbox-cloud", "xbox-controllers"],
+    "ai": ["chatgpt", "hermes", "openclaw", "t3-code"],
+    "dev-env": ["ruby", "node", "bun", "deno", "go", "laravel", "symfony", "php", "python", "elixir",
+                "phoenix", "rust", "java", "zig", "ocaml", "dotnet", "clojure", "scala"],
+    "voxtype": [None],
+}
+STEPS = ["hibernation", "home-snapshots", "fido2", "fingerprint", "sudoless-docker", "sshd"]
+BROWSERS = ["helium", "chromium", "chrome", "brave", "brave-origin", "edge", "firefox", "zen"]
+EDITORS = ["code", "cursor", "zed", "sublime_text", "helix", "vim", "emacs", "nvim"]
+TERMINALS = ["alacritty", "foot", "ghostty", "kitty"]
+AGENTS = ["pi", "omp", "opencode", "claude", "codex", "grok", "gemini", "openclaw", "hermes", "copilot",
+          "crush", "cursor-agent", "muse"]
+HARDWARE_WHEN = ["laptop", "desktop", "intel", "nvidia", "fingerprint", "touchpad", "touchscreen",
+                 "framework16", "surface", "asus-rog"]
+# Removing these takes the desktop or the update path with it.
+PROTECTED_PACKAGES = {"base", "linux", "linux-firmware", "systemd", "pacman", "sudo", "hyprland", "quickshell",
+                      "uwsm", "sddm", "fish", "git", "gum", "jq", "yay", "networkmanager", "limine", "snapper"}
+
+PKG_NAME = re.compile(r"^[a-z0-9@_+][a-z0-9@._+-]*$")
+FLATPAK_ID = re.compile(r"^[A-Za-z][A-Za-z0-9_-]*(\.[A-Za-z0-9_-]+){2,}$")
+SET_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,38}/[a-z0-9][a-z0-9-]{0,62}$")
+THEME_NAME = re.compile(r"^[a-z0-9_][a-z0-9._+-]*$")
+PLUGIN_ID = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
+WEBAPP_NAME = re.compile(r"^[^/\x00-\x1f]{1,64}$")
+SHA256 = re.compile(r"^[0-9a-f]{64}$")
+GIT_REV = re.compile(r"^[0-9a-f]{40}$")
+HTTPS_URL = re.compile(r"^https://[A-Za-z0-9.-]+(:[0-9]+)?(/[^\s]*)?$")
+MIN_VERSION = re.compile(r"^>=\s*([0-9]+(\.[0-9]+){0,2})$")
+
+SECRET_KEY = re.compile(r"(token|secret|passw|apikey|api_key|credential|private|authkey|auth_key|cookie)", re.I)
+SECRET_VALUE = [
+    (re.compile(r"\b(ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{20,}"), "a GitHub token"),
+    (re.compile(r"\bgithub_pat_[A-Za-z0-9_]{20,}"), "a GitHub token"),
+    (re.compile(r"\bsk-[A-Za-z0-9_-]{16,}"), "an API key"),
+    (re.compile(r"\bxox[abprs]-[A-Za-z0-9-]{10,}"), "a Slack token"),
+    (re.compile(r"\bAKIA[0-9A-Z]{16}\b"), "an AWS key"),
+    (re.compile(r"\btskey-[A-Za-z0-9-]{10,}"), "a Tailscale auth key"),
+    (re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"), "a private key"),
+    (re.compile(r"\bop://"), "a 1Password reference"),
+    (re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"), "an email address"),
+    (re.compile(r"^[a-z][a-z0-9+.-]*://[^/\s@]*:[^/\s@]*@"), "a URL with credentials"),
+    (re.compile(r"[?&](token|key|secret|sig|signature|access_token|auth)=", re.I), "a URL with a credential parameter"),
+]
+
+
+errors = []
+
+
+def error(path, message):
+    errors.append(f"{path}: {message}")
+
+
+def entropy(text):
+    counts = {}
+    for char in text:
+        counts[char] = counts.get(char, 0) + 1
+    return -sum(n / len(text) * math.log2(n / len(text)) for n in counts.values())
+
+
+def looks_random(text):
+    # Long unbroken runs mixing cases and digits read as keys; words, paths
+    # and package names do not.
+    for run in re.findall(r"[A-Za-z0-9+/=_-]{24,}", text):
+        classes = sum(bool(re.search(p, run)) for p in (r"[a-z]", r"[A-Z]", r"[0-9]"))
+        if classes == 3 and entropy(run) > 4.0:
+            return True
+    return False
+
+
+def scan_secrets(value, path, hash_field=False):
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if SECRET_KEY.search(key):
+                error(f"{path}.{key}", "key names a credential; secrets never go in a set")
+            scan_secrets(item, f"{path}.{key}", key in ("rev", "pkgbuild_sha256"))
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            scan_secrets(item, f"{path}[{index}]")
+    elif isinstance(value, str):
+        for pattern, what in SECRET_VALUE:
+            if pattern.search(value):
+                error(path, f"looks like {what}; secrets never go in a set")
+                return
+        if not hash_field and looks_random(value):
+            error(path, "looks like a random token; secrets never go in a set")
+
+
+def check_keys(table, path, allowed):
+    for key in table:
+        if key not in allowed:
+            error(f"{path}.{key}" if path else key, "unknown key")
+
+
+def table(doc, key, path=""):
+    value = doc.get(key, {})
+    if not isinstance(value, dict):
+        error(f"{path}{key}", "must be a table")
+        return {}
+    return value
+
+
+def string(value, path, pattern=None, choices=None, required=False):
+    if value is None:
+        if required:
+            error(path, "is required")
+        return None
+    if not isinstance(value, str):
+        error(path, "must be a string")
+        return None
+    if choices is not None and value not in choices:
+        error(path, f"must be one of: {', '.join(choices)}")
+    elif pattern is not None and not pattern.match(value):
+        error(path, f"is not valid: {value!r}")
+    return value
+
+
+def string_list(value, path, pattern=None, choices=None):
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        error(path, "must be a list")
+        return []
+    seen = []
+    for index, item in enumerate(value):
+        item = string(item, f"{path}[{index}]", pattern, choices)
+        if item is not None:
+            if item in seen:
+                error(f"{path}[{index}]", f"is listed twice: {item}")
+            seen.append(item)
+    return seen
+
+
+def boolean(value, path, default):
+    if value is None:
+        return default
+    if not isinstance(value, bool):
+        error(path, "must be true or false")
+        return default
+    return value
+
+
+def table_list(value, path):
+    if value is None:
+        return []
+    if not isinstance(value, list) or not all(isinstance(item, dict) for item in value):
+        error(path, "must be a list of tables")
+        return []
+    return value
+
+
+def installer_key(value, path):
+    if not isinstance(value, str):
+        error(path, "must be a string")
+        return None
+    group, _, choice = value.partition(":")
+    if group not in INSTALLERS:
+        error(path, f"unknown installer {value!r}; installers are {', '.join(sorted(INSTALLERS))}")
+        return None
+    options = INSTALLERS[group]
+    if options == [None]:
+        if choice:
+            error(path, f"{group} takes no choice")
+            return None
+    elif choice not in options:
+        error(path, f"{group} must be one of: {', '.join(f'{group}:{o}' for o in options)}")
+        return None
+    return value
+
+
+def validate(doc):
+    check_keys(doc, "", {"schema", "id", "name", "description", "maitri", "channel", "packages", "flatpak",
+                         "installers", "theme", "fonts", "defaults", "plugins", "webapps", "hardware", "steps",
+                         "dotfiles"})
+
+    schema = doc.get("schema")
+    if schema != SCHEMA:
+        error("schema", f"must be {SCHEMA} (this maitri reads schema {SCHEMA})")
+    out = {"schema": SCHEMA}
+    out["id"] = string(doc.get("id"), "id", SET_ID, required=True)
+    out["name"] = string(doc.get("name"), "name", required=True)
+    out["description"] = string(doc.get("description"), "description") or ""
+    maitri = string(doc.get("maitri"), "maitri", MIN_VERSION)
+    out["maitri_min"] = MIN_VERSION.match(maitri).group(1) if maitri and MIN_VERSION.match(maitri) else ""
+
+    channel = table(doc, "channel")
+    check_keys(channel, "channel", {"maitri"})
+    out["channel"] = string(channel.get("maitri"), "channel.maitri", choices=["stable", "edge"]) or ""
+
+    packages = table(doc, "packages")
+    check_keys(packages, "packages", {"add", "remove", "aur"})
+    add = string_list(packages.get("add"), "packages.add", PKG_NAME)
+    remove = string_list(packages.get("remove"), "packages.remove", PKG_NAME)
+    for name in remove:
+        if name in PROTECTED_PACKAGES or name.startswith("maitri"):
+            error("packages.remove", f"{name} is part of the maitri core and can't be removed by a set")
+        if name in add:
+            error("packages.remove", f"{name} is in both add and remove")
+    aur = []
+    for index, entry in enumerate(table_list(packages.get("aur"), "packages.aur")):
+        path = f"packages.aur[{index}]"
+        check_keys(entry, path, {"name", "pkgbuild_sha256"})
+        name = string(entry.get("name"), f"{path}.name", PKG_NAME, required=True)
+        pin = string(entry.get("pkgbuild_sha256"), f"{path}.pkgbuild_sha256", SHA256) or ""
+        if name and name in add:
+            error(path, f"{name} is in both packages.add and packages.aur")
+        if name:
+            aur.append({"name": name, "pkgbuild_sha256": pin})
+    out["packages"] = {"add": add, "remove": remove, "aur": aur}
+
+    flatpak = table(doc, "flatpak")
+    check_keys(flatpak, "flatpak", {"remote", "apps"})
+    string(flatpak.get("remote"), "flatpak.remote", choices=["flathub"])
+    out["flatpak"] = {"remote": "flathub", "apps": string_list(flatpak.get("apps"), "flatpak.apps", FLATPAK_ID)}
+
+    installers = table(doc, "installers")
+    check_keys(installers, "installers", {"run"})
+    run = installers.get("run", [])
+    if not isinstance(run, list):
+        error("installers.run", "must be a list")
+        run = []
+    out["installers"] = [key for i, item in enumerate(run) if (key := installer_key(item, f"installers.run[{i}]"))]
+
+    theme = table(doc, "theme")
+    check_keys(theme, "theme", {"name"})
+    out["theme"] = string(theme.get("name"), "theme.name", THEME_NAME) or ""
+
+    fonts = table(doc, "fonts")
+    check_keys(fonts, "fonts", {"mono"})
+    out["font"] = string(fonts.get("mono"), "fonts.mono", re.compile(r"^[A-Za-z0-9 ._+-]{1,64}$")) or ""
+
+    defaults = table(doc, "defaults")
+    check_keys(defaults, "defaults", {"browser", "editor", "terminal", "agent"})
+    out["defaults"] = {
+        "browser": string(defaults.get("browser"), "defaults.browser", choices=BROWSERS) or "",
+        "editor": string(defaults.get("editor"), "defaults.editor", choices=EDITORS) or "",
+        "terminal": string(defaults.get("terminal"), "defaults.terminal", choices=TERMINALS) or "",
+        "agent": string(defaults.get("agent"), "defaults.agent", choices=AGENTS) or "",
+    }
+
+    plugins = table(doc, "plugins")
+    check_keys(plugins, "plugins", {"add"})
+    out["plugins"] = []
+    for index, entry in enumerate(table_list(plugins.get("add"), "plugins.add")):
+        path = f"plugins.add[{index}]"
+        check_keys(entry, path, {"id", "git", "rev", "enable", "when"})
+        out["plugins"].append({
+            "id": string(entry.get("id"), f"{path}.id", PLUGIN_ID, required=True) or "",
+            "git": string(entry.get("git"), f"{path}.git", HTTPS_URL, required=True) or "",
+            "rev": string(entry.get("rev"), f"{path}.rev", GIT_REV) or "",
+            "enable": boolean(entry.get("enable"), f"{path}.enable", True),
+            "when": string(entry.get("when"), f"{path}.when", choices=HARDWARE_WHEN) or "",
+        })
+
+    webapps = table(doc, "webapps")
+    check_keys(webapps, "webapps", {"add", "remove"})
+    out["webapps"] = {"add": [], "remove": string_list(webapps.get("remove"), "webapps.remove", WEBAPP_NAME)}
+    for index, entry in enumerate(table_list(webapps.get("add"), "webapps.add")):
+        path = f"webapps.add[{index}]"
+        check_keys(entry, path, {"name", "url", "icon"})
+        out["webapps"]["add"].append({
+            "name": string(entry.get("name"), f"{path}.name", WEBAPP_NAME, required=True) or "",
+            "url": string(entry.get("url"), f"{path}.url", HTTPS_URL, required=True) or "",
+            "icon": string(entry.get("icon"), f"{path}.icon", HTTPS_URL, required=True) or "",
+        })
+
+    hardware = table(doc, "hardware")
+    check_keys(hardware, "hardware", {"form_factor"})
+    out["form_factor"] = string(hardware.get("form_factor"), "hardware.form_factor",
+                                choices=["laptop", "desktop", "auto"]) or "auto"
+
+    steps = table(doc, "steps")
+    check_keys(steps, "steps", {"run"})
+    out["steps"] = string_list(steps.get("run"), "steps.run", choices=STEPS)
+
+    dotfiles = table(doc, "dotfiles")
+    check_keys(dotfiles, "dotfiles", {"chezmoi"})
+    out["dotfiles"] = string(dotfiles.get("chezmoi"), "dotfiles.chezmoi", HTTPS_URL) or ""
+
+    scan_secrets(doc, "set")
+    return out
+
+
+CHOICES = {"defaults.browser": BROWSERS, "defaults.editor": EDITORS, "defaults.terminal": TERMINALS,
+           "defaults.agent": AGENTS}
+
+
+def main(argv):
+    if len(argv) == 2 and argv[0] == "--choices" and argv[1] in CHOICES:
+        print("\n".join(CHOICES[argv[1]]))
+        return 0
+    as_json = "--json" in argv
+    args = [a for a in argv if a != "--json"]
+    if len(args) != 1 or args[0] in ("-h", "--help"):
+        print("Usage: maitri set validate <maitri-set.toml> [--json]", file=sys.stderr)
+        return 0 if args and args[0] in ("-h", "--help") else 2
+
+    try:
+        with open(args[0], "rb") as handle:
+            raw = handle.read(MAX_BYTES + 1)
+    except OSError as exc:
+        print(f"maitri-set-validate: {exc.strerror}: {args[0]}", file=sys.stderr)
+        return 2
+    if len(raw) > MAX_BYTES:
+        print(f"maitri-set-validate: {args[0]} is larger than {MAX_BYTES // 1024} KiB", file=sys.stderr)
+        return 1
+    try:
+        doc = tomllib.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, tomllib.TOMLDecodeError) as exc:
+        print(f"maitri-set-validate: {args[0]} is not valid TOML: {exc}", file=sys.stderr)
+        return 1
+
+    out = validate(doc)
+    if errors:
+        for line in errors:
+            print(f"maitri-set-validate: {line}", file=sys.stderr)
+        print(f"maitri-set-validate: {args[0]} is not a valid install set ({len(errors)} problem"
+              f"{'' if len(errors) == 1 else 's'})", file=sys.stderr)
+        return 1
+    if as_json:
+        print(json.dumps(out))
+    else:
+        print(f"{args[0]}: valid install set {out['id']} (schema {SCHEMA})")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

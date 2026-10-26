@@ -1,0 +1,61 @@
+# Andrew's maitri: the apps, theme, plugins and agent he runs on top of a
+# fresh install, for the Framework Desktop and the ThinkPad X1.
+# Anything that names a k7 host or org, needs a login or holds a credential
+# (Cloudflare WARP, UniFi, Tailscale auth, 1Password and git config) lives in
+# chezmoi, not here.
+schema = 1
+id = "andrew/workstation"
+name = "Andrew's workstation"
+description = "maitri with Andrew's apps, for the Framework Desktop and the ThinkPad X1"
+maitri = ">=0.7.1"
+
+[packages]
+add = [
+  "1password-beta", "1password-cli", "github-cli", "doctl", "paper-desktop",
+  "fwupd", "fprintd", "pam-u2f", "usbutils", "usbmuxd", "dmidecode", "wget",
+  "freerdp", "tigervnc", "wine", "wine-mono", "qt6-tools", "wev", "fuse2",
+  "openbsd-netcat", "cmark-gfm",
+]
+# docker-desktop conflicts with these two, so it only installs with --prune.
+# ex-vi-compat (replacing vi) is left out for the same reason; it's a one-off swap.
+remove = ["docker-buildx", "docker-compose"]
+aur = [
+  { name = "beeper-bin" },
+  { name = "claude-desktop-extra" },
+  { name = "docker-desktop" },
+  { name = "etcher-bin" },
+  { name = "fastmail" },
+  { name = "figma-linux-next" },
+  { name = "gh-dash-bin" },
+  { name = "gitkraken" },
+  { name = "gitkraken-cli-bin" },
+  { name = "hyprmon-bin" },
+  { name = "kepler" },
+  { name = "linear-bin" },
+  { name = "slack-desktop" },
+  { name = "zoom" },
+  { name = "debtap" },
+  { name = "debtap-gui-gtk" },
+]
+
+[installers]
+run = [
+  "browser:zen", "browser:chrome", "browser:chromium",
+  "service:signal", "service:spotify", "service:tailscale",
+  "ai:chatgpt", "voxtype",
+]
+
+[theme]
+name = "amethyst"
+
+[defaults]
+agent = "claude"
+
+[plugins]
+add = [
+  { id = "maitrios.trackpoint", git = "https://github.com/maitrios/maitri-trackpoint.git", rev = "a55b33df00a2c6331c8f1a15ed39126b8a1d2d8b", when = "laptop" },
+  { id = "maitrios.cellular", git = "https://github.com/maitrios/maitri-cellular.git", rev = "a9c9d876a8f0116957425eec370b18e9b3558709", when = "laptop" },
+]
+
+[steps]
+run = ["fido2", "home-snapshots"]
