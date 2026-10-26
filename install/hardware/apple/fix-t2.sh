@@ -3,6 +3,11 @@
 if lspci -nn | grep "106b:180[12]" >/dev/null; then
   echo "Detected MacBook with T2 chip. Installing support items..."
 
+  # apple-bcm-firmware-fetcher reads its firmware off an on-disk macOS volume —
+  # Wi-Fi firmware for T2 Macs is only legally obtainable from there. A
+  # single-boot install that wiped macOS has no such volume, so the fetch comes
+  # up empty; those machines need the firmware supplied from a macOS copy or a
+  # downloaded recovery image instead.
   maitri-pkg-add \
     linux-t2 \
     linux-t2-headers \

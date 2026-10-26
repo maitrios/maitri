@@ -42,7 +42,7 @@ assert(
 
 for (const fn of ['lock', 'isLocked', 'status']) {
   assert(
-    new RegExp(`function ${fn}\\(\\): string \\{\\s*root\\.syncSessionLocked\\(\\)`).test(serviceQml),
+    new RegExp(`function ${fn}\\(\\): string \\{\\s*(root\\.syncSessionLocked\\(\\)|return root\\.currentlyLocked\\(\\))`).test(serviceQml),
     `the ${fn} IPC re-reads the session lock before answering`
   )
 }

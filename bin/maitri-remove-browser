@@ -7,14 +7,14 @@
 
 set_fallback_default_browser() {
   local current_browser
-  current_browser=$(env -u BROWSER xdg-settings get default-web-browser)
+  current_browser=$(maitri-cmd-default-browser)
 
   if [[ $current_browser != $1 ]]; then
     return
   fi
 
   if maitri-cmd-present helium; then
-    env -u BROWSER xdg-settings set default-web-browser helium.desktop || true
+    env -u BROWSER XDG_CURRENT_DESKTOP= xdg-settings set default-web-browser helium.desktop || true
   fi
 }
 
@@ -30,12 +30,14 @@ chrome)
   set_fallback_default_browser google-chrome.desktop
   maitri-pkg-drop google-chrome
   rm -f ~/.config/chrome-flags.conf
+  sudo rm -f /etc/opt/chrome/policies/managed/color.json /etc/opt/chrome/policies/managed/maitri.json
   ;;
 edge)
   echo "Removing Edge..."
   set_fallback_default_browser microsoft-edge.desktop
   maitri-pkg-drop microsoft-edge-stable-bin
   rm -f ~/.config/microsoft-edge-stable-flags.conf
+  sudo rm -f /etc/opt/edge/policies/managed/color.json /etc/opt/edge/policies/managed/maitri.json
   ;;
 brave)
   echo "Removing Brave..."

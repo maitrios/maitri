@@ -37,6 +37,8 @@ PROTECTED_TOKENS=(
   # Upstream of the vendored maitri.display panel, and the fork its scale row comes from.
   'crmne/omarchy-hyprmoncfg'
   'gdeyoung/omarchy-displayplus'
+  # Quickshell pragma read by omarchy-pkgs' patched quickshell; Arch's quickshell only warns on it.
+  'OmarchyLoadPatch'
 )
 
 # Files whose contents are never rewritten.
@@ -92,6 +94,12 @@ DELETE_LIST=(
   'test/shell.d/omarchy-kernel-migration-test.sh'
   'test/shell.d/kernel-headers-migration-test.sh'
   'test/shell.d/limine-defaults-test.sh'
+  # Omarchy 4.0.5's Dell XPS 13 DX13260 speaker firmware needs linux-firmware-cirrus-dx13260,
+  # which maitri-pkgs doesn't build.
+  'bin/omarchy-hw-dell-xps13-dx13260-ptl'
+  'install/hardware/dell-xps13-ptl-speaker-firmware.sh'
+  'migrations/1791265613.sh'
+  'test/shell.d/xps13-ptl-firmware-test.sh'
   # hyprmoncfgd owns monitor config and the vendored maitri.display panel replaces the
   # stock Display panel; see AGENTS.md.
   'shell/plugins/panels/monitor'
