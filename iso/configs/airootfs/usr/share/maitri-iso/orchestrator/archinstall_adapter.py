@@ -3,7 +3,7 @@
 ONLY this module imports from archinstall. Everything else uses these helpers.
 If archinstall's API churns, the blast radius is contained here.
 
-Tested against archinstall 4.4 (Python 3.14).
+Tested against archinstall 4.4 and 4.5 (Python 3.14).
 
 The canonical call sequence (mirrored from archinstall.scripts.guided.py) is:
 
@@ -13,7 +13,7 @@ The canonical call sequence (mirrored from archinstall.scripts.guided.py) is:
         # configs do their own mounting before the Installer context opens.
         if disk_config.config_type != DiskLayoutType.Pre_mount:
             inst.mount_ordered_layout()
-        inst.sanity_check(offline=, skip_ntp=, skip_wkd=)
+        inst.sanity_check(skip_ntp=, skip_wkd=)       # 4.4 also takes offline=
         inst.generate_key_files()                     # encrypted only
         inst.set_mirrors(handler, mirror_config, on_target=False)
         inst.minimal_installation(...)                # base + linux pacstrap
@@ -35,6 +35,7 @@ from the start.
 from __future__ import annotations
 
 import importlib
+import inspect
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
@@ -76,6 +77,15 @@ def load_arch_config(config_path: Path, creds_path: Path) -> ArchConfigHandler:
         return ArchConfigHandler()
     finally:
         sys.argv = saved_argv
+
+
+def sanity_check(installer: Installer, *, skip_ntp: bool, skip_wkd: bool) -> None:
+    # archinstall 4.5 dropped `offline` (it no longer waits on reflector at all);
+    # 4.4 still takes it and would wait up to a minute for reflector without it.
+    kwargs = {"skip_ntp": skip_ntp, "skip_wkd": skip_wkd}
+    if "offline" in inspect.signature(installer.sanity_check).parameters:
+        kwargs["offline"] = True
+    installer.sanity_check(**kwargs)
 
 
 def make_mirror_handler(offline: bool = True) -> MirrorListHandler:
