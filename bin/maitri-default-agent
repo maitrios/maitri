@@ -5,8 +5,14 @@
 # maitri:examples=maitri default agent | maitri default agent codex | maitri default agent claude
 
 installing=false
+launch=true
 if [[ ${1:-} == "--install" ]]; then
   installing=true
+  shift
+elif [[ ${1:-} == "--no-launch" ]]; then
+  # maitri-set-apply sets the agent without opening it.
+  installing=true
+  launch=false
   shift
 fi
 
@@ -90,6 +96,8 @@ fi
 
 mkdir -p "$(dirname "$agent_file")"
 printf '%s\n' "$agent" >"$agent_file"
+
+[[ $launch == "true" ]] || exit 0
 
 if [[ $installing == "true" ]]; then
   printf '\033[2J\033[3J\033[H'
