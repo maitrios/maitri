@@ -307,6 +307,7 @@
   "remove.browser.brave-origin": {"icon":"","label":"Brave Origin","when":"maitri-pkg-present brave-origin-bin","action":"maitri-launch-floating-terminal-with-presentation 'maitri-remove-browser brave-origin'"},
   "remove.browser.firefox": {"icon":"","label":"Firefox","when":"maitri-pkg-present firefox","action":"maitri-launch-floating-terminal-with-presentation 'maitri-remove-browser firefox'"},
   "remove.browser.zen": {"icon":"","label":"Zen","when":"maitri-pkg-present zen-browser-bin","action":"maitri-launch-floating-terminal-with-presentation 'maitri-remove-browser zen'"},
+  "remove.service.1password": {"icon":"󰢁","label":"1Password","when":"maitri-pkg-present 1password","action":"maitri-launch-floating-terminal-with-presentation maitri-remove-service-1password"},
   "remove.service.dropbox": {"icon":"","label":"Dropbox","when":"maitri-pkg-present dropbox","action":"maitri-launch-floating-terminal-with-presentation maitri-remove-service-dropbox"},
   "remove.service.tailscale": {"icon":"","label":"Tailscale","when":"maitri-pkg-present tailscale","action":"maitri-launch-floating-terminal-with-presentation maitri-remove-service-tailscale"},
   "remove.gaming.steam": {"icon":"","label":"Steam","when":"maitri-pkg-present steam","action":"maitri-launch-floating-terminal-with-presentation maitri-remove-gaming-steam"},
