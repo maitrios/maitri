@@ -17,6 +17,7 @@ public URL.
 
 import json
 import math
+import os
 import re
 import sys
 import tomllib
@@ -44,20 +45,39 @@ AGENTS = ["pi", "omp", "opencode", "claude", "codex", "grok", "gemini", "opencla
           "crush", "cursor-agent", "muse"]
 HARDWARE_WHEN = ["laptop", "desktop", "intel", "nvidia", "fingerprint", "touchpad", "touchscreen",
                  "framework16", "surface", "asus-rog"]
-# Removing these takes the desktop or the update path with it.
-PROTECTED_PACKAGES = {"base", "linux", "linux-firmware", "systemd", "pacman", "sudo", "hyprland", "quickshell",
-                      "uwsm", "sddm", "fish", "git", "gum", "jq", "yay", "networkmanager", "limine", "snapper"}
+# A set may drop maitri's own packages only where maitri-remove-preinstalls
+# already offers to; everything else in maitri's lists, and the system itself,
+# stays. install-set-test.sh keeps this in step with that command.
+REMOVABLE_PREINSTALLS = {"libreoffice-fresh", "xournalpp", "pinta", "obsidian", "obs-studio", "kdenlive",
+                         "moonlight-qt", "lazydocker"}
+SYSTEM_PACKAGES = {"bash", "glibc", "systemd", "pacman", "sudo", "mkinitcpio", "linux", "linux-firmware",
+                   "pipewire", "wireplumber", "networkmanager"}
+
+
+def maitri_packages():
+    packages = set()
+    for name in ("maitri-base.packages", "maitri-other.packages"):
+        try:
+            with open(os.path.join(os.environ["MAITRI_PATH"], "install", name)) as handle:
+                packages.update(line.strip() for line in handle if line.strip() and not line.startswith("#"))
+        except (KeyError, OSError):
+            continue
+    return packages
 
 PKG_NAME = re.compile(r"^[a-z0-9@_+][a-z0-9@._+-]*$")
 FLATPAK_ID = re.compile(r"^[A-Za-z][A-Za-z0-9_-]*(\.[A-Za-z0-9_-]+){2,}$")
 SET_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,38}/[a-z0-9][a-z0-9-]{0,62}$")
 THEME_NAME = re.compile(r"^[a-z0-9_][a-z0-9._+-]*$")
 PLUGIN_ID = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
-WEBAPP_NAME = re.compile(r"^[^/\x00-\x1f]{1,64}$")
+WEBAPP_NAME = re.compile(r"^[^/\\-][^/\\]{0,63}$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 GIT_REV = re.compile(r"^[0-9a-f]{40}$")
 HTTPS_URL = re.compile(r"^https://[A-Za-z0-9.-]+(:[0-9]+)?(/[^\s]*)?$")
 MIN_VERSION = re.compile(r"^>=\s*([0-9]+(\.[0-9]+){0,2})$")
+
+# Escape sequences and bidi overrides could rewrite the plan apply prints
+# before the user confirms it.
+CONTROL = re.compile(r"[\x00-\x1f\x7f-\x9f\u200e\u200f\u202a-\u202e\u2066-\u2069]")
 
 SECRET_KEY = re.compile(r"(token|secret|passw|apikey|api_key|credential|private|authkey|auth_key|cookie)", re.I)
 SECRET_VALUE = [
@@ -71,7 +91,7 @@ SECRET_VALUE = [
     (re.compile(r"\bop://"), "a 1Password reference"),
     (re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"), "an email address"),
     (re.compile(r"^[a-z][a-z0-9+.-]*://[^/\s@]*:[^/\s@]*@"), "a URL with credentials"),
-    (re.compile(r"[?&](token|key|secret|sig|signature|access_token|auth)=", re.I), "a URL with a credential parameter"),
+    (re.compile(r"[?&#;](token|key|secret|sig|signature|access_token|auth)=", re.I), "a URL with a credential parameter"),
 ]
 
 
@@ -139,9 +159,12 @@ def string(value, path, pattern=None, choices=None, required=False):
     if not isinstance(value, str):
         error(path, "must be a string")
         return None
+    if CONTROL.search(value):
+        error(path, "contains control characters")
+        return None
     if choices is not None and value not in choices:
         error(path, f"must be one of: {', '.join(choices)}")
-    elif pattern is not None and not pattern.match(value):
+    elif pattern is not None and not pattern.fullmatch(value):
         error(path, f"is not valid: {value!r}")
     return value
 
@@ -205,14 +228,14 @@ def validate(doc):
                          "dotfiles"})
 
     schema = doc.get("schema")
-    if schema != SCHEMA:
+    if type(schema) is not int or schema != SCHEMA:
         error("schema", f"must be {SCHEMA} (this maitri reads schema {SCHEMA})")
     out = {"schema": SCHEMA}
     out["id"] = string(doc.get("id"), "id", SET_ID, required=True)
     out["name"] = string(doc.get("name"), "name", required=True)
     out["description"] = string(doc.get("description"), "description") or ""
     maitri = string(doc.get("maitri"), "maitri", MIN_VERSION)
-    out["maitri_min"] = MIN_VERSION.match(maitri).group(1) if maitri and MIN_VERSION.match(maitri) else ""
+    out["maitri_min"] = MIN_VERSION.fullmatch(maitri).group(1) if maitri and MIN_VERSION.fullmatch(maitri) else ""
 
     channel = table(doc, "channel")
     check_keys(channel, "channel", {"maitri"})
@@ -222,8 +245,9 @@ def validate(doc):
     check_keys(packages, "packages", {"add", "remove", "aur"})
     add = string_list(packages.get("add"), "packages.add", PKG_NAME)
     remove = string_list(packages.get("remove"), "packages.remove", PKG_NAME)
+    protected = (maitri_packages() | SYSTEM_PACKAGES) - REMOVABLE_PREINSTALLS
     for name in remove:
-        if name in PROTECTED_PACKAGES or name.startswith("maitri"):
+        if name in protected or name.startswith("maitri"):
             error("packages.remove", f"{name} is part of the maitri core and can't be removed by a set")
         if name in add:
             error("packages.remove", f"{name} is in both add and remove")
@@ -258,7 +282,7 @@ def validate(doc):
 
     fonts = table(doc, "fonts")
     check_keys(fonts, "fonts", {"mono"})
-    out["font"] = string(fonts.get("mono"), "fonts.mono", re.compile(r"^[A-Za-z0-9 ._+-]{1,64}$")) or ""
+    out["font"] = string(fonts.get("mono"), "fonts.mono", re.compile(r"^[A-Za-z0-9][A-Za-z0-9 ._+-]{0,63}$")) or ""
 
     defaults = table(doc, "defaults")
     check_keys(defaults, "defaults", {"browser", "editor", "terminal", "agent"})
@@ -313,7 +337,7 @@ def validate(doc):
 
 
 CHOICES = {"defaults.browser": BROWSERS, "defaults.editor": EDITORS, "defaults.terminal": TERMINALS,
-           "defaults.agent": AGENTS}
+           "defaults.agent": AGENTS, "packages.remove": sorted(REMOVABLE_PREINSTALLS)}
 
 
 def main(argv):
@@ -342,6 +366,12 @@ def main(argv):
         return 1
 
     out = validate(doc)
+    for number, line in enumerate(raw.decode("utf-8").splitlines(), 1):
+        if line.lstrip().startswith("#"):
+            for pattern, what in SECRET_VALUE:
+                if pattern.search(line):
+                    error(f"line {number}", f"comment looks like {what}; secrets never go in a set")
+                    break
     if errors:
         for line in errors:
             print(f"maitri-set-validate: {line}", file=sys.stderr)

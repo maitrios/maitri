@@ -23,7 +23,13 @@ fail() {
   exit 1
 }
 
-set_id="$(id -un | tr '[:upper:]_' '[:lower:]-')/$(uname -n | tr '[:upper:]_' '[:lower:]-')"
+slug() {
+  local value
+  value=$(tr '[:upper:]' '[:lower:]' <<<"$1" | tr -c 'a-z0-9\n' '-' | sed 's/^-*//; s/-*$//')
+  printf '%s' "${value:0:$2}"
+}
+
+set_id="$(slug "$(id -un)" 39)/$(slug "$(uname -n | cut -d. -f1)" 63)"
 set_name=""
 output=""
 
@@ -66,8 +72,7 @@ not_maitri() {
 
 mapfile -t added < <(pacman -Qqen | not_maitri)
 mapfile -t aur < <(pacman -Qqem | not_maitri)
-mapfile -t removed < <(grep -v '^[[:space:]]*#' "$MAITRI_PATH/install/maitri-base.packages" |
-  sed 's/[[:space:]]//g; /^$/d' | sort -u | comm -23 - <(pacman -Qq | sort -u))
+mapfile -t removed < <(maitri-set-validate --choices packages.remove | sort -u | comm -23 - <(pacman -Qq | sort -u))
 
 flatpaks=()
 if maitri-cmd-present flatpak; then
@@ -80,6 +85,7 @@ theme=""
 declare -A defaults
 for kind in browser editor terminal agent; do
   value=$("maitri-default-$kind" 2>/dev/null || true)
+  [[ $kind == "editor" && $value == "zeditor" ]] && value=zed
   defaults[$kind]=""
   if maitri-set-validate --choices "defaults.$kind" | grep -qxF -- "$value"; then
     defaults[$kind]=$value
@@ -133,9 +139,9 @@ font=$(maitri-font-current 2>/dev/null || true)
   for dir in "$HOME"/.config/maitri/plugins/*/; do
     [[ -f $dir/manifest.json && -d $dir/.git ]] || continue
     id=$(jq -r '.id // empty' "$dir/manifest.json")
-    git=$(git -C "$dir" remote get-url origin 2>/dev/null || true)
+    git=$(git -C "$dir" remote get-url origin 2>/dev/null | sed -E 's#^https://[^/@]*@#https://#' || true)
     rev=$(git -C "$dir" rev-parse HEAD 2>/dev/null || true)
-    [[ -n $id && $git == https://* ]] || continue
+    [[ -n $id && -n $rev && $git == https://* ]] || continue
     plugin_lines+=("  { id = $(toml_string "$id"), git = $(toml_string "$git"), rev = $(toml_string "$rev") },")
   done
   if (( ${#plugin_lines[@]} > 0 )); then

@@ -16,13 +16,11 @@ add = [
   "freerdp", "tigervnc", "wine", "wine-mono", "qt6-tools", "wev", "fuse2",
   "openbsd-netcat", "cmark-gfm",
 ]
-# docker-desktop conflicts with these two, so it only installs with --prune.
-# ex-vi-compat (replacing vi) is left out for the same reason; it's a one-off swap.
-remove = ["docker-buildx", "docker-compose"]
+# Docker is maitri's engine (docker, buildx, compose), not docker-desktop.
+# ex-vi-compat is left out: it conflicts with maitri's vi, a one-off swap.
 aur = [
   { name = "beeper-bin" },
   { name = "claude-desktop-extra" },
-  { name = "docker-desktop" },
   { name = "etcher-bin" },
   { name = "fastmail" },
   { name = "figma-linux-next" },

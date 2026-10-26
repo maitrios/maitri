@@ -153,6 +153,83 @@ description = "aK9fQ2xLm7Pz4RtV8wYb3NcJ6hGd"
 TOML
 )" "looks like a random token"
 
+expect_invalid "maitri's own packages can't be removed" "$(write_set base-remove <<'TOML'
+schema = 1
+id = "bob/laptop"
+name = "x"
+[packages]
+remove = ["plymouth"]
+TOML
+)" "part of the maitri core"
+
+removable=$(write_set removable <<'TOML'
+schema = 1
+id = "bob/laptop"
+name = "x"
+[packages]
+remove = ["libreoffice-fresh", "kdenlive"]
+TOML
+)
+"$validate" "$removable" >/dev/null || fail "removable preinstalls can be removed" "$("$validate" "$removable" 2>&1)"
+pass "removable preinstalls can be removed"
+
+preinstalls=$(sed -n '/maitri-pkg-drop/,/^fi/p' "$ROOT/bin/maitri-remove-preinstalls" | grep -oE '^ +[a-z0-9-]+' | tr -d ' ' | grep -v '^maitri' | sort | paste -sd' ')
+[[ $preinstalls == "$("$validate" --choices packages.remove | sort | paste -sd' ')" ]] ||
+  fail "removable preinstalls match maitri-remove-preinstalls" "$preinstalls"
+pass "removable preinstalls match maitri-remove-preinstalls"
+
+expect_invalid "an escape sequence is refused" "$(printf 'schema = 1\nid = "bob/laptop"\nname = "x\\u001b[2J"\n' | write_set escape)" "contains control characters"
+expect_invalid "a trailing newline is refused" "$(write_set newline <<'TOML'
+schema = 1
+id = "bob/laptop\n"
+name = "x"
+TOML
+)" "contains control characters"
+
+expect_invalid "a web app name with a backslash is refused" "$(write_set backslash <<'TOML'
+schema = 1
+id = "bob/laptop"
+name = "x"
+[[webapps.add]]
+name = 'a\b'
+url = "https://example.com"
+icon = "https://example.com/icon.png"
+TOML
+)" "webapps.add[0].name: is not valid"
+
+expect_invalid "a font that reads as an option is refused" "$(write_set dash-font <<'TOML'
+schema = 1
+id = "bob/laptop"
+name = "x"
+[fonts]
+mono = "-h"
+TOML
+)" "fonts.mono: is not valid"
+
+expect_invalid "schema must be an integer" "$(write_set schema-bool <<'TOML'
+schema = true
+id = "bob/laptop"
+name = "x"
+TOML
+)" "schema: must be 1"
+
+expect_invalid "a secret in a comment is refused" "$(write_set secret-comment <<'TOML'
+# old key: sk-abcdefghijklmnopqrstuv
+schema = 1
+id = "bob/laptop"
+name = "x"
+TOML
+)" "comment looks like an API key"
+
+expect_invalid "a token in a URL fragment is refused" "$(write_set secret-fragment <<'TOML'
+schema = 1
+id = "bob/laptop"
+name = "x"
+[dotfiles]
+chezmoi = "https://example.com/dots#access_token=abc"
+TOML
+)" "credential parameter"
+
 pinned=$(write_set pinned <<'TOML'
 schema = 1
 id = "bob/laptop"
@@ -221,9 +298,11 @@ mock maitri-hw-fingerprint 'exit 1'
 mock maitri-font-current 'cat "$HOME/font" 2>/dev/null || echo "JetBrainsMono Nerd Font"'
 mock maitri-font-set 'printf "%s\n" "$1" >"$HOME/font"'
 mock maitri-theme-set 'mkdir -p "$HOME/.local/state/maitri/current"; printf "%s\n" "$1" >"$HOME/.local/state/maitri/current/theme.name"'
-for kind in browser editor terminal; do
+for kind in browser terminal; do
   mock "maitri-default-$kind" "if (( \$# )); then printf '%s\n' \"\$1\" >\"\$HOME/default-$kind\"; else cat \"\$HOME/default-$kind\" 2>/dev/null || echo none; fi"
 done
+mock maitri-default-editor 'if (( $# )); then [[ $1 == zed ]] && set -- zeditor; printf "%s\n" "$1" >"$HOME/default-editor"; else cat "$HOME/default-editor" 2>/dev/null || echo code; fi'
+mock maitri-plugin-remove 'rm -rf "$HOME/.config/maitri/plugins/$1"'
 mock maitri-default-agent 'if (( $# )); then [[ $1 == --no-launch ]] || exit 9; printf "%s\n" "$2" >"$HOME/default-agent"; else cat "$HOME/default-agent" 2>/dev/null || true; fi'
 mock maitri-webapp-install 'mkdir -p "$HOME/.local/share/applications"; touch "$HOME/.local/share/applications/$1.desktop"'
 mock maitri-webapp-remove 'rm -f "$HOME/.local/share/applications/$1.desktop"'
@@ -242,7 +321,7 @@ export MAITRI_TEST_CALLS="$calls"
 export MAITRI_TEST_INSTALLED="$installed"
 export HOME="$test_tmp/home"
 mkdir -p "$HOME/.local/share/applications"
-printf '%s\n' sublime-text-4 >"$installed"
+printf '%s\n' obsidian >"$installed"
 touch "$HOME/.local/share/applications/YouTube.desktop"
 
 fixture=$(write_set fixture <<'TOML'
@@ -256,7 +335,7 @@ maitri = "edge"
 
 [packages]
 add = ["wev", "doctl"]
-remove = ["sublime-text-4"]
+remove = ["obsidian"]
 aur = [{ name = "beeper-bin" }]
 
 [flatpak]
@@ -273,6 +352,7 @@ mono = "Iosevka Nerd Font"
 
 [defaults]
 browser = "zen"
+editor = "zed"
 agent = "claude"
 
 [plugins]
@@ -304,7 +384,7 @@ for expected in "switch the maitri channel to edge" "install packages: wev doctl
   "run the maitri installer browser:zen" "set the theme to harbor" "make zen the default browser" \
   "make claude the default agent" "add the plugin trackpoint" "add the web app Linear" \
   "run the setup step fido2" "run chezmoi init --apply https://github.com/bob/dotfiles" \
-  "remove packages sublime-text-4 (pass --prune)" "plugin fingerprint-widget (only on fingerprint hardware)"; do
+  "remove packages obsidian (pass --prune)" "plugin fingerprint-widget (only on fingerprint hardware)"; do
   [[ $plan == *"$expected"* ]] || fail "dry-run plans: $expected" "$plan"
 done
 pass "dry-run prints the full plan"
@@ -334,10 +414,16 @@ for expected in "maitri-channel-set edge" "maitri-pkg-add wev doctl" "maitri-pkg
   "maitri-install-service-1password" "maitri-theme-set harbor" "maitri-font-set Iosevka Nerd Font" \
   "maitri-default-browser zen" "maitri-default-agent --no-launch claude" "maitri-plugin-enable trackpoint" \
   "maitri-webapp-install Linear https://linear.app https://linear.app/favicon.png" \
-  "maitri-setup-security-fido2" "chezmoi init --apply -- https://github.com/bob/dotfiles"; do
+  "maitri-default-editor zed" "maitri-setup-security-fido2"; do
   grep -qxF -- "$expected" "$calls" || fail "apply calls: $expected" "$(cat "$calls")"
 done
 pass "apply drives the maitri commands for each phase"
+
+grep -q "^chezmoi" "$calls" && fail "dotfiles never run without a terminal, even with --yes" "$(cat "$calls")"
+grep -q "Skipped: run chezmoi init --apply https://github.com/bob/dotfiles yourself" "$test_tmp/out" ||
+  fail "dotfiles never run without a terminal, even with --yes" "$(cat "$test_tmp/out")"
+pass "dotfiles never run without a terminal, even with --yes"
+mkdir -p "$HOME/.local/share/chezmoi"
 
 grep -q "maitri-pkg-drop\|maitri-webapp-remove" "$calls" && fail "removals wait for --prune" "$(cat "$calls")"
 pass "removals wait for --prune"
@@ -359,7 +445,7 @@ pass "a second apply has nothing to do"
 
 : >"$calls"
 "$apply" "$fixture" --yes --prune >/dev/null
-grep -qxF "maitri-pkg-drop sublime-text-4" "$calls" || fail "--prune removes listed packages" "$(cat "$calls")"
+grep -qxF "maitri-pkg-drop obsidian" "$calls" || fail "--prune removes listed packages" "$(cat "$calls")"
 grep -qxF "maitri-webapp-remove YouTube" "$calls" || fail "--prune removes listed web apps" "$(cat "$calls")"
 pass "--prune removes what the set lists under remove"
 
@@ -380,6 +466,29 @@ grep -q "maitri-pkg-aur-add pinned-bin" "$calls" && fail "a pinned AUR package w
 grep -qxF "maitri-theme-set ember" "$calls" || fail "one failed phase doesn't stop the rest" "$(cat "$calls")"
 pass "a failed phase is reported and the rest still runs"
 
+if "$apply" "https://example.com/set.toml" --yes >/dev/null 2>"$test_tmp/err"; then
+  fail "--yes refuses an unpinned URL"
+fi
+grep -q "needs --sha256" "$test_tmp/err" || fail "--yes refuses an unpinned URL" "$(cat "$test_tmp/err")"
+pass "--yes refuses an unpinned URL"
+
+pinned_plugin=$(write_set pinned-plugin <<'TOML'
+schema = 1
+id = "bob/laptop"
+name = "x"
+[[plugins.add]]
+id = "pinned"
+git = "https://github.com/bob/pinned.git"
+rev = "0123456789abcdef0123456789abcdef01234567"
+TOML
+)
+mock maitri-plugin-add 'mkdir -p "$HOME/.config/maitri/plugins/pinned"'
+: >"$calls"
+"$apply" "$pinned_plugin" --yes >/dev/null 2>&1 && fail "a plugin whose rev can't be checked out fails"
+grep -qxF "maitri-plugin-remove pinned --yes" "$calls" || fail "a plugin that fails part way is removed" "$(cat "$calls")"
+[[ ! -d $HOME/.config/maitri/plugins/pinned ]] || fail "a plugin that fails part way is removed"
+pass "a plugin that fails part way is removed so the next apply retries it"
+
 too_new=$(write_set too-new <<'TOML'
 schema = 1
 id = "bob/laptop"
@@ -396,7 +505,7 @@ pass "a set needing a newer maitri is refused"
 mock pacman 'case "$1" in
 -Qqen) printf "%s\n" hyprland doctl wev amd-ucode maitri ;;
 -Qqem) printf "%s\n" beeper-bin vicinae-bin ;;
--Qq) grep -hv "^#" "$MAITRI_PATH/install/maitri-base.packages" | sed "/^$/d" | grep -vx sublime-text-4 ;;
+-Qq) grep -hv "^#" "$MAITRI_PATH/install/maitri-base.packages" | sed "/^$/d" | grep -vx obsidian ;;
 esac'
 exported="$test_tmp/exported.toml"
 "$export_cmd" --id bob/desk --name "Bob's desk" --output "$exported" >/dev/null ||
@@ -407,9 +516,9 @@ exported_json=$("$validate" --json "$exported")
   fail "export keeps only packages outside maitri's lists" "$exported_json"
 [[ $(jq -c '[.packages.aur[].name]' <<<"$exported_json") == '["beeper-bin"]' ]] ||
   fail "export lists foreign packages as AUR" "$exported_json"
-[[ $(jq -c '.packages.remove' <<<"$exported_json") == '["sublime-text-4"]' ]] ||
+[[ $(jq -c '.packages.remove' <<<"$exported_json") == '["obsidian"]' ]] ||
   fail "export lists removed base packages" "$exported_json"
 [[ $(jq -r '.theme' <<<"$exported_json") == "ember" ]] || fail "export records the theme" "$exported_json"
-[[ $(jq -c '.defaults' <<<"$exported_json") == '{"browser":"zen","editor":"","terminal":"","agent":"claude"}' ]] ||
+[[ $(jq -c '.defaults' <<<"$exported_json") == '{"browser":"zen","editor":"zed","terminal":"","agent":"claude"}' ]] ||
   fail "export keeps only defaults a set can hold" "$exported_json"
 pass "export writes a valid set from the machine"
