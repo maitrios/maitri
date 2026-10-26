@@ -129,11 +129,28 @@ jobs:
           path: src
           persist-credentials: false
 
+      - name: Validate ref to test
+        if: inputs.release_tag == ''
+        id: test_ref
+        env:
+          INPUT_REF: ${{ inputs.ref || 'main' }}
+        run: |
+          ref="$INPUT_REF"
+          [[ -n "$ref" ]] || { echo "ref must not be empty" >&2; exit 1; }
+          [[ "$ref" != refs/pull/* ]] || { echo "refs/pull/* is not allowed" >&2; exit 1; }
+          if [[ "$ref" == refs/* ]]; then
+            [[ "$ref" == refs/heads/* || "$ref" == refs/tags/* ]] || {
+              echo "Only refs/heads/* or refs/tags/* are allowed, got: $ref" >&2
+              exit 1
+            }
+          fi
+          echo "ref=$ref" >>"$GITHUB_OUTPUT"
+
       - name: Check out the ref to test
         if: inputs.release_tag == ''
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.ref || 'main' }}
+          ref: ${{ steps.test_ref.outputs.ref }}
           path: src
           persist-credentials: false
 
