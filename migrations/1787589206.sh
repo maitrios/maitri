@@ -12,7 +12,7 @@ if [[ -f /etc/pacman.conf ]] &&
   # Requiring signatures with an untrusted packaging key would fail every
   # maitri transaction, including the one that could repair it.
   if maitri-pkg-missing maitri-keyring ||
-    ! sudo pacman-key --list-keys 40DFB630FF42BCFFB047046CF0134EE680CAC571 &>/dev/null; then
+    ! sudo pacman-key --list-sigs B15B4ED7BC9470F1710484ABB9562AC7D0D9EA1F 2>/dev/null | grep -q '^sig L '; then
     maitri-update-keyring
   fi
 

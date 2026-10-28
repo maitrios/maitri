@@ -6,13 +6,19 @@
 MAITRI_KEY_FINGERPRINT=B15B4ED7BC9470F1710484ABB9562AC7D0D9EA1F
 MAITRI_KEY_URL=https://raw.githubusercontent.com/maitrios/maitri-pkgs/main/pkgbuilds/maitri-keyring/maitri.gpg
 
-if maitri-pkg-missing maitri-keyring || ! sudo pacman-key --list-keys "$MAITRI_KEY_FINGERPRINT" &>/dev/null; then
+maitri_key_trusted() {
+  sudo pacman-key --list-sigs "$MAITRI_KEY_FINGERPRINT" 2>/dev/null | grep -q '^sig L '
+}
+
+# A key that is in the keyring but was never locally signed (only its self
+# signature) is untrusted, so check the local signature, not just presence.
+if maitri-pkg-missing maitri-keyring || ! maitri_key_trusted; then
   # The signing key is not on a keyserver. Bootstrap trust from the keyring
   # package's own copy when it is on disk, otherwise from the maitri-pkgs repo,
   # so the [maitri] database and the keyring package itself can be verified.
   if [[ -f /usr/share/pacman/keyrings/maitri.gpg ]]; then
     sudo pacman-key --populate maitri
-  else
+  elif ! sudo pacman-key --list-keys "$MAITRI_KEY_FINGERPRINT" &>/dev/null; then
     keyfile=$(mktemp)
     curl -fsSL "$MAITRI_KEY_URL" -o "$keyfile"
     sudo pacman-key --add "$keyfile"
