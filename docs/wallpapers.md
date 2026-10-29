@@ -174,7 +174,7 @@ gh workflow run wallpapers.yml --repo maitrios/maitri --ref main -f tag=vX.Y.Z -
 ### What the workflow does
 
 It runs two jobs. Both check out `main`, refuse to go on unless the run was
-started on `main`, and run `tools/wallpapers-check-tag.sh`, which checks that
+started on `main`, and run `tools/check-release-tag.sh`, which checks that
 the tag is `vX.Y.Z` or `vX.Y.Z-<pre>`, exists on the remote, and points at a
 commit in `main`'s history. Nothing from the tag's tree is checked out or run.
 
@@ -273,7 +273,7 @@ preview, a non-WebP, a preview over 4 MiB or a symlink. A rerun with different
 preview bytes keeps the bucket's preview and its hash, and changing a published
 entry's size counts as dropping it.
 `test/shell.d/wallpapers-release-guard-test.sh` runs
-`tools/wallpapers-check-tag.sh` against a scratch remote (tags on and off
+`tools/check-release-tag.sh` against a scratch remote (tags on and off
 `main`, moved, local, malformed and missing) and checks that the workflow only
 runs from `main` and checks the tag before any secret, that the `previews` job
 has no environment and no secrets and is the only one that makes previews, and

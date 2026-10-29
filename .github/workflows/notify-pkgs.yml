@@ -5,7 +5,10 @@ name: Notify maitri-pkgs
 #
 # github.token cannot dispatch to another repo, so MAITRI_PKGS_DISPATCH_TOKEN
 # must be a fine-grained PAT scoped to maitrios/maitri-pkgs with
-# Contents: read and write.
+# Contents: read and write. It lives in the maitri-pkgs environment, which only
+# accepts main, so only main's copy of this file can reach it. The job checks
+# nothing out and runs nothing from the tree. It doesn't record a deployment,
+# since it runs on every push.
 
 on:
   push:
@@ -15,13 +18,18 @@ permissions: {}
 
 jobs:
   dispatch:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    environment:
+      name: maitri-pkgs
+      deployment: false
     steps:
       - name: Ask maitri-pkgs to rebuild the dev packages
         env:
           GH_TOKEN: ${{ secrets.MAITRI_PKGS_DISPATCH_TOKEN }}
+          SHA: ${{ github.sha }}
         run: |
-          [[ -n $GH_TOKEN ]] || { echo "::error::MAITRI_PKGS_DISPATCH_TOKEN secret is empty; maitri-pkgs falls back to its six-hourly schedule"; exit 1; }
+          [[ -n $GH_TOKEN ]] || { echo "::error::MAITRI_PKGS_DISPATCH_TOKEN is empty; it belongs in the maitri-pkgs environment. maitri-pkgs falls back to its six-hourly schedule"; exit 1; }
           gh api repos/maitrios/maitri-pkgs/dispatches \
             -f event_type=maitri-main-push \
-            -f "client_payload[sha]=${{ github.sha }}"
+            -f "client_payload[sha]=$SHA"
