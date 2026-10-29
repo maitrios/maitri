@@ -24,12 +24,15 @@ def check(condition, description):
 
 drop_in = root / "default/systemd/system/plocate-updatedb.service.d/10-maitri.conf"
 directives = [line.strip() for line in drop_in.read_text().splitlines() if line.strip() and not line.startswith("#")]
-check(len(directives) == 3 and directives[:2] == ["[Service]", "ExecStart="] and directives[2].startswith("ExecStart="),
+check(directives[0] == "[Service]" and directives.count("ExecStart=") == 1 and directives[-2] == "ExecStart=",
       "locate drop-in replaces the command and preserves upstream service restrictions")
-command = shlex.split(directives[2].removeprefix("ExecStart="))
-options = ["--prune-bind-mounts=no", "--add-prunepaths=/.snapshots"]
+check("Nice=19" in directives and "IOSchedulingClass=idle" in directives,
+      "locate service indexes at idle priority")
+command = shlex.split(directives[-1].removeprefix("ExecStart="))
+options = ["--prune-bind-mounts=no", "--add-prunepaths=/.snapshots /var/lib/docker",
+           "--add-prunenames=node_modules .venv target .next .turbo .cache"]
 check(command == ["/usr/bin/updatedb", *options],
-      "locate service runs updatedb directly with fixed Btrfs options")
+      "locate service runs updatedb directly with fixed Btrfs and dev-tree pruning options")
 check("ConditionACPower=true" in (root / "etc/systemd/system/plocate-updatedb.service.d/ac-only.conf").read_text(),
       "scheduled locate indexing keeps its AC-power condition")
 check(not (root / "install/config/locate.sh").exists() and not (root / "migrations/1784809451.sh").exists(),
@@ -60,11 +63,13 @@ with tempfile.TemporaryDirectory(prefix="maitri-locate-") as scratch:
     path.chmod(0o755)
   calls = scratch / "updatedb-arguments"
   env = dict(os.environ, PATH=str(fake_bin) + ":" + os.environ["PATH"], TEST_CALLS=str(calls))
-  for relative in ("install/post-install/localdb.sh", "bin/maitri-pkg-aur-install"):
+  for relative in ("install/post-install/localdb.sh",):
     subprocess.run(["bash", "-euo", "pipefail", str(root / relative)], env=env, check=True)
     check(calls.read_text().splitlines() == options,
           relative + " passes the scheduled service options directly")
     calls.unlink()
+  subprocess.run(["bash", "-euo", "pipefail", str(root / "bin/maitri-pkg-aur-install")], env=env, check=True)
+  check(not calls.exists(), "AUR installs leave indexing to the scheduled service")
 
   tree = scratch / "tree"
   visible = tree / "home/current-file"
