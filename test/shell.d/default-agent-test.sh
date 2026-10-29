@@ -364,6 +364,14 @@ mapfile -d '' -t agent_open_args <"$agent_open_log"
   fail "newly installed agent opens in the installation terminal"
 pass "missing agents install visibly and open in the same terminal"
 
+: >"$agent_open_log"
+: >"$terminal_log"
+maitri-default-agent --no-launch claude >"$test_tmp/no-launch-output"
+[[ $(maitri-default-agent) == "claude" ]] || fail "--no-launch changes the selection"
+[[ ! -s $terminal_log && ! -s $agent_open_log && ! -s $test_tmp/no-launch-output ]] ||
+  fail "--no-launch installs inline and opens nothing"
+pass "install sets can set the agent without opening it"
+
 : >"$notification_history"
 : >"$agent_open_log"
 : >"$terminal_log"

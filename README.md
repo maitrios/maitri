@@ -49,6 +49,8 @@ maitri ships six themes — five dark plus **Daybreak** (light) — with a share
   lock screen and panels, the Vicinae launcher and maitri menu, SDDM login, Plymouth boot splash.
 - **Defaults** — fish shell, Helium browser, VS Code editor, foot terminal.
 - **Apps** — a curated set of GUI, CLI, web apps and AI tooling. See [APPS.md](APPS.md).
+- **Install sets** — your apps, theme, plugins and defaults in one shareable file, applied with
+  `maitri set apply`. See [docs/install-sets.md](docs/install-sets.md).
 
 ## Hacking on maitri
 

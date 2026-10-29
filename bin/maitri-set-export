@@ -1,0 +1,160 @@
+#!/bin/bash
+
+# maitri:summary=Write an install set from this machine: the apps, theme, plugins and defaults on top of maitri
+# maitri:group=set
+# maitri:args=[--id <handle/name>] [--name <title>] [--output <file>]
+# maitri:examples=maitri set export --id bob/laptop --output laptop.maitri-set.toml
+
+set -euo pipefail
+
+usage() {
+  cat <<USAGE
+Usage: maitri set export [--id <handle/name>] [--name <title>] [--output <file>]
+
+Prints an install set describing what this machine adds on top of a fresh
+maitri: explicitly installed packages outside maitri's lists, AUR packages,
+flatpaks, the theme, font, defaults and git plugins. Review it before you share
+it; nothing from your dotfiles or credentials is read.
+USAGE
+}
+
+fail() {
+  echo "maitri-set-export: $*" >&2
+  exit 1
+}
+
+slug() {
+  local value
+  value=$(tr '[:upper:]' '[:lower:]' <<<"$1" | tr -c 'a-z0-9\n' '-' | sed 's/^-*//; s/-*$//')
+  printf '%s' "${value:0:$2}"
+}
+
+set_id="$(slug "$(id -un)" 39)/$(slug "$(uname -n | cut -d. -f1)" 63)"
+set_name=""
+output=""
+
+while (( $# > 0 )); do
+  case "$1" in
+  --id) (( $# >= 2 )) || fail "--id needs a value"; set_id="$2"; shift 2 ;;
+  --name) (( $# >= 2 )) || fail "--name needs a value"; set_name="$2"; shift 2 ;;
+  --output | -o) (( $# >= 2 )) || fail "--output needs a value"; output="$2"; shift 2 ;;
+  -h | --help) usage; exit 0 ;;
+  *) fail "unknown argument: $1" ;;
+  esac
+done
+
+[[ -n $set_name ]] || set_name="$set_id"
+
+toml_string() {
+  jq -Rn --arg value "$1" '$value'
+}
+
+toml_list() {
+  local first=1 item
+  printf '['
+  for item in "$@"; do
+    (( first )) || printf ', '
+    first=0
+    printf '%s' "$(toml_string "$item")"
+  done
+  printf ']'
+}
+
+# CPU microcode and boot plumbing are per-machine, not part of anyone's set.
+machine_only='^(amd-ucode|intel-ucode|mkinitcpio|efibootmgr|sudo)$'
+
+maitri_lists=$(grep -hv '^[[:space:]]*#' "$MAITRI_PATH/install/maitri-base.packages" \
+  "$MAITRI_PATH/install/maitri-other.packages" | sed 's/[[:space:]]//g; /^$/d' | sort -u)
+
+not_maitri() {
+  sort -u | comm -23 - <(printf '%s\n' "$maitri_lists") | grep -Ev "^maitri|$machine_only" || true
+}
+
+mapfile -t added < <(pacman -Qqen | not_maitri)
+mapfile -t aur < <(pacman -Qqem | not_maitri)
+mapfile -t removed < <(maitri-set-validate --choices packages.remove | sort -u | comm -23 - <(pacman -Qq | sort -u))
+
+flatpaks=()
+if maitri-cmd-present flatpak; then
+  mapfile -t flatpaks < <(flatpak list --app --columns=application 2>/dev/null | sort -u)
+fi
+
+theme=""
+[[ -f $HOME/.local/state/maitri/current/theme.name ]] && theme=$(<"$HOME/.local/state/maitri/current/theme.name")
+
+declare -A defaults
+for kind in browser editor terminal agent; do
+  value=$("maitri-default-$kind" 2>/dev/null || true)
+  [[ $kind == "editor" && $value == "zeditor" ]] && value=zed
+  defaults[$kind]=""
+  if maitri-set-validate --choices "defaults.$kind" | grep -qxF -- "$value"; then
+    defaults[$kind]=$value
+  fi
+done
+
+font=$(maitri-font-current 2>/dev/null || true)
+
+{
+  echo "# maitri install set, exported $(date +%F) from a running machine."
+  echo "# Review before sharing: AUR packages are unpinned until you add pkgbuild_sha256."
+  echo "schema = 1"
+  echo "id = $(toml_string "$set_id")"
+  echo "name = $(toml_string "$set_name")"
+  echo "maitri = $(toml_string ">=$(<"$MAITRI_PATH/version")")"
+  echo
+  echo "[packages]"
+  echo "add = $(toml_list "${added[@]}")"
+  echo "remove = $(toml_list "${removed[@]}")"
+  echo "aur = ["
+  for pkg in "${aur[@]}"; do
+    echo "  { name = $(toml_string "$pkg") },"
+  done
+  echo "]"
+
+  if (( ${#flatpaks[@]} > 0 )); then
+    echo
+    echo "[flatpak]"
+    echo "apps = $(toml_list "${flatpaks[@]}")"
+  fi
+
+  if [[ -n $theme ]]; then
+    echo
+    echo "[theme]"
+    echo "name = $(toml_string "$theme")"
+  fi
+
+  if [[ -n $font ]]; then
+    echo
+    echo "[fonts]"
+    echo "mono = $(toml_string "$font")"
+  fi
+
+  echo
+  echo "[defaults]"
+  for kind in browser editor terminal agent; do
+    [[ -n ${defaults[$kind]} ]] && echo "$kind = $(toml_string "${defaults[$kind]}")"
+  done
+
+  plugin_lines=()
+  for dir in "$HOME"/.config/maitri/plugins/*/; do
+    [[ -f $dir/manifest.json && -d $dir/.git ]] || continue
+    id=$(jq -r '.id // empty' "$dir/manifest.json")
+    git=$(git -C "$dir" remote get-url origin 2>/dev/null | sed -E 's#^https://[^/@]*@#https://#' || true)
+    rev=$(git -C "$dir" rev-parse HEAD 2>/dev/null || true)
+    [[ -n $id && -n $rev && $git == https://* ]] || continue
+    plugin_lines+=("  { id = $(toml_string "$id"), git = $(toml_string "$git"), rev = $(toml_string "$rev") },")
+  done
+  if (( ${#plugin_lines[@]} > 0 )); then
+    echo
+    echo "[plugins]"
+    echo "add = ["
+    printf '%s\n' "${plugin_lines[@]}"
+    echo "]"
+  fi
+} >"${output:-/dev/stdout}"
+
+if [[ -n $output ]]; then
+  maitri-set-validate "$output" >/dev/null ||
+    fail "wrote $output, but it doesn't validate yet; fix the problems above before sharing it"
+  echo "Wrote $output. Review it, then apply it elsewhere with: maitri set apply $output"
+fi

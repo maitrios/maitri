@@ -1,0 +1,452 @@
+#!/bin/bash
+
+# maitri:summary=Apply an install set: your apps, theme, plugins and defaults from one manifest
+# maitri:group=set
+# maitri:args=<maitri-set.toml|https-url> [--sha256 <hex>] [--dry-run] [--prune] [--yes]
+# maitri:examples=maitri set apply ./laptop.maitri-set.toml --dry-run | maitri set apply https://example.com/laptop.toml --sha256 <hex>
+# maitri:alias=maitri install set
+# maitri:requires-sudo=true
+
+set -euo pipefail
+
+usage() {
+  cat <<USAGE
+Usage: maitri set apply <maitri-set.toml|https-url> [--sha256 <hex>] [--dry-run] [--prune] [--yes]
+
+Brings this machine in line with an install set. Only adds what is missing;
+removals listed in the set run only with --prune. Running it again is safe.
+
+  --sha256 <hex>  refuse the set unless its sha256 matches (also #sha256=<hex> on a URL)
+  --dry-run       print the plan and change nothing
+  --prune         also remove the packages and web apps the set lists under remove
+  --yes           don't ask before applying
+USAGE
+}
+
+fail() {
+  echo "maitri-set-apply: $*" >&2
+  exit 1
+}
+
+source=""
+want_sha=""
+dry_run=0
+prune=0
+assume_yes=0
+
+while (( $# > 0 )); do
+  case "$1" in
+  --sha256)
+    (( $# >= 2 )) || fail "--sha256 needs a value"
+    want_sha="$2"
+    shift 2
+    ;;
+  --dry-run) dry_run=1; shift ;;
+  --prune) prune=1; shift ;;
+  --yes | -y) assume_yes=1; shift ;;
+  -h | --help) usage; exit 0 ;;
+  -*) fail "unknown option: $1" ;;
+  *)
+    [[ -z $source ]] || fail "only one set at a time"
+    source="$1"
+    shift
+    ;;
+  esac
+done
+
+[[ -n $source ]] || { usage >&2; exit 2; }
+
+if [[ $source == *"#sha256="* ]]; then
+  [[ -z $want_sha ]] || fail "give the hash once, either --sha256 or #sha256="
+  want_sha="${source##*#sha256=}"
+  source="${source%%#sha256=*}"
+fi
+want_sha="${want_sha,,}"
+[[ -z $want_sha || $want_sha =~ ^[0-9a-f]{64}$ ]] || fail "--sha256 must be 64 hex characters"
+
+if [[ $source == https://* && -z $want_sha ]] && (( assume_yes && ! dry_run )); then
+  fail "--yes needs --sha256 for a set fetched from a URL, so nothing unreviewed runs unattended"
+fi
+
+state_dir="$HOME/.local/state/maitri/sets"
+done_dir="$state_dir/done"
+log_file="$state_dir/apply.log"
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+
+set_file="$work/maitri-set.toml"
+if [[ $source == *"://"* ]]; then
+  [[ $source == https://* ]] || fail "sets are fetched over https only: $source"
+  curl -fsSL --proto '=https' --proto-redir '=https' --max-time 30 --max-filesize 262144 -o "$set_file" -- "$source" ||
+    fail "couldn't download $source"
+else
+  [[ -f $source ]] || fail "no such file: $source"
+  cp -- "$source" "$set_file"
+fi
+
+sha=$(sha256sum "$set_file" | cut -d' ' -f1)
+if [[ -n $want_sha && $sha != "$want_sha" ]]; then
+  fail "sha256 mismatch: expected $want_sha, got $sha. The set changed since that hash was taken."
+fi
+
+set_json=$(maitri-set-validate --json "$set_file") || exit 1
+
+field() {
+  jq -r "$1" <<<"$set_json"
+}
+
+set_id=$(field '.id')
+set_name=$(field '.name')
+
+maitri_min=$(field '.maitri_min')
+if [[ -n $maitri_min ]]; then
+  have_version=$(<"$MAITRI_PATH/version")
+  if [[ $(printf '%s\n%s\n' "$maitri_min" "$have_version" | sort -V | head -n1) != "$maitri_min" ]]; then
+    fail "$set_id needs maitri $maitri_min or newer; this is $have_version. Run maitri update first."
+  fi
+fi
+
+form_factor=$(field '.form_factor')
+if [[ $form_factor != "auto" ]]; then
+  machine=desktop
+  maitri-hw-laptop && machine=laptop
+  [[ $machine == "$form_factor" ]] ||
+    echo "Note: $set_id is meant for a $form_factor; this machine looks like a $machine." >&2
+fi
+
+PLAN=()
+SKIPPED=()
+
+plan() {
+  local IFS=$'\t'
+  PLAN+=("$*")
+}
+
+skipped() {
+  SKIPPED+=("$1")
+}
+
+marked() {
+  [[ -f $done_dir/$1 ]]
+}
+
+hardware_matches() {
+  case "$1" in
+  -) return 0 ;;
+  desktop) ! maitri-hw-laptop ;;
+  *) "maitri-hw-$1" ;;
+  esac
+}
+
+installer_command() {
+  local group="${1%%:*}" choice="${1#*:}"
+  case "$group" in
+  browser) printf '%s\n' maitri-install-browser "$choice" ;;
+  terminal) printf '%s\n' maitri-install-terminal "$choice" ;;
+  dev-env) printf '%s\n' maitri-install-dev-env "$choice" ;;
+  editor | service | gaming | ai) printf '%s\n' "maitri-install-$group-$choice" ;;
+  voxtype) printf '%s\n' maitri-voxtype-install ;;
+  *) return 1 ;;
+  esac
+}
+
+step_command() {
+  case "$1" in
+  hibernation) echo maitri-hibernation-setup ;;
+  home-snapshots) echo maitri-setup-home-snapshots ;;
+  fido2) echo maitri-setup-security-fido2 ;;
+  fingerprint) echo maitri-setup-security-fingerprint ;;
+  sudoless-docker) echo maitri-setup-security-sudoless-docker ;;
+  sshd) echo maitri-setup-security-sshd ;;
+  *) return 1 ;;
+  esac
+}
+
+channel=$(field '.channel')
+if [[ -n $channel && $(maitri-channel-current) != "$channel" ]]; then
+  plan channel "$channel"
+fi
+
+missing=()
+while IFS= read -r pkg; do
+  [[ -n $pkg ]] || continue
+  maitri-pkg-present "$pkg" || missing+=("$pkg")
+done < <(field '.packages.add[]')
+(( ${#missing[@]} == 0 )) || plan pkg-add "${missing[@]}"
+
+installed=()
+while IFS= read -r pkg; do
+  [[ -n $pkg ]] || continue
+  maitri-pkg-present "$pkg" && installed+=("$pkg")
+done < <(field '.packages.remove[]')
+if (( ${#installed[@]} > 0 )); then
+  if (( prune )); then
+    plan pkg-drop "${installed[@]}"
+  else
+    skipped "remove packages ${installed[*]} (pass --prune)"
+  fi
+fi
+
+while IFS=$'\t' read -r pkg pin; do
+  [[ -n $pkg ]] || continue
+  maitri-pkg-present "$pkg" || plan aur "$pkg" "$pin"
+done < <(field '.packages.aur[] | [.name, .pkgbuild_sha256] | @tsv')
+
+flatpak_apps=()
+while IFS= read -r app; do
+  [[ -n $app ]] || continue
+  if maitri-cmd-missing flatpak || ! flatpak info "$app" &>/dev/null; then
+    flatpak_apps+=("$app")
+  fi
+done < <(field '.flatpak.apps[]')
+if (( ${#flatpak_apps[@]} > 0 )); then
+  plan flatpak-setup
+  for app in "${flatpak_apps[@]}"; do
+    plan flatpak "$app"
+  done
+fi
+
+while IFS= read -r key; do
+  [[ -n $key ]] || continue
+  marked "installer-$key" || plan installer "$key"
+done < <(field '.installers[]')
+
+font=$(field '.font')
+if [[ -n $font && $(maitri-font-current) != "$font" ]]; then
+  plan font "$font"
+fi
+
+theme=$(field '.theme')
+theme_name_file="$HOME/.local/state/maitri/current/theme.name"
+if [[ -n $theme ]]; then
+  current_theme=""
+  [[ -f $theme_name_file ]] && current_theme=$(<"$theme_name_file")
+  [[ $current_theme == "$theme" ]] || plan theme "$theme"
+fi
+
+for kind in browser editor terminal agent; do
+  want=$(field ".defaults.$kind")
+  [[ -n $want ]] || continue
+  reported=$want
+  # maitri-default-editor stores and reports Zed by its binary name.
+  [[ $kind == "editor" && $want == "zed" ]] && reported=zeditor
+  [[ $("maitri-default-$kind") == "$reported" ]] || plan default "$kind" "$want"
+done
+
+applications_dir="$HOME/.local/share/applications"
+while IFS=$'\t' read -r name url icon; do
+  [[ -n $name ]] || continue
+  [[ -f $applications_dir/$name.desktop ]] || plan webapp-add "$name" "$url" "$icon"
+done < <(field '.webapps.add[] | [.name, .url, .icon] | @tsv')
+
+while IFS= read -r name; do
+  [[ -n $name && -f $applications_dir/$name.desktop ]] || continue
+  if (( prune )); then
+    plan webapp-remove "$name"
+  else
+    skipped "remove web app $name (pass --prune)"
+  fi
+done < <(field '.webapps.remove[]')
+
+plugins_dir="$HOME/.config/maitri/plugins"
+while IFS=$'\t' read -r id git rev enable when; do
+  [[ -n $id ]] || continue
+  if [[ -d $plugins_dir/$id ]]; then
+    if [[ $rev != "-" && $(git -C "$plugins_dir/$id" rev-parse HEAD 2>/dev/null) != "$rev" ]]; then
+      plan plugin-pin "$id" "$rev"
+    fi
+    continue
+  fi
+  if hardware_matches "$when"; then
+    plan plugin "$id" "$git" "$rev" "$enable"
+  else
+    skipped "plugin $id (only on $when hardware)"
+  fi
+done < <(field '.plugins[] | [.id, .git, (.rev | if . == "" then "-" else . end), (.enable | tostring), (.when | if . == "" then "-" else . end)] | @tsv')
+
+while IFS= read -r key; do
+  [[ -n $key ]] || continue
+  marked "step-$key" || plan step "$key"
+done < <(field '.steps[]')
+
+dotfiles=$(field '.dotfiles')
+if [[ -n $dotfiles && ! -d $HOME/.local/share/chezmoi ]]; then
+  plan dotfiles "$dotfiles"
+fi
+
+describe() {
+  local kind="$1"
+  shift
+  case "$kind" in
+  channel) echo "switch the maitri channel to $1" ;;
+  pkg-add) echo "install packages: $*" ;;
+  pkg-drop) echo "remove packages: $*" ;;
+  aur)
+    if [[ -z ${2:-} ]]; then
+      echo "install $1 from the AUR (unpinned: the PKGBUILD isn't checked)"
+    else
+      echo "install $1 from the AUR (PKGBUILD pinned to ${2:0:12}…)"
+    fi
+    ;;
+  flatpak-setup) echo "set up flatpak with the Flathub remote" ;;
+  flatpak) echo "install $1 from Flathub" ;;
+  installer) echo "run the maitri installer $1" ;;
+  font) echo "set the monospace font to $1" ;;
+  theme) echo "set the theme to $1" ;;
+  default) echo "make $2 the default $1" ;;
+  webapp-add) echo "add the web app $1 ($2)" ;;
+  webapp-remove) echo "remove the web app $1" ;;
+  plugin)
+    if [[ $3 == "-" ]]; then
+      echo "add the plugin $1 from $2"
+    else
+      echo "add the plugin $1 from $2 at ${3:0:12}"
+    fi
+    ;;
+  plugin-pin) echo "move the plugin $1 to ${2:0:12}" ;;
+  step) echo "run the setup step $1" ;;
+  dotfiles) echo "run chezmoi init --apply $1 (your own dotfiles; asks first)" ;;
+  esac
+}
+
+print_plan() {
+  local entry fields
+  echo "Install set: $set_name ($set_id)"
+  echo "sha256: $sha"
+  [[ -n $want_sha ]] || echo "Not pinned: pass --sha256 to make sure you get exactly this set."
+  echo
+  if (( ${#PLAN[@]} == 0 )); then
+    echo "Nothing to do: this machine already matches $set_id."
+  else
+    echo "Plan:"
+    for entry in "${PLAN[@]}"; do
+      IFS=$'\t' read -r -a fields <<<"$entry"
+      echo "  - $(describe "${fields[@]}")"
+    done
+  fi
+  if (( ${#SKIPPED[@]} > 0 )); then
+    echo
+    echo "Skipped:"
+    for entry in "${SKIPPED[@]}"; do
+      echo "  - $entry"
+    done
+  fi
+}
+
+print_plan
+
+(( dry_run == 0 )) || exit 0
+(( ${#PLAN[@]} > 0 )) || exit 0
+
+if (( assume_yes == 0 )); then
+  [[ -t 0 && -t 1 ]] || fail "refusing to apply without a terminal; pass --yes"
+  echo
+  gum confirm "Apply this plan?" || exit 1
+fi
+
+mkdir -p "$done_dir"
+
+log() {
+  printf '[%s] %s: %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$set_id" "$*" >>"$log_file"
+}
+
+verify_pkgbuild() {
+  local pkg="$1" pin="$2" got
+  [[ -n $pin ]] || return 0
+  got=$(curl -fsSL --proto '=https' --proto-redir '=https' --max-time 30 -- \
+    "https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=${pkg//+/%2B}" | sha256sum | cut -d' ' -f1) || return 1
+  if [[ $got != "$pin" ]]; then
+    echo "The $pkg PKGBUILD changed since the set pinned it (now $got). Review it on the AUR and update the pin." >&2
+    return 1
+  fi
+}
+
+# The plugin is added disabled, so the commit it clones never runs before the
+# pinned rev is checked out. A plugin that fails part way is removed again, so
+# the next apply retries it rather than skipping a half-set-up copy.
+add_plugin() {
+  local id="$1" git="$2" rev="$3" enable="$4"
+  maitri-plugin-add --yes "$git" || return 1
+  [[ -d $plugins_dir/$id ]] || { echo "$git didn't install a plugin with the id $id" >&2; return 1; }
+  if [[ $rev != "-" ]] && ! pin_plugin "$id" "$rev"; then
+    maitri-plugin-remove "$id" --yes
+    return 1
+  fi
+  [[ $enable != "true" ]] || maitri-plugin-enable "$id" || { maitri-plugin-remove "$id" --yes; return 1; }
+}
+
+pin_plugin() {
+  git -C "$plugins_dir/$1" fetch --quiet origin "$2" 2>/dev/null || true
+  git -C "$plugins_dir/$1" -c advice.detachedHead=false checkout --quiet "$2"
+}
+
+# chezmoi runs the repo's own scripts, so it is asked about even with --yes.
+apply_dotfiles() {
+  if [[ ! -t 0 || ! -t 1 ]]; then
+    echo "Skipped: run chezmoi init --apply $1 yourself; it needs a terminal to confirm."
+    return 0
+  fi
+  gum confirm "Run chezmoi init --apply $1? It runs that repo's own scripts." || return 0
+  chezmoi init --apply -- "$1"
+}
+
+run_action() {
+  local kind="$1"
+  shift
+  case "$kind" in
+  channel) maitri-channel-set "$1" ;;
+  pkg-add) maitri-pkg-add "$@" ;;
+  pkg-drop) maitri-pkg-drop "$@" ;;
+  aur) verify_pkgbuild "$1" "${2:-}" && maitri-pkg-aur-add "$1" ;;
+  flatpak-setup)
+    { maitri-cmd-present flatpak || maitri-pkg-add flatpak; } &&
+      flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+    ;;
+  flatpak) flatpak install --user --noninteractive flathub "$1" ;;
+  installer)
+    local command
+    mapfile -t command < <(installer_command "$1")
+    "${command[@]}" && touch "$done_dir/installer-$1"
+    ;;
+  font) maitri-font-set "$1" ;;
+  theme) maitri-theme-set "$1" ;;
+  default)
+    if [[ $1 == "agent" ]]; then
+      maitri-default-agent --no-launch "$2"
+    else
+      "maitri-default-$1" "$2"
+    fi
+    ;;
+  webapp-add) maitri-webapp-install "$1" "$2" "$3" ;;
+  webapp-remove) maitri-webapp-remove "$1" ;;
+  plugin) add_plugin "$@" ;;
+  plugin-pin) pin_plugin "$@" ;;
+  step) "$(step_command "$1")" && touch "$done_dir/step-$1" ;;
+  dotfiles) apply_dotfiles "$1" ;;
+  esac
+}
+
+failed=()
+for entry in "${PLAN[@]}"; do
+  IFS=$'\t' read -r -a fields <<<"$entry"
+  summary=$(describe "${fields[@]}")
+  echo
+  echo "==> $summary"
+  log "start: $summary"
+  if run_action "${fields[@]}"; then
+    log "done: $summary"
+  else
+    log "failed: $summary"
+    failed+=("$summary")
+  fi
+done
+
+echo
+if (( ${#failed[@]} > 0 )); then
+  echo "Applied $set_id with ${#failed[@]} failure(s):"
+  printf '  - %s\n' "${failed[@]}"
+  echo "Fix those and run maitri set apply again; finished steps are skipped. Log: $log_file"
+  exit 1
+fi
+printf '%s\t%s\t%s\n' "$set_id" "$sha" "$(date -Iseconds)" >>"$state_dir/applied"
+echo "Applied $set_id."
