@@ -40,6 +40,7 @@ get a starting set; hash the password with `openssl passwd -6`.
 
 ## CI
 
-[`build-iso.yml`](../.github/workflows/build-iso.yml) builds on a published release (after waiting for
-the stable channel to carry that version) or on demand, pushes the ISO to Docker Hub as an OCI artifact
-via ORAS, and attaches the `.sha256` to the release. See [RELEASING.md](../RELEASING.md).
+[`build-iso.yml`](../.github/workflows/build-iso.yml) runs when started by hand. Started on `main` with a
+published release's tag, it waits for the stable channel to carry that version, builds the ISO, pushes
+it to Docker Hub as an OCI artifact via ORAS, and attaches the `.sha256` to the release. Without a tag
+it's a test build of any ref, kept as a workflow artifact. See [RELEASING.md](../RELEASING.md).

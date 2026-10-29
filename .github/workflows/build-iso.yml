@@ -1,20 +1,28 @@
 name: Build maitri ISO
 
-# Builds the installer ISO when a GitHub Release is published and links it from
-# the release; the workflow_dispatch button is for test builds (artifact only)
-# or, with release_tag set, for re-publishing an existing release from main.
+# Builds the installer ISO. A release build publishes an existing release's ISO
+# and links it from the release; start it on main once the release is out:
+#
+#   gh workflow run build-iso.yml --repo maitrios/maitri --ref main -f release_tag=vX.Y.Z
+#
+# Without release_tag it's a test build of any ref, kept only as an artifact.
 # The ISO bundles the [maitri] packages, so a release build first waits for the
-# stable channel to carry the maitri package for this tag.
+# stable channel to carry the maitri package for its tag.
+#
+# The build job runs the tree it builds in a privileged container, so it gets
+# no environment, no secrets and a read-only token. Only the publish job reaches
+# the docker-hub environment, which holds the Docker Hub token and only accepts
+# main, so every step that sees the token comes from main's reviewed copy of
+# this file. The tag is checked to be a release tag on main before anything is
+# built or published. See RELEASING.md.
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       ref:
         description: "Git ref to build from (test builds)"
         default: main
       channel:
-        description: "Package channel to bundle"
+        description: "Package channel to bundle (test builds)"
         default: stable
         type: choice
         options: [stable, edge]
@@ -25,7 +33,7 @@ on:
 permissions: {}
 
 concurrency:
-  group: build-iso-${{ github.event.release.tag_name || github.ref_name }}
+  group: build-iso-${{ inputs.release_tag || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -33,61 +41,77 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 150
     permissions:
-      contents: write
-      id-token: write
-      attestations: write
+      contents: read
+    outputs:
+      commit: ${{ steps.tree.outputs.commit }}
+    env:
+      RELEASE_TAG: ${{ inputs.release_tag }}
     steps:
-      - name: Resolve build ref and channel
-        id: ref
-        run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            echo "ref=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
-            echo "channel=stable" >> "$GITHUB_OUTPUT"
-            echo "iso_ref=stable" >> "$GITHUB_OUTPUT"
-            echo "publish=true" >> "$GITHUB_OUTPUT"
-          elif [ -n "${{ github.event.inputs.release_tag }}" ]; then
-            echo "ref=${{ github.event.inputs.release_tag }}" >> "$GITHUB_OUTPUT"
-            echo "channel=stable" >> "$GITHUB_OUTPUT"
-            echo "iso_ref=stable" >> "$GITHUB_OUTPUT"
-            echo "publish=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-            echo "ref=${{ github.event.inputs.ref || 'main' }}" >> "$GITHUB_OUTPUT"
-            echo "channel=${{ github.event.inputs.channel || 'stable' }}" >> "$GITHUB_OUTPUT"
-            if [ "${{ github.event.inputs.channel }}" = "edge" ]; then
-              echo "iso_ref=edge" >> "$GITHUB_OUTPUT"
-            else
-              echo "iso_ref=main" >> "$GITHUB_OUTPUT"
-            fi
-          fi
+      - name: Check out main
+        if: inputs.release_tag != ''
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
-      - name: Wait for the maitri package on the channel
-        if: steps.ref.outputs.publish == 'true'
+      - name: Refuse a tag that is not a release tag on main
+        id: tag
+        if: inputs.release_tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          tag="${{ steps.ref.outputs.ref }}"; want="${tag#v}"
+          [[ $GITHUB_REF == "refs/heads/main" ]] || { echo "Start a release build on main (--ref main), not $GITHUB_REF" >&2; exit 1; }
+          tools/check-release-tag.sh "$RELEASE_TAG"
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json tagName >/dev/null ||
+            { echo "$RELEASE_TAG has no GitHub release yet; publish it first" >&2; exit 1; }
+          echo "commit=$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")" >>"$GITHUB_OUTPUT"
+
+      - name: Resolve the ISO's name and channel
+        id: ref
+        env:
+          TEST_REF: ${{ inputs.ref }}
+          TEST_CHANNEL: ${{ inputs.channel }}
+        run: |
+          if [[ -n $RELEASE_TAG ]]; then
+            label=$RELEASE_TAG channel=stable iso_ref=stable
+          else
+            label=${TEST_REF:-main} channel=${TEST_CHANNEL:-stable}
+            if [[ $channel == "edge" ]]; then iso_ref=edge; else iso_ref=main; fi
+          fi
+          {
+            echo "name=maitri-${label//\//-}.iso"
+            echo "channel=$channel"
+            echo "iso_ref=$iso_ref"
+          } >>"$GITHUB_OUTPUT"
+
+      # The build is held to the versions found here, so the ISO can't pick up
+      # different maitri packages if the channel moves while it runs.
+      - name: Wait for the maitri package on the channel
+        id: stable
+        if: inputs.release_tag != ''
+        run: |
+          want="${RELEASE_TAG#v}"
           db="https://github.com/maitrios/maitri-pkgs/releases/download/stable/maitri.db.tar.gz"
+          version_of() { tar -xzOf "$RUNNER_TEMP/maitri.db.tar.gz" --wildcards "$1-[0-9]*/desc" 2>/dev/null | awk '/^%VERSION%$/ { getline; print; exit }' || true; }
           for attempt in $(seq 1 40); do
-            have=$(curl -fsSL "$db?nocache=$(date +%s)" 2>/dev/null | tar -xzO --wildcards 'maitri-[0-9]*/desc' 2>/dev/null | awk '/^%VERSION%$/ { getline; print; exit }' || true)
-            if [[ ${have%%-*} == "$want" ]]; then echo "stable carries maitri $have"; exit 0; fi
+            curl -fsSL "$db?nocache=$(date +%s)" -o "$RUNNER_TEMP/maitri.db.tar.gz" 2>/dev/null || true
+            have=$(version_of maitri)
+            if [[ ${have%%-*} == "$want" ]]; then
+              versions=""
+              for package in maitri maitri-settings maitri-nvim maitri-keyring; do
+                version=$(version_of "$package")
+                [[ $version =~ ^[0-9][0-9A-Za-z.+_~]*-[0-9]+(\.[0-9]+)?$ ]] || { echo "::error::stable carries no usable $package (${version:-none})"; exit 1; }
+                versions+="$package=$version "
+              done
+              echo "stable carries ${versions% }"
+              echo "versions=${versions% }" >>"$GITHUB_OUTPUT"
+              exit 0
+            fi
             echo "stable carries maitri ${have:-nothing}; waiting for $want ($attempt/40)"
             sleep 30
           done
-          echo "::error::the stable channel never published maitri $want; run scripts/bump-maitri $tag in maitri-pkgs first"
+          echo "::error::the stable channel never published maitri $want; run scripts/bump-maitri $RELEASE_TAG in maitri-pkgs first"
           exit 1
-
-      - name: Set up ORAS
-        if: steps.ref.outputs.publish == 'true'
-        uses: oras-project/setup-oras@005458ad77f1c8facd38a094e4af2e69e5607ff4 # v2.0.2
-
-      # A bad token should fail here, not after the build.
-      - name: Check Docker Hub credentials
-        if: steps.ref.outputs.publish == 'true'
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-        run: |
-          [[ -n $DOCKERHUB_USERNAME && -n $DOCKERHUB_TOKEN ]] || { echo "::error::DOCKERHUB_USERNAME / DOCKERHUB_TOKEN secrets are empty"; exit 1; }
-          echo "$DOCKERHUB_TOKEN" | oras login docker.io -u "$DOCKERHUB_USERNAME" --password-stdin
 
       # archiso + an offline package mirror need a lot of disk; reclaim ~30GB.
       - name: Free up disk space
@@ -97,93 +121,228 @@ jobs:
           large-packages: true
           swap-storage: false
 
-      - name: Checkout
+      - name: Check out the release's commit
+        if: inputs.release_tag != ''
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ steps.ref.outputs.ref }}
+          ref: ${{ steps.tag.outputs.commit }}
+          path: src
+          persist-credentials: false
+
+      - name: Validate ref to test
+        if: inputs.release_tag == ''
+        id: test_ref
+        env:
+          INPUT_REF: ${{ inputs.ref || 'main' }}
+        run: |
+          ref="$INPUT_REF"
+          [[ -n "$ref" ]] || { echo "ref must not be empty" >&2; exit 1; }
+          [[ "$ref" != refs/pull/* ]] || { echo "refs/pull/* is not allowed" >&2; exit 1; }
+          if [[ "$ref" == refs/* ]]; then
+            [[ "$ref" == refs/heads/* || "$ref" == refs/tags/* ]] || {
+              echo "Only refs/heads/* or refs/tags/* are allowed, got: $ref" >&2
+              exit 1
+            }
+          fi
+          echo "ref=$ref" >>"$GITHUB_OUTPUT"
+
+      - name: Check out the ref to test
+        if: inputs.release_tag == ''
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.test_ref.outputs.ref }}
+          path: src
+          persist-credentials: false
+
+      # The publish job refuses the ISO unless the tag still points here.
+      - name: Record the commit being built
+        id: tree
+        env:
+          TAG_COMMIT: ${{ steps.tag.outputs.commit }}
+        run: |
+          commit=$(git -C src rev-parse HEAD)
+          [[ -z $RELEASE_TAG || $commit == "$TAG_COMMIT" ]] || { echo "checked out $commit, not $RELEASE_TAG's $TAG_COMMIT" >&2; exit 1; }
+          echo "commit=$commit" >>"$GITHUB_OUTPUT"
 
       - name: Build ISO (archiso inside an Arch container)
-        id: build
+        env:
+          MAITRI_ISO_REF: ${{ steps.ref.outputs.iso_ref }}
+          MAITRI_MIRROR: ${{ steps.ref.outputs.channel }}
+          MAITRI_EXPECT_VERSIONS: ${{ steps.stable.outputs.versions }}
         run: |
           mkdir -p release
           docker run --rm --privileged \
-            -e MAITRI_ISO_REF="${{ steps.ref.outputs.iso_ref }}" \
-            -e MAITRI_MIRROR="${{ steps.ref.outputs.channel }}" \
+            -e MAITRI_ISO_REF \
+            -e MAITRI_MIRROR \
+            -e MAITRI_EXPECT_VERSIONS \
             -e HOST_UID="$(id -u)" \
             -e HOST_GID="$(id -g)" \
-            -v "$PWD/iso/configs:/configs:ro" \
-            -v "$PWD/iso/builder:/builder:ro" \
+            -v "$PWD/src/iso/configs:/configs:ro" \
+            -v "$PWD/src/iso/builder:/builder:ro" \
             -v "$PWD/release:/out" \
             archlinux/archlinux:latest \
             /builder/build-iso.sh
 
       - name: Name the ISO
-        id: iso
+        env:
+          NAME: ${{ steps.ref.outputs.name }}
+          MAITRI_EXPECT_VERSIONS: ${{ steps.stable.outputs.versions }}
         run: |
-          built="$(ls -t release/*.iso | head -n1)"
-          ref="${{ steps.ref.outputs.ref }}"
-          name="maitri-${ref//\//-}.iso"
-          mv -f "$built" "release/$name"
-          (cd release && sha256sum "$name" > "$name.sha256")
-          echo "name=$name" >> "$GITHUB_OUTPUT"
+          built=(release/*.iso)
+          (( ${#built[@]} == 1 )) && [[ -f ${built[0]} ]] || { echo "expected one ISO in release/, found: ${built[*]}" >&2; exit 1; }
+          mv -f "${built[0]}" "release/$NAME"
+          (cd release && sha256sum "$NAME" >"$NAME.sha256")
+          if [[ -f release/maitri-packages.version ]]; then mv -f release/maitri-packages.version "release/$NAME.version"; fi
+          if [[ -n $RELEASE_TAG ]]; then
+            read -ra pairs <<<"$MAITRI_EXPECT_VERSIONS"
+            expected=$(printf '%s\n' "${pairs[@]}" | tr '=' ' ' | LC_ALL=C sort)
+            [[ -f release/$NAME.version && $(LC_ALL=C sort "release/$NAME.version") == "$expected" ]] ||
+              { echo "the ISO should bundle $MAITRI_EXPECT_VERSIONS, but the build recorded: $(cat "release/$NAME.version" 2>/dev/null || echo nothing)" >&2; exit 1; }
+          fi
           ls -lh release/
 
-      - name: Attest ISO build provenance
-        if: steps.ref.outputs.publish == 'true'
-        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
-        with:
-          subject-path: release/${{ steps.iso.outputs.name }}
-
-      # The offline ISO is several GB, above GitHub's 2 GiB release-asset cap, so
-      # it is published to Docker Hub as an OCI artifact (via ORAS) and linked
-      # from the release notes; the small .sha256 sidecar attaches to the release.
-      - name: Publish ISO to Docker Hub & link from the release
-        if: steps.ref.outputs.publish == 'true'
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-          DOCKERHUB_NAMESPACE: ${{ vars.DOCKERHUB_NAMESPACE }}
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          name="${{ steps.iso.outputs.name }}"
-          iso="release/$name"
-          tag="${{ steps.ref.outputs.ref }}"; tag="${tag//\//-}"
-          ns="${DOCKERHUB_NAMESPACE:-$DOCKERHUB_USERNAME}"
-          ns="${ns%/maitri-iso}"
-          repo="docker.io/$ns/maitri-iso"
-          sha=$(cut -d' ' -f1 "$iso.sha256")
-
-          echo "$DOCKERHUB_TOKEN" | oras login docker.io -u "$DOCKERHUB_USERNAME" --password-stdin
-          ( cd release && oras push "$repo:$tag" \
-              --artifact-type application/vnd.maitri.iso \
-              --annotation "org.opencontainers.image.title=$name" \
-              --annotation "io.maitri.iso.sha256=$sha" \
-              "$name:application/octet-stream" )
-          oras tag "$repo:$tag" latest
-
-          gh release upload "${{ steps.ref.outputs.ref }}" -R "${{ github.repository }}" --clobber "$iso.sha256"
-
-          body=$(gh release view "${{ steps.ref.outputs.ref }}" -R "${{ github.repository }}" --json body -q .body)
-          {
-            printf '%s\n\n---\n\n' "$body"
-            printf '## 📀 Download\n\n'
-            printf 'The installer ISO (offline-capable) is published as an OCI artifact on Docker Hub.\n'
-            printf 'Pull it with [ORAS](https://oras.land):\n\n'
-            printf '```sh\noras pull %s:%s\nsha256sum -c %s.sha256\ngh attestation verify %s -R %s\n```\n\n' "$repo" "$tag" "$name" "$name" "${{ github.repository }}"
-            printf '`sha256: %s`\n' "$sha"
-          } > release-notes.md
-          gh release edit "${{ steps.ref.outputs.ref }}" -R "${{ github.repository }}" --notes-file release-notes.md
-
-      # Runs even when the Docker Hub publish fails, so a credential problem
-      # never costs the 45-minute build.
-      - name: Upload ISO artifact (backup / test builds)
-        if: always() && steps.build.outcome == 'success'
+      # The publish job takes the ISO from here. Test builds stop here, and a
+      # failed publish can be re-run on its own while this is kept.
+      - name: Upload ISO artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: maitri-iso-${{ github.run_number }}
           path: |
             release/*.iso
             release/*.sha256
+            release/*.version
+          if-no-files-found: error
+          overwrite: true
           retention-days: 7
           compression-level: 0
+
+  publish:
+    needs: build
+    if: github.ref == 'refs/heads/main' && inputs.release_tag != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: docker-hub
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    env:
+      TAG: ${{ inputs.release_tag }}
+    steps:
+      - name: Check out main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Refuse a tag that is not a release tag on main, or has moved since the build
+        env:
+          BUILT_COMMIT: ${{ needs.build.outputs.commit }}
+        run: |
+          [[ $GITHUB_REF == "refs/heads/main" ]] || { echo "Start the run on main (--ref main), not $GITHUB_REF" >&2; exit 1; }
+          tools/check-release-tag.sh "$TAG"
+          commit=$(git rev-parse "refs/tags/$TAG^{commit}")
+          [[ $commit == "$BUILT_COMMIT" ]] || { echo "$TAG is $commit, but the ISO was built from ${BUILT_COMMIT:-an unknown commit}" >&2; exit 1; }
+
+      # The ISO is ~7 GB.
+      - name: Free up disk space
+        uses: jlumbroso/free-disk-space@36e9a5af4eddb91fc11aec4c6f6f79b3cc0cb523 # main
+        with:
+          large-packages: false
+          swap-storage: false
+
+      - name: Fetch the ISO
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: maitri-iso-${{ github.run_number }}
+          path: ${{ runner.temp }}/iso
+
+      # The build job ran the tag's tree, so all publish takes from it is the
+      # ISO's bytes, the commit it built, which must be the tag's, and the maitri
+      # packages it says it bundled, where maitri must be at the tag's version.
+      # The name comes from the tag and the checksum from the file here. The ISO
+      # moves next to main's checkout so nothing has to cd into the artifact; its
+      # name is fixed by the tag, so it can't land on anything main runs.
+      - name: Check the ISO
+        id: iso
+        run: |
+          name="maitri-$TAG.iso"
+          dir="$RUNNER_TEMP/iso"
+          found=$(find "$dir" -mindepth 1 -printf '%P\n' | LC_ALL=C sort)
+          [[ $found == "$name"$'\n'"$name.sha256"$'\n'"$name.version" ]] || { echo "the artifact should hold $name, $name.sha256 and $name.version, not: $found" >&2; exit 1; }
+          [[ -f $dir/$name && ! -L $dir/$name ]] || { echo "$name is not a plain file" >&2; exit 1; }
+          version_file="$dir/$name.version"
+          if [[ ! -f $version_file || -L $version_file ]] || (( $(stat -c %s "$version_file") > 400 )); then
+            echo "$name.version is missing or too big" >&2
+            exit 1
+          fi
+          declare -A bundled=()
+          while read -r package version extra || [[ -n $package ]]; do
+            [[ $package =~ ^maitri(-settings|-nvim|-keyring)?$ && -z ${bundled[$package]:-} && -z $extra &&
+              $version =~ ^[0-9][0-9A-Za-z.+_~]*-[0-9]+(\.[0-9]+)?$ ]] ||
+              { echo "$name.version has a line that isn't one maitri package and its version" >&2; exit 1; }
+            bundled[$package]=$version
+          done <"$version_file"
+          (( ${#bundled[@]} == 4 )) && [[ ${bundled[maitri]%%-*} == "${TAG#v}" ]] ||
+            { echo "$name should bundle maitri ${TAG#v} and its three companion packages, and its $name.version says otherwise" >&2; exit 1; }
+          mv "$dir/$name" "$GITHUB_WORKSPACE/$name"
+          sha256sum "$name" >"$name.sha256"
+          {
+            echo "path=$GITHUB_WORKSPACE/$name"
+            echo "maitri=${bundled[maitri]}"
+            echo "packages=maitri ${bundled[maitri]}, maitri-settings ${bundled[maitri-settings]}, maitri-nvim ${bundled[maitri-nvim]} and maitri-keyring ${bundled[maitri-keyring]}"
+          } >>"$GITHUB_OUTPUT"
+
+      - name: Attest ISO build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
+        with:
+          subject-path: ${{ steps.iso.outputs.path }}
+
+      - name: Set up ORAS
+        uses: oras-project/setup-oras@005458ad77f1c8facd38a094e4af2e69e5607ff4 # v2.0.2
+
+      # The offline ISO is several GB, above GitHub's 2 GiB release-asset cap, so
+      # it is published to Docker Hub as an OCI artifact (via ORAS) and linked
+      # from the release notes; the small .sha256 sidecar attaches to the release.
+      # A bad Docker Hub token only fails this job: fix the secret and re-run the
+      # failed job, which reuses the build while its artifact is kept.
+      - name: Publish ISO to Docker Hub & link from the release
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          DOCKERHUB_NAMESPACE: ${{ vars.DOCKERHUB_NAMESPACE }}
+          GH_TOKEN: ${{ github.token }}
+          ISO: ${{ steps.iso.outputs.path }}
+          MAITRI_VERSION: ${{ steps.iso.outputs.maitri }}
+          MAITRI_PACKAGES: ${{ steps.iso.outputs.packages }}
+        run: |
+          set -euo pipefail
+          [[ -n $DOCKERHUB_USERNAME && -n $DOCKERHUB_TOKEN ]] || { echo "::error::DOCKERHUB_USERNAME / DOCKERHUB_TOKEN are empty; they belong in the docker-hub environment"; exit 1; }
+          name=$(basename "$ISO")
+          ns="${DOCKERHUB_NAMESPACE:-$DOCKERHUB_USERNAME}"
+          ns="${ns%/maitri-iso}"
+          repo="docker.io/$ns/maitri-iso"
+          sha=$(cut -d' ' -f1 "$name.sha256")
+
+          echo "$DOCKERHUB_TOKEN" | oras login docker.io -u "$DOCKERHUB_USERNAME" --password-stdin
+          oras push "$repo:$TAG" \
+            --artifact-type application/vnd.maitri.iso \
+            --annotation "org.opencontainers.image.title=$name" \
+            --annotation "io.maitri.iso.sha256=$sha" \
+            --annotation "io.maitri.package.version=$MAITRI_VERSION" \
+            "$name:application/octet-stream"
+          oras tag "$repo:$TAG" latest
+
+          gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber "$name.sha256"
+
+          body=$(gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json body -q .body)
+          # shellcheck disable=SC2016
+          {
+            printf '%s\n\n---\n\n' "$body"
+            printf '## 📀 Download\n\n'
+            printf 'The installer ISO (offline-capable) bundles %s, and is published as an OCI artifact on Docker Hub.\n' "$MAITRI_PACKAGES"
+            printf 'Pull it with [ORAS](https://oras.land):\n\n'
+            printf '```sh\noras pull %s:%s\nsha256sum -c %s.sha256\ngh attestation verify %s -R %s\n```\n\n' "$repo" "$TAG" "$name" "$name" "$GITHUB_REPOSITORY"
+            printf '`sha256: %s`\n' "$sha"
+          } >"$RUNNER_TEMP/release-notes.md"
+          gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --notes-file "$RUNNER_TEMP/release-notes.md"
